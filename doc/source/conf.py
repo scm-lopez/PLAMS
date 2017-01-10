@@ -258,6 +258,9 @@ rst_epilog = """
 .. |DiracJob| replace:: :class:`~scm.plams.interfaces.dirac.DiracJob`
 .. |DiracResults| replace:: :class:`~scm.plams.interfaces.dirac.DiracResults`
 
+.. |DFTBPlusJob| replace:: :class:`~scm.plams.dftbplusjob.DFTBPlusJob`
+.. |DFTBPlusResults| replace:: :class:`~scm.plams.dftbplusjob.DFTBPlusResults`
+
 .. |RPM| replace:: :ref:`rerun-prevention`
 .. |cleaning| replace:: :ref:`cleaning`
 .. |pickling| replace:: :ref:`pickling`
