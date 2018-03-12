@@ -1604,7 +1604,7 @@ class Molecule (object):
 #===========================================================================
 
 
-def read_molecules(folder, formats=None):
+def read_molecules(folder, formats=None, **other):
     """Read all molecules from *folder*.
 
     Read all the files present in *folder* with extensions compatible with :meth:`Molecule.read<scm.plams.core.basemol.Molecule.read>`. Returned value is a dictionary with keys being molecule names (filename without extension) and values being |Molecule| instances.
@@ -1613,6 +1613,8 @@ def read_molecules(folder, formats=None):
 
         molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
 
+
+    All *other* arguments will be passed to every |Molecule| initialization.
     """
 
     extensions = formats or list(Molecule._readformat.keys())
@@ -1620,7 +1622,7 @@ def read_molecules(folder, formats=None):
     filenames = filter(is_valid, os.listdir(folder))
     ret = {}
     for f in filenames:
-        m = Molecule(opj(folder,f))
+        m = Molecule(opj(folder,f),**other)
         ret[m.properties.name] = m
     return ret
 
