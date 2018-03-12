@@ -343,7 +343,7 @@ class Molecule (object):
 
         >>> mol = Molecule('xyz/Benzene.xyz')
 
-    Constructor of a |Molecule| object accepts three arguments that can be used to supply this information from a file in your filesystem. *filename* should be a string with a path (absolute or relative) to such a file. *inputformat* describes the format of the file. Currently, the following formats are supported: ``xyz``, ``mol``, ``mol2`` and ``pdb``. If *inputformat* argument is not supplied, PLAMS will try to deduce it by examining the extension of the provided file, so in most of cases it is not needed to use *inputformat*, if only the file has the proper extension. Some formats (``xyz`` and ``pdb``) allow to store more than one geometry of a particular molecule within a single file. In such cases *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import. *other* keyword arguments passed to the constructor are used to populate ``properties`` |Settings|.
+    The constructor of a |Molecule| object accepts four arguments that can be used to supply this information from a file in your filesystem. *filename* should be a string with a path (absolute or relative) to such a file. *inputformat* describes the format of the file. Currently, the following formats are supported: ``xyz``, ``mol``, ``mol2`` and ``pdb``. If *inputformat* argument is not supplied, PLAMS will try to deduce it by examining the extension of the provided file, so in most of cases it is not needed to use *inputformat*, if only the file has the proper extension. Some formats (``xyz`` and ``pdb``) allow to store more than one geometry of a particular molecule within a single file. In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import. The *ase* keyword allows to switch the file reader engine to the ASE.io module, enabling you to read all input formats supported by ASE. See :meth:`read` for further details. All *other* keyword arguments passed to the constructor are used to populate ``properties`` |Settings|.
 
     If a |Molecule| is initialized from an external file, the path to this file (*filename* argument) is stored in ``properties.source``. The base name of the file without extension is kept in ``properties.name``.
 
@@ -400,14 +400,14 @@ class Molecule (object):
     """
 
 
-    def __init__(self, filename=None, inputformat=None, geometry=1, **other):
+    def __init__(self, filename=None, inputformat=None, geometry=1, ase=False, **other):
         self.atoms = []
         self.bonds = []
         self.lattice = []
         self.properties = Settings(other)
 
         if filename is not None :
-            self.read(filename, inputformat, geometry)
+            self.read(filename, inputformat, geometry, ase)
             self.properties.source = filename
             self.properties.name = os.path.splitext(os.path.basename(filename))[0]
 
@@ -1484,13 +1484,30 @@ class Molecule (object):
         pdb.write(f)
 
 
-    def read(self, filename, inputformat=None, frame=1):
+    def read(self, filename, inputformat=None, frame=1, ase=False):
         """Read molecular coordinates from file.
+
+        If *ase* is set to ``True``, the ASE.io module is used to read the input file. The ASE Atoms object then gets converted to a PLAMS Molecule. See https://wiki.fysik.dtu.dk/ase/ase/io/io.html on how to use it. So far the options *filename*, *inputformat*, and *frame* are passed to their respective ASE.io pendants.
 
         *filename* should be a string with a path to the file. If *inputformat* is not ``None``, it should be one of supported formats (keys occurring in class attribute ``_readformat``). Otherwise, format of the file is deduced from file's extension (for files without extension `xyz` format is assumed).
 
         If chosen format allows multiple geometries in a single file, *frame* can be used to pick one of them.
         """
+        if ase:
+            try:
+                from ase import io as aseIO
+            except:
+                raise MoleculeError('Asked for ASE IO engine but could not load ASE.io module')
+            from ..tools.ase import fromASE
+
+            aseMol = aseIO.read(filename,format=inputformat,index=frame)
+            mol = fromASE(aseMol)
+            #update self with the molecule read without overwriting e.g. settings
+            self += mol
+            #lattice does not survive soft update
+            self.lattice = mol.lattice
+            return
+
         if inputformat is None:
             fsplit = filename.rsplit('.',1)
             if len(fsplit) == 2:
