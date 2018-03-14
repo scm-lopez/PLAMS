@@ -2,12 +2,14 @@ import os
 import subprocess
 import numpy as np
 
+from os.path import join as opj
+
 from ..core.basejob  import SingleJob
 from ..core.results import Results
 from ..core.basemol  import Molecule
 from ..core.settings import Settings
 from ..core.functions import log
-from ..core.errors import PlamsError
+from ..core.errors import PlamsError, MoleculeError
 
 __all__ = ['CrystalResults','CrystalJob','mol2CrystalConf']
 
