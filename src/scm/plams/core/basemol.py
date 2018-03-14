@@ -347,7 +347,7 @@ class Molecule (object):
 
     If a |Molecule| is initialized from an external file, the path to this file (*filename* argument) is stored in ``properties.source``. The base name of the file without extension is kept in ``properties.name``.
 
-    It is also possible to write a molecule to a file in one of the formats mentioned above. See :meth:`write` for details.
+    It is also possible to write a molecule to a file in one of the formats mentioned above or using the ASE.io engine. See :meth:`write` for details.
 
     ``lattice`` attribute is used to store information about lattice vectors in case of periodic structures. Some job types (|BANDJob|, |DFTBJob|) will automatically use that data while constructing input files. ``lattice`` should be a list of up to 3 vectors (for different types of periodicity: chain, slab or bulk), each of which needs to be a list or a tuple of 3 numbers.
 
@@ -1526,7 +1526,7 @@ class Molecule (object):
     def write(self, filename, outputformat=None, ase=False, **other):
         """Write molecular coordinates to a file.
 
-        If *ase* is ``True``, the ASE.io module will be used for writing. In this case the |Molecule| will be converted to an ``ase.atoms`` (see :meth:`scm.plams.tools.ase.toASE`) object and then all options will be passed to ``atoms.write`` (*outputformat* is forwarded to *format*, *filename* and all *other* are passed through).
+        If *ase* is ``True``, the ASE.io module will be used for writing. In this case the |Molecule| will be converted to an ``ase.atoms`` (see :meth:`tools.ase.toASE<scm.plams.tools.ase.toASE>`) object and then all options will be passed to ``atoms.write`` (*outputformat* is forwarded to *format*, *filename* and all *other* are passed through).
 
         *filename* should be a string with a path to the file. If *outputformat* is not ``None``, it should be one of supported formats (keys occurring in class attribute ``_writeformat``). Otherwise, format of the file is deduced from file's extension (for files without extension `xyz` format is assumed).
         """
