@@ -1523,11 +1523,24 @@ class Molecule (object):
 
 
 
-    def write(self, filename, outputformat=None):
+    def write(self, filename, outputformat=None, ase=False, **other):
         """Write molecular coordinates to a file.
+
+        If *ase* is ``True``, the ASE.io module will be used for writing. In this case the |Molecule| will be converted to an ``ase.atoms`` (see :meth:`scm.plams.tools.ase.toASE`) object and then all options will be passed to ``atoms.write`` (*outputformat* is forwarded to *format*, *filename* and all *other* are passed through).
 
         *filename* should be a string with a path to the file. If *outputformat* is not ``None``, it should be one of supported formats (keys occurring in class attribute ``_writeformat``). Otherwise, format of the file is deduced from file's extension (for files without extension `xyz` format is assumed).
         """
+
+        if ase:
+            try:
+                from ..tools.ase import toASE
+            except:
+                raise MoleculeError('Asked for ASE IO engine but could not load ASE.io module')
+            aseMol = toASE(self)
+            aseMol.write(filename, format=outputformat, **other)
+            return
+
+
         if outputformat is None:
             fsplit = filename.rsplit('.',1)
             if len(fsplit) == 2:
