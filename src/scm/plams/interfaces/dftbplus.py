@@ -6,13 +6,14 @@ based on code from Michal Handzlik
 see documentation for an example
 """
 from __future__ import unicode_literals
+from os.path import join as opj
 
 from ..core.basejob import SingleJob
 from ..core.settings import Settings
 from ..core.results import Results
 from ..tools.units import Units
 from ..core.basemol import Molecule
-from ..core.errors import PlamsError
+from ..core.errors import PlamsError, MoleculeError
 from ..tools.ase import fromASE
 
 __all__ = ['DFTBPlusJob', 'DFTBPlusResults']
@@ -66,7 +67,7 @@ class DFTBPlusJob(SingleJob):
     """A class representing a single computational job with DFTB+.
        Only supports molecular coordinates, no support for lattice yet."""
     _result_type = DFTBPlusResults
-    _filenames = {'inp':'dftb_in.hsd', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
+    _filenames = {'inp':'dftb_in.hsd', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err', 'gen': '$JN.gen'}
 
 
     def get_input(self):
@@ -115,6 +116,19 @@ class DFTBPlusJob(SingleJob):
 
 
     def _parsemol(self):
+        #use ASE to write molecule if available
+        try:
+            filename = opj(self.path, self._filename('gen'))
+            self.molecule.write(filename, ase=True)
+            self.settings.input.geometry._h = 'GenFormat'
+            self.settings.input.geometry._1 = '<<< '+self._filename('gen')
+            return
+        except MoleculeError:
+            pass
+        except:
+            raise PlamsError('Unkown Error in plams.interfaces.dftbplus.DFTBPlusJob.get_input._parsemol')
+
+        #Old way of handling gen-format ourselves, delete if ASE becomes obligatory
         atom_types = {}
         n = 1
         atoms_line = ''
