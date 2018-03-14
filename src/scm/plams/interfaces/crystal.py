@@ -181,15 +181,11 @@ class CrystalJob(SingleJob):
 
     def _parsemol(self):
         try:
-            #ASE has a new write function for Crystal coordinate files, use that if possible
-            from ..tools.ase import toASE
-            from ase.io import crystal as crysIO
-            from os.path import join as opj
-            mol = toASE(self.molecule)
+            #ASE has a write function for Crystal coordinate files, use that if possible
             filename = opj(self.path, 'fort.34')
-            crysIO.write_crystal(filename, mol)
+            self.molecule(filename, ase=True)
             self.settings.input.external = True
-        except ImportError:
+        except MoleculeError:
             raise PlamsError('Crystal Interface has no builtin Molecule support, install ASE or use function crystalMol2Conf() and set self.settings.ignore_molecule. See Doc for details.')
         except:
             raise PlamsError('Unkown Error in plams.interfaces.crystal.CrystalJob.get_input._parsemol')
