@@ -183,7 +183,7 @@ class CrystalJob(SingleJob):
         try:
             #ASE has a write function for Crystal coordinate files, use that if possible
             filename = opj(self.path, 'fort.34')
-            self.molecule(filename, ase=True)
+            self.molecule.write(filename, ase=True)
             self.settings.input.external = True
         except MoleculeError:
             raise PlamsError('Crystal Interface has no builtin Molecule support, install ASE or use function crystalMol2Conf() and set self.settings.ignore_molecule. See Doc for details.')
