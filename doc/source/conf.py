@@ -261,7 +261,7 @@ rst_epilog = """
 
 .. |CrystalJob| replace:: :class:`CrystalJob<scm.plams.interfaces.crystal.CrystalJob>`
 .. |CrystalResults| replace:: :class:`CrystalResults<scm.plams.interfaces.crystal.CrystalResults>`
-.. |mol2CrystalConf| replace:: :meth:`mol2CrystalConf<scm.plams.interfaces.crystal.CrystalResults>`
+.. |mol2CrystalConf| replace:: :meth:`mol2CrystalConf<scm.plams.interfaces.crystal.mol2CrystalConf>`
 
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusResults`

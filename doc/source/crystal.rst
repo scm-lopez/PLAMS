@@ -14,7 +14,7 @@ PLAMS offers a simple CRYSTAL interface which does not offer access to all possi
 Preparing a calculation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Preparing an instance of |CRYSTALJob| follows the general principles for |SingleJob|. Information adjusting the input file is stored in the ``myjob.settings.input`` branch. The geometry of your system can be supplied via the class |Molecule| and will be parsed into a ``fort.34`` file using the *EXTERNAL* keyword. It can also be supplied to the ``myjob.settings.input`` branch by using the function |mol2CrystalConf| to create a CRYSTAL-type input of your structure inside the input file (set ``myjob.settings.ignore_molecule = True``).
+Preparing an instance of |CRYSTALJob| follows the general principles for |SingleJob|. Information adjusting the input file is stored in the ``myjob.settings.input`` branch. The geometry of your system can be supplied via the class |Molecule| and will be parsed into a ``fort.34`` file using the *EXTERNAL* keyword (only if you have `ASE <https://wiki.fysik.dtu.dk/ase/index.html>`_ installed). It can also be supplied to the ``myjob.settings.input`` branch by using the function |mol2CrystalConf| to create a CRYSTAL-type input of your structure inside the input file (set ``myjob.settings.ignore_molecule = True``).
 Consult `the manual <http://http://www.crystal.unito.it/documentation.php>`_ for further information on the different input options of CRYSTAL.
 
 
@@ -26,7 +26,7 @@ Input
 
 Settings must contain at least (case insensitive):
 
-- one geometry key ('CRYSTAL','SLAB','POLYMER','HELIX','MOLECULE','EXTERNAL','DLVINPUT') (use the |Molecule| parser of |CRYSTALJob| or |mol2CrystalConf|, see below).
+- one geometry key ('CRYSTAL','SLAB','POLYMER','HELIX','MOLECULE','EXTERNAL','DLVINPUT'), if the |Molecule| parser of |CRYSTALJob| is used the 'EXTERNAL' keyword is added automatically. For using |mol2CrystalConf|, see below).
 - one basis key ('BASISSET')
 - one option_key ('options' and anything else)
 
