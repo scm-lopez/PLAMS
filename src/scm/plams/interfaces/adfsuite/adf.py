@@ -61,6 +61,29 @@ class ADFResults(SCMResults):
         raise ResultsError("'Dipole' not present in 'Properties' section of {}".format(self._kfpath()))
 
 
+    def get_ordered_forces(self, eUnit='a.u.', lUnit='bohr'):
+        """get_ordered_forces
+        Return cartesian forces in order of the input molecule. Returns a numpy array
+        with shape (nAtoms,3) in the units given (standard a.u./bohr).
+        """
+        from numpy import array as npAr
+        forces = self.get_forces(eUnit=eUnit, lUnit=lUnit)
+        return npAr(self.inputOrder(forces))
+
+    def get_forces(self, eUnit='a.u.', lUnit='bohr'):
+        """get_forces
+        Returns the cartesian forces from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file
+        as a numpy array with shape (nAtoms,3) in the units given (standard a.u./bohr).
+        """
+        from numpy import array as npAr
+        from numpy import reshape as npReshape
+        forces = self.readkf('GeoOpt','Gradients_CART')
+        unitConv = Units.convert(1.0,'a.u.',eUnit) / Units.convert(1.0,'bohr',lUnit)
+        forces = npAr([ v * unitConv for v in forces ])
+        nAt = len(forces)//3
+        return npReshape(forces,(nAt,3))
+
+
     def get_energy_decomposition(self, unit='au'):
         """get_energy(unit='au')
         Return a dictionary with energy decomposition terms, expressed in *unit*.
@@ -91,13 +114,20 @@ class ADFResults(SCMResults):
         """_atomic_numbers_input_order()
         Return a list of atomic numbers, in the input order.
         """
-        mapping = self._int2inp()
         n = self.readkf('Geometry', 'nr of atoms')
         tmp = self.readkf('Geometry', 'atomtype').split()
         atomtypes = {i+1 : PT.get_atomic_number(tmp[i]) for i in range(len(tmp))}
         atomtype_idx = self.readkf('Geometry', 'fragment and atomtype index')[-n:]
         atnums = [atomtypes[i] for i in atomtype_idx]
-        return [atnums[mapping[i]-1] for i in range(len(atnums))]
+        return self.inputOrder(atnums)
+
+
+    def inputOrder(self,data):
+        """_reorder()
+        Reorder any iterable data to match the input atom order. Returns a List!
+        """
+        mapping = self._int2inp()
+        return [ d[mapping[i]-1] for i in range(nAt) ]
 
 
     def _int2inp(self):
