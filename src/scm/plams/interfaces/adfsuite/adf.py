@@ -79,7 +79,6 @@ class ADFResults(SCMResults):
         from numpy import reshape as npReshape
         gradients = self.readkf('GeoOpt','Gradients_CART')
         unitConv = Units.convert(1.0,'a.u.',eUnit) / Units.convert(1.0,'bohr',lUnit)
-        #negative of the values in KF are the gradients
         gradients = npAr([ v * unitConv for v in gradients ])
         nAt = len(gradients)//3
         return npReshape(gradients,(nAt,3))
