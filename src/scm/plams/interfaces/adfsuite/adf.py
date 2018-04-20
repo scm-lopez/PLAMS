@@ -74,14 +74,13 @@ class ADFResults(SCMResults):
         """get_gradients
         Returns the cartesian gradients from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file
         as a numpy array with shape (nAtoms,3) in the units given (standard a.u./bohr).
-        Note: The values from the KF-File are multiplied with -1.0, reason unknown.
         """
         from numpy import array as npAr
         from numpy import reshape as npReshape
         gradients = self.readkf('GeoOpt','Gradients_CART')
         unitConv = Units.convert(1.0,'a.u.',eUnit) / Units.convert(1.0,'bohr',lUnit)
         #negative of the values in KF are the gradients
-        gradients = npAr([ -v * unitConv for v in gradients ])
+        gradients = npAr([ v * unitConv for v in gradients ])
         nAt = len(gradients)//3
         return npReshape(gradients,(nAt,3))
 
