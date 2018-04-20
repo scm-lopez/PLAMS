@@ -54,7 +54,7 @@ else:
 
     # General information about the project.
     project = u'PLAMS'
-    copyright = u'%i, Scientific Computing & Modelling'%(date.today().year)
+    copyright = u'%i, Software for Chemistry & Materials'%(date.today().year)
 
     # The version info for the project you're documenting, acts as replacement for
     # |version| and |release|, also used in various other places throughout the

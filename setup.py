@@ -10,7 +10,7 @@ setup(
     download_url='https://github.com/SCM-NV/PLAMS/zipball/release',
     license='LGPLv3',
     description='Python Library for Automating Molecular Simulations',
-    long_description="PLAMS is a library providing powerful, flexible and easily extendable Python interface to molecular modeling programs. It takes care of input preparation, job execution, file management and output data extraction. It helps with building advanced data workflows that can be executed in parallel, either locally or by submitting to a resource manager queue.\n\nPlease check the project's GitHub page for more information: https://github.com/SCM-NV/PLAMS \n\nPLAMS is an Open Source project supported by `Scientific Computing & Modelling NV (SCM) <https://www.scm.com>`_",
+    long_description="PLAMS is a library providing powerful, flexible and easily extendable Python interface to molecular modeling programs. It takes care of input preparation, job execution, file management and output data extraction. It helps with building advanced data workflows that can be executed in parallel, either locally or by submitting to a resource manager queue.\n\nPlease check the project's GitHub page for more information: https://github.com/SCM-NV/PLAMS \n\nPLAMS is an Open Source project supported by `Software for Chemistry & Materials B.V. <https://www.scm.com>`_",
     classifiers=[
             'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
             'Development Status :: 4 - Beta',

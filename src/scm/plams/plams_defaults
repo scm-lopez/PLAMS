@@ -108,15 +108,22 @@ config.default_jobrunner = JobRunner(parallel=False)
 #otherwise [...].commands.check is combined with job_id, executed as a subprocess and returned exit code is tested (nonzero return code indicates that job has finished)
 
 
-def __get_jobid(string):
-    digits = [ch for ch in string if ch.isdigit()]
-    return ''.join(digits) if digits else None
-
+def __slurm_get_jobid(output):
+    s = output.split()
+    if len(s) > 0 and all([ch.isdigit() for ch in s[-1]]):
+        return s[-1]
+    return None
 
 def __slurm_running(output):
     lines = output.splitlines()[1:]
     return [line.split()[0] for line in lines]
 
+
+def __pbs_get_jobid(output):
+    s = output.split('.')
+    if len(s) > 0 and all([ch.isdigit() for ch in s[0]]):
+        return s[0]
+    return None
 
 def __pbs_running(output):
     lines = output.splitlines()[2:]
@@ -132,7 +139,7 @@ config.gridrunner.pbs.special.memory = '-l mem='
 config.gridrunner.pbs.special.queue    = '-q '
 config.gridrunner.pbs.commands.submit  = 'qsub'
 config.gridrunner.pbs.commands.check  = 'qstat'
-config.gridrunner.pbs.commands.getid   = __get_jobid
+config.gridrunner.pbs.commands.getid   = __pbs_get_jobid
 config.gridrunner.pbs.commands.running = __pbs_running
 
 
@@ -145,6 +152,6 @@ config.gridrunner.slurm.special.memory = '--mem='
 config.gridrunner.slurm.special.queue    = '-p '
 config.gridrunner.slurm.commands.submit  = 'sbatch'
 config.gridrunner.slurm.commands.check  = 'squeue'
-config.gridrunner.slurm.commands.getid   = __get_jobid
+config.gridrunner.slurm.commands.getid   = __slurm_get_jobid
 config.gridrunner.slurm.commands.running = __slurm_running
 
