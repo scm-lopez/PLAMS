@@ -61,27 +61,29 @@ class ADFResults(SCMResults):
         raise ResultsError("'Dipole' not present in 'Properties' section of {}".format(self._kfpath()))
 
 
-    def get_ordered_forces(self, eUnit='a.u.', lUnit='bohr'):
-        """get_ordered_forces
-        Return cartesian forces in order of the input molecule. Returns a numpy array
+    def get_ordered_gradients(self, eUnit='a.u.', lUnit='bohr'):
+        """get_ordered_gradients
+        Return cartesian gradients in order of the input molecule. Returns a numpy array
         with shape (nAtoms,3) in the units given (standard a.u./bohr).
         """
         from numpy import array as npAr
-        forces = self.get_forces(eUnit=eUnit, lUnit=lUnit)
-        return npAr(self.inputOrder(forces))
+        gradients = self.get_gradients(eUnit=eUnit, lUnit=lUnit)
+        return npAr(self.inputOrder(gradients))
 
-    def get_forces(self, eUnit='a.u.', lUnit='bohr'):
-        """get_forces
-        Returns the cartesian forces from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file
+    def get_gradients(self, eUnit='a.u.', lUnit='bohr'):
+        """get_gradients
+        Returns the cartesian gradients from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file
         as a numpy array with shape (nAtoms,3) in the units given (standard a.u./bohr).
+        Note: The values from the KF-File are multiplied with -1.0, reason unknown.
         """
         from numpy import array as npAr
         from numpy import reshape as npReshape
-        forces = self.readkf('GeoOpt','Gradients_CART')
+        gradients = self.readkf('GeoOpt','Gradients_CART')
         unitConv = Units.convert(1.0,'a.u.',eUnit) / Units.convert(1.0,'bohr',lUnit)
-        forces = npAr([ v * unitConv for v in forces ])
-        nAt = len(forces)//3
-        return npReshape(forces,(nAt,3))
+        #negative of the values in KF are the gradients
+        gradients = npAr([ -v * unitConv for v in gradients ])
+        nAt = len(gradients)//3
+        return npReshape(gradients,(nAt,3))
 
 
     def get_energy_decomposition(self, unit='au'):
