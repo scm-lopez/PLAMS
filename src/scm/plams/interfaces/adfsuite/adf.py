@@ -118,7 +118,7 @@ class ADFResults(SCMResults):
         Reorder any iterable data to match the input atom order. Returns a List!
         """
         mapping = self._int2inp()
-        return [ d[mapping[i]-1] for i in range(nAt) ]
+        return [ data[mapping[i]-1] for i in range(len(mapping)) ]
 
 
     def _int2inp(self):
