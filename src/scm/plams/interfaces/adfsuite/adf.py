@@ -61,15 +61,6 @@ class ADFResults(SCMResults):
         raise ResultsError("'Dipole' not present in 'Properties' section of {}".format(self._kfpath()))
 
 
-    def get_ordered_gradients(self, eUnit='a.u.', lUnit='bohr'):
-        """get_ordered_gradients
-        Return cartesian gradients in order of the input molecule. Returns a numpy array
-        with shape (nAtoms,3) in the units given (standard a.u./bohr).
-        """
-        from numpy import array as npAr
-        gradients = self.get_gradients(eUnit=eUnit, lUnit=lUnit)
-        return npAr(self.inputOrder(gradients))
-
     def get_gradients(self, eUnit='a.u.', lUnit='bohr'):
         """get_gradients
         Returns the cartesian gradients from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file
