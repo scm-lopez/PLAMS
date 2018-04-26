@@ -24,8 +24,11 @@ class VibrationsResults(Results):
     Use ``get_ASEVib()`` to access the ``ase.vibrations.Vibrations`` object. Using e.g. ``self.get_ASEVib().summary()`` the results of the ASE frequency calculation are accessible.
     """
     def get_ASEVib(self):
-        """Returns a ``ase.vibrations.Vibrations`` object"""
-        return self._vib
+        """Returns a ``ase.vibrations.Vibrations`` object if available"""
+        if hasattr(self, '_vib'):
+            return self._vib
+        else:
+            raise PlamsError('WARNING: No aseVib object present, probably Job %s failed?!' % self.job.name)
 
 
 class VibrationsJob(MultiJob):
@@ -72,9 +75,8 @@ class VibrationsJob(MultiJob):
             add = []
             path = self.path
             self._vib = aseVib(toASE(self.molecule), name=osPJ(path,'plams.vib'), **self.aseVibOpt)
-            aseMols = self._vib.run(export='return')
-            for key, item in aseMols.items():
-                add.append(self.jobType(molecule=fromASE(item), name=osPB(key).replace('.pckl',''), settings=self.settings))
+            for name, atoms in self._vib.named_images():
+                add.append(self.jobType(molecule=fromASE(atoms), name=osPB(name), settings=self.settings))
             return add
 
         else:
