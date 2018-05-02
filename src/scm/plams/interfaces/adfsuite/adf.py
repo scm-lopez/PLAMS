@@ -101,6 +101,14 @@ class ADFResults(SCMResults):
         return ret
 
 
+    def inputOrder(self,data):
+        """inputOrder()
+        Reorder any iterable data to match the input atom order. Returns a List!
+        """
+        mapping = self._int2inp()
+        return [ data[mapping[i]-1] for i in range(len(mapping)) ]
+
+
     def _atomic_numbers_input_order(self):
         """_atomic_numbers_input_order()
         Return a list of atomic numbers, in the input order.
@@ -111,14 +119,6 @@ class ADFResults(SCMResults):
         atomtype_idx = self.readkf('Geometry', 'fragment and atomtype index')[-n:]
         atnums = [atomtypes[i] for i in atomtype_idx]
         return self.inputOrder(atnums)
-
-
-    def inputOrder(self,data):
-        """_reorder()
-        Reorder any iterable data to match the input atom order. Returns a List!
-        """
-        mapping = self._int2inp()
-        return [ data[mapping[i]-1] for i in range(len(mapping)) ]
 
 
     def _int2inp(self):
