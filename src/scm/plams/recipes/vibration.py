@@ -76,7 +76,7 @@ class VibrationsJob(MultiJob):
             add = []
             path = self.path
             self._vib = self.vibClass(toASE(self.molecule), name=osPJ(path,'plams.vib'), **self.aseVibOpt)
-            for name, atoms in self._vib.iterdisplaced():
+            for name, atoms in self._vib.iterdisplace():
                 add.append(self.jobType(molecule=fromASE(atoms), name=osPB(name), settings=self.settings))
             return add
 
