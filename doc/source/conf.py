@@ -208,6 +208,8 @@ rst_epilog = """
 .. |log| replace:: :func:`~scm.plams.core.functions.log`
 .. |load| replace:: :func:`~scm.plams.core.functions.load`
 .. |load_all| replace:: :func:`~scm.plams.core.functions.load_all`
+.. |load_manual| replace:: :func:`~scm.plams.tools.load.load_manual`
+.. |load_all_manual| replace:: :func:`~scm.plams.tools.load.load_all_manual`
 .. |finish| replace:: :func:`~scm.plams.core.functions.finish`
 .. |add_to_class| replace:: :func:`~scm.plams.core.functions.add_to_class`
 .. |add_to_instance| replace:: :func:`~scm.plams.core.functions.add_to_instance`

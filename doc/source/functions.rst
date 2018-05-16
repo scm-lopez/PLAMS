@@ -11,6 +11,8 @@ This chapter gathers information about publicly visible functions that can be us
 .. autofunction:: finish
 .. autofunction:: load
 .. autofunction:: load_all
+.. autofunction:: scm.plams.tools.load.load_manual
+.. autofunction:: scm.plams.tools.load.load_all_manual
 .. autofunction:: scm.plams.core.basemol.read_molecules
 
 .. _logging:
