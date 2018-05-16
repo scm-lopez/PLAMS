@@ -93,12 +93,14 @@ def load_all_manual(path, ignore=None, jobType=ADFJob, settings=None):
 
     folders = [ f for f in glob.glob(opj(path,'*')) if isdir(f) ]
 
-    if isinstance(ignore, list):
+    if ignore is None:
+        ign = []
+    elif isinstance(ignore, list):
         ign = []
         for f in ignore:
             ign.extend(glob.glob(opj(path,f)))
     else:
-        ign = glob.glob(opj(path,f))
+        ign = glob.glob(opj(path,ignore))
 
     jobs = []
 
