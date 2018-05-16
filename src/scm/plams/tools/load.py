@@ -1,14 +1,9 @@
-import builtins
 import glob
 import os
 import shutil
-import sys
-import threading
-import time
-import types
 
 from os.path import join as opj
-from os.path import isfile, isdir, dirname, abspath, split, basename
+from os.path import isfile, isdir, abspath, split, basename
 
 from ..core.errors import PlamsError, FileError
 from ..core.settings import Settings
