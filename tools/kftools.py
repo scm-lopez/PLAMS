@@ -3,6 +3,7 @@ import shutil
 import struct
 
 from bisect import bisect
+from collections import OrderedDict
 from subprocess import DEVNULL
 
 from ..core.private import saferun
@@ -135,7 +136,10 @@ class KFReader(object):
         if step > 0:
             while step <= len(block):
                 new = struct.unpack(str(formatstring), block[:step])
-                new = tuple(map(lambda x: x.decode() if isinstance(x,bytes) else x, new))
+                try:
+                    new = tuple(map(lambda x: x.decode() if isinstance(x,bytes) else x, new))
+                except UnicodeDecodeError:
+                    new = tuple(map(lambda x: x.decode("Latin-1") if isinstance(x,bytes) else x, new))
                 ret.append(new)
                 block = block[step:]
         return ret
@@ -149,7 +153,7 @@ class KFReader(object):
         contents = self._parse(datablock[hlen:], zip((i,d,s,b),(self.word,'d','s',self.word)))
         if contents:
             ret = list(contents[0])
-            return ret[:i], ret[i:i+d], ret[i+d], map(bool,ret[i+d+1:])
+            return ret[:i], ret[i:i+d], ret[i+d], list(map(bool,ret[i+d+1:]))
         else:
             return [], [], [], []
 
@@ -255,7 +259,7 @@ class KFFile(object):
     def __init__(self, path, autosave=True):
         self.autosave = autosave
         self.path = os.path.abspath(path)
-        self.tmpdata = {}
+        self.tmpdata = OrderedDict()
         self.reader = KFReader(self.path) if os.path.isfile(self.path) else None
 
 
@@ -282,7 +286,7 @@ class KFFile(object):
                 raise ValueError('Only lists of int, float or bool can be stored in KFFile')
 
         if section not in self.tmpdata:
-            self.tmpdata[section] = {}
+            self.tmpdata[section] = OrderedDict()
         self.tmpdata[section][variable] = value
 
         if self.autosave:
@@ -299,7 +303,7 @@ class KFFile(object):
                     val = self.tmpdata[section][variable]
                     txt += '{}\n{}\n{}\n'.format(section, variable, KFFile._str(val))
                     newvars.append(section+'%'+variable)
-            self.tmpdata = {}
+            self.tmpdata = OrderedDict()
 
             tmpfile = self.path+'.tmp' if self.reader else self.path
             saferun(['udmpkf', tmpfile], input=txt.encode(), stdout=DEVNULL, stderr=DEVNULL)
