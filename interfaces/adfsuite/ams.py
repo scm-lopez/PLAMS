@@ -204,23 +204,23 @@ class AMSResults(Results):
 
 
     def get_engine_results(self, engine=None):
-        """get_engine_results(file=None)
+        """get_engine_results(engine=None)
 
         Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         names = self.engine_names()
-        if file is not None:
-            if file in names:
-                return self.rkfs[file].read_section('AMSResults')
+        if engine is not None:
+            if engine in names:
+                return self.rkfs[engine].read_section('AMSResults')
             else:
-                raise FileError('File {}.rkf not present in {}'.format(file, self.job.path))
+                raise FileError('File {}.rkf not present in {}'.format(engine, self.job.path))
         else:
             if len(names) == 1:
                 return self.rkfs[names[0]].read_section('AMSResults')
             else:
-                raise ValueError("You need to specify the 'file' argument when there are multiple engine result files present in the job folder")
+                raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
 
 
 #===========================================================================
