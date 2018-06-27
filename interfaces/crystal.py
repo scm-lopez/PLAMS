@@ -240,8 +240,9 @@ Returns a given |Molecule| object as a geomkey and a list of strings that can be
     elif len(molecule.lattice) == 3:
          geomKey = 'CRYSTAL'
 
-    #add line for IFLAG,IFHR,IFSO: 0 0 0 always works with P1
-    geomList.append('0 0 0')
+    #add line for IFLAG,IFHR,IFSO: 0 0 0 always works with P1, only for CRYSTAL
+    if geomKey == 'CRYSTAL':
+        geomList.append('0 0 0')
     #add a line for space group, assume P1 Symmetry because this always works
     geomList.append('1')
 
@@ -264,7 +265,8 @@ Returns a given |Molecule| object as a geomkey and a list of strings that can be
             v2_u = lattice[third] / np.linalg.norm(lattice[third])
             angle = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)) / np.pi*180.0
             angles.append(angle)
-    geomList.append((("{} ")*(len(lengths)+len(angles))).format(*lengths,*angles))
+    if len(lattice) > 0:
+        geomList.append((("{} ")*(len(lengths)+len(angles))).format(*lengths,*angles))
 
     #add number of atoms
     geomList.append(str(len(molecule)))
