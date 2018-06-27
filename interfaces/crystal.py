@@ -242,7 +242,7 @@ Returns a given |Molecule| object as a geomkey and a list of strings that can be
 
     #add line for IFLAG,IFHR,IFSO: 0 0 0 always works with P1, only for CRYSTAL
     if geomKey == 'CRYSTAL':
-        geomList.append('0 0 0')
+         geomList.append('0 0 0')
     #add a line for space group, assume P1 Symmetry because this always works
     geomList.append('1')
 
