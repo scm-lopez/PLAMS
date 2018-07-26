@@ -1,3 +1,5 @@
+import numpy as np
+
 from .scmjob import SCMJob, SCMResults
 from ...core.errors import ResultsError
 from ...tools.units import Units
@@ -61,6 +63,16 @@ class ADFResults(SCMResults):
         raise ResultsError("'Dipole' not present in 'Properties' section of {}".format(self._kfpath()))
 
 
+    def get_gradients(self, eUnit='au', lUnit='bohr'):
+        """get_gradients(eUnit='au', lUnit='bohr')
+        Returns the cartesian gradients from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file, expressed in given units. Returned value is a numpy array with shape (nAtoms,3).
+        """
+        gradients = np.array(self.readkf('GeoOpt','Gradients_CART'))
+        gradients.shape = (-1,3)
+        gradients *= (Units.conversion_ratio('au',eUnit) / Units.conversion_ratio('bohr',lUnit))
+        return gradients
+
+
     def get_energy_decomposition(self, unit='au'):
         """get_energy(unit='au')
         Return a dictionary with energy decomposition terms, expressed in *unit*.
@@ -74,6 +86,7 @@ class ADFResults(SCMResults):
         ret['XC'] = self._get_single_value('Energy', 'XC Energy', unit)
         return ret
 
+    
     def get_timings(self):
         """get_timings()
 
