@@ -1,3 +1,5 @@
+import numpy as np
+
 from .scmjob import SCMJob, SCMResults
 from ...core.errors import ResultsError
 from ...tools.units import Units
@@ -61,18 +63,14 @@ class ADFResults(SCMResults):
         raise ResultsError("'Dipole' not present in 'Properties' section of {}".format(self._kfpath()))
 
 
-    def get_gradients(self, eUnit='a.u.', lUnit='bohr'):
-        """get_gradients
-        Returns the cartesian gradients from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file
-        as a numpy array with shape (nAtoms,3) in the units given (standard a.u./bohr).
+    def get_gradients(self, eUnit='au', lUnit='bohr'):
+        """get_gradients(eUnit='au', lUnit='bohr')
+        Returns the cartesian gradients from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file, expressed in given units. Returned value is a numpy array with shape (nAtoms,3).
         """
-        from numpy import array as npAr
-        from numpy import reshape as npReshape
-        gradients = self.readkf('GeoOpt','Gradients_CART')
-        unitConv = Units.convert(1.0,'a.u.',eUnit) / Units.convert(1.0,'bohr',lUnit)
-        gradients = npAr([ v * unitConv for v in gradients ])
-        nAt = len(gradients)//3
-        return npReshape(gradients,(nAt,3))
+        gradients = np.array(self.readkf('GeoOpt','Gradients_CART'))
+        gradients.shape = (-1,3)
+        gradients *= (Units.conversion_ratio('au',eUnit) / Units.conversion_ratio('bohr',lUnit))
+        return gradients
 
 
     def get_energy_decomposition(self, unit='au'):
@@ -88,6 +86,7 @@ class ADFResults(SCMResults):
         ret['XC'] = self._get_single_value('Energy', 'XC Energy', unit)
         return ret
 
+    
     def get_timings(self):
         """get_timings()
 
@@ -101,24 +100,17 @@ class ADFResults(SCMResults):
         return ret
 
 
-    def inputOrder(self,data):
-        """inputOrder()
-        Reorder any iterable data to match the input atom order. Returns a List!
-        """
-        mapping = self._int2inp()
-        return [ data[mapping[i]-1] for i in range(len(mapping)) ]
-
-
     def _atomic_numbers_input_order(self):
         """_atomic_numbers_input_order()
         Return a list of atomic numbers, in the input order.
         """
+        mapping = self._int2inp()
         n = self.readkf('Geometry', 'nr of atoms')
         tmp = self.readkf('Geometry', 'atomtype').split()
         atomtypes = {i+1 : PT.get_atomic_number(tmp[i]) for i in range(len(tmp))}
         atomtype_idx = self.readkf('Geometry', 'fragment and atomtype index')[-n:]
         atnums = [atomtypes[i] for i in atomtype_idx]
-        return self.inputOrder(atnums)
+        return [atnums[mapping[i]-1] for i in range(len(atnums))]
 
 
     def _int2inp(self):
