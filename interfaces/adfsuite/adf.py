@@ -24,6 +24,7 @@ class ADFResults(SCMResults):
                 ret[var] = self.readkf(sec,var)
         return ret
 
+
     def get_main_molecule(self):
         """get_main_molecule()
         Return a |Molecule| instance based on the ``Geometry`` section in the main KF file (``$JN.t21``).
@@ -86,7 +87,7 @@ class ADFResults(SCMResults):
         ret['XC'] = self._get_single_value('Energy', 'XC Energy', unit)
         return ret
 
-    
+
     def get_timings(self):
         """get_timings()
 
@@ -104,13 +105,12 @@ class ADFResults(SCMResults):
         """_atomic_numbers_input_order()
         Return a list of atomic numbers, in the input order.
         """
-        mapping = self._int2inp()
         n = self.readkf('Geometry', 'nr of atoms')
         tmp = self.readkf('Geometry', 'atomtype').split()
         atomtypes = {i+1 : PT.get_atomic_number(tmp[i]) for i in range(len(tmp))}
         atomtype_idx = self.readkf('Geometry', 'fragment and atomtype index')[-n:]
         atnums = [atomtypes[i] for i in atomtype_idx]
-        return [atnums[mapping[i]-1] for i in range(len(atnums))]
+        return self.to_input_order(atnums)
 
 
     def _int2inp(self):

@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 from os.path import join as opj
 
@@ -160,6 +161,17 @@ class SCMResults(Results):
         Obtain mapping from internal atom order to the input one. Abstract method.
         """
         raise PlamsError('Trying to run an abstract method SCMResults._int2inp()')
+
+
+    def to_input_order(self, data):
+        """to_input_order(self, data)
+        Reorder any iterable *data* from the internal atom order to the input atom order. The length of *data* must be equal to the number of atoms, otherwise an exception is raised. Returned value is a container of the same type as *data*.
+        """
+        mapping = self._int2inp()
+        if len(mapping) != len(data):
+            raise PlamsError('to_input_order() got an argument with incorrect length. Length must be equal to the number of atoms')
+        t = np.array if type(data) == np.ndarray else type(data)
+        return t([data[mapping[i]-1] for i in range(len(mapping))])
 
 
 
