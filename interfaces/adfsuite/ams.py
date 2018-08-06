@@ -203,6 +203,26 @@ class AMSResults(Results):
         return self.get_molecule('Molecule', 'ams')
 
 
+    def _process_engine_results(self, func, engine=None):
+        """_process_engine_results(func, engine=None)
+
+        A generic method skeleton for processing any engine results ``.rkf`` file. *func* should be a function that takes one argument (an instance of |KFFile|) and returns arbitrary data.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        names = self.engine_names()
+        if engine is not None:
+            if engine in names:
+                return func(self.rkfs[engine])
+            else:
+                raise FileError('File {}.rkf not present in {}'.format(engine, self.job.path))
+        else:
+            if len(names) == 1:
+                return func(self.rkfs[names[0]])
+            else:
+                raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
+
+
     def get_engine_results(self, engine=None):
         """get_engine_results(engine=None)
 
@@ -210,17 +230,28 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        names = self.engine_names()
-        if engine is not None:
-            if engine in names:
-                return self.rkfs[engine].read_section('AMSResults')
-            else:
-                raise FileError('File {}.rkf not present in {}'.format(engine, self.job.path))
-        else:
-            if len(names) == 1:
-                return self.rkfs[names[0]].read_section('AMSResults')
-            else:
-                raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
+        return self._process_engine_results(lambda x: x.read_section('AMSResults'), engine)
+
+
+    def get_engine_properties(self, engine=None):
+        """get_properties()
+        Return a dictionary with all the entries from ``Properties`` section from an engine results ``.rkf`` file.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        def properties(kf):
+            n = kf.read('Properties', 'nEntries')
+            ret = {}
+            for i in range(1, n+1):
+                tp = kf.read('Properties', 'Type({})'.format(i)).strip()
+                stp = kf.read('Properties', 'Subtype({})'.format(i)).strip()
+                val = kf.read('Properties', 'Value({})'.format(i))
+                key = stp if stp.endswith(tp) else ('{} {}'.format(stp, tp) if stp else tp)
+                ret[key] = val
+            return ret
+        return self._process_engine_results(properties, engine)
+
+
 
 
 #===========================================================================
