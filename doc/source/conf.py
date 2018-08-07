@@ -266,6 +266,10 @@ rst_epilog = """
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusResults`
 
+.. |VibrationsJob| replace:: :class:`~scm.plams.recipes.vibration.VibrationsJob`
+.. |IRJob| replace:: :class:`~scm.plams.recipes.vibration.IRJob`
+.. |VibrationsResults| replace:: :class:`~scm.plams.recipes.vibration.VibrationsResults`
+
 .. |RPM| replace:: :ref:`rerun-prevention`
 .. |cleaning| replace:: :ref:`cleaning`
 .. |pickling| replace:: :ref:`pickling`
