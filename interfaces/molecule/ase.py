@@ -7,7 +7,7 @@ __all__ = ['toASE','fromASE']
 try:
     from ase import Atom as aseAtom
     from ase import Atoms as aseAtoms
-except:
+except ImportError:
     __all__ = []
 
 
