@@ -9,20 +9,15 @@ from ..core.settings import Settings
 from ..core.functions import log
 from ..core.errors import PlamsError
 
-__all__ = ['CrystalResults','CrystalJob','mol2CrystalConf']
+__all__ = ['CrystalJob','mol2CrystalConf']
 
-class CrystalResults(Results):
-    """
-    Class for Crystal calculation results.
-    """
-    pass
+
 
 class CrystalJob(SingleJob):
     """
     A class representing a single computational job with `CRYSTAL <https://www.crystal.unito.it/>`
     Use Crystal version >= 14, lower versions have an even stricter and more complicated input.
     """
-    _result_type = CrystalResults
     _command = 'crystal'
     _filenames = {'inp':'INPUT', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
 
@@ -182,7 +177,7 @@ class CrystalJob(SingleJob):
     def _parsemol(self):
         try:
             #ASE has a new write function for Crystal coordinate files, use that if possible
-            from ..tools.ase import toASE
+            from .molecule.ase import toASE
             from ase.io import crystal as crysIO
             from os.path import join as opj
             mol = toASE(self.molecule)
@@ -217,16 +212,16 @@ class CrystalJob(SingleJob):
 
 def mol2CrystalConf(molecule):
     """
-Call this function to create a CRYSTAL-type input of your structure:
+    Call this function to create a CRYSTAL-type input of your structure:
 
-Returns a given |Molecule| object as a geomkey and a list of strings that can be used to create a Settings instance for Crystal.
+    Returns a given |Molecule| object as a geomkey and a list of strings that can be used to create a Settings instance for Crystal.
 
-        >>> print(crystalMol2Conf(mol))
-        'GEOMKEY', ['0 0 0', '1', 'lattice', 'nAtoms', 'ElementNumber1 X1 Y1 Z1','ElementNumber2 X2 Y2 Z2', ...]
+            >>> print(crystalMol2Conf(mol))
+            'GEOMKEY', ['0 0 0', '1', 'lattice', 'nAtoms', 'ElementNumber1 X1 Y1 Z1','ElementNumber2 X2 Y2 Z2', ...]
 
-- IFLAG,IFHR and IFSO are returned as 0,0,0 by default with Symmetry group P1 (number 1). This should allow most calculations to run. The user needs to change them if he wants to take advantage of symmetry.
-- The geometry key is guessed from the number of lattice vectors. For special stuff change it by hand.
-- The number of lattice vectors in the given molecule should correspond to the dimensionality of the system. Do not fill them with zeros or unit vectors, this will result in a 3D-Periodic system with wrong fractional coordinates. So stick with the standard PLAMS way of doing things.
+    - IFLAG,IFHR and IFSO are returned as 0,0,0 by default with Symmetry group P1 (number 1). This should allow most calculations to run. The user needs to change them if he wants to take advantage of symmetry.
+    - The geometry key is guessed from the number of lattice vectors. For special stuff change it by hand.
+    - The number of lattice vectors in the given molecule should correspond to the dimensionality of the system. Do not fill them with zeros or unit vectors, this will result in a 3D-Periodic system with wrong fractional coordinates. So stick with the standard PLAMS way of doing things.
     """
     geomList =  []
 

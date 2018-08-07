@@ -5,17 +5,17 @@ based on code from Michal Handzlik
 
 see documentation for an example
 """
-from __future__ import unicode_literals
-
 from ..core.basejob import SingleJob
 from ..core.settings import Settings
 from ..core.results import Results
 from ..tools.units import Units
 from ..core.basemol import Molecule
 from ..core.errors import PlamsError
-from ..tools.ase import fromASE
+from .molecule.ase import fromASE
+
 
 __all__ = ['DFTBPlusJob', 'DFTBPlusResults']
+
 
 class DFTBPlusResults(Results):
     """A Class for handling DFTB+ Results."""
@@ -23,22 +23,28 @@ class DFTBPlusResults(Results):
     _xyzout = 'geo_end.xyz'
     _genout = 'geo_end.gen'
 
+
     def get_molecule(self):
-        """Returns the molecule from the 'geo_end.gen' file. If there is no ASE, try to read the 'geo_end.xyz' file."""
+        """get_molecule()
+        Return the molecule from the 'geo_end.gen' file. If there is no ASE, try to read the 'geo_end.xyz' file.
+        """
         try:
             #The .gen file contains the cell, ASE can read it
             from ase import Atoms as aseAtoms
             from ase import io as aseIO
             mol = fromASE(aseIO.read(self[self._genout]))
-        except ModuleNotFoundError:
+        except ImportError:
             #Fallback if no ASE found
             mol = Molecule(filename=self[self._xyzout])
         except:
             mol = Molecule()
         return mol
 
-    def get_energy(self, string='Total energy',unit='au'):
-        """Fucntion returning the energy given in the output with description '<string>:' in units of '<string>:', standard is 'Total energy' and 'au'."""
+
+    def get_energy(self, string='Total energy', unit='au'):
+        """get_energy(string='Total energy', unit='au')
+        Return the energy given in the output with the description *string*, expressed in *unit*. Defaults to ``Total energy`` and ``au``.
+        """
         try:
             energy = float(self.grep_file(self._outfile, pattern=string+':')[0].split()[2])
             energy = Units.convert(energy, 'au', unit)
@@ -46,8 +52,11 @@ class DFTBPlusResults(Results):
             energy = float('nan')
         return energy
 
+
     def get_atomic_charges(self):
-        """Function returning dictonary with atom numbers and their charges, ordering is the same as in the input."""
+        """get_atomic_charges()
+        Returns a dictonary with atom numbers and their charges, ordering is the same as in the input.
+        """
         try:
             atomic_charges = {}
             string = self.awk_file(self._outfile,script='/Net atomic charges/{do_print=1} NF==0 {do_print=0 }do_print==1 {print}')
