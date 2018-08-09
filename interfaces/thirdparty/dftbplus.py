@@ -5,13 +5,13 @@ based on code from Michal Handzlik
 
 see documentation for an example
 """
-from ..core.basejob import SingleJob
-from ..core.settings import Settings
-from ..core.results import Results
-from ..tools.units import Units
-from ..core.basemol import Molecule
-from ..core.errors import PlamsError
-from .molecule.ase import fromASE
+from ...core.basejob import SingleJob
+from ...core.settings import Settings
+from ...core.results import Results
+from ...tools.units import Units
+from ...core.basemol import Molecule
+from ...core.errors import PlamsError
+from ..molecule.ase import fromASE
 
 
 __all__ = ['DFTBPlusJob', 'DFTBPlusResults']

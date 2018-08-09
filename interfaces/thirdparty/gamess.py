@@ -1,7 +1,7 @@
 from functools import reduce
 
-from ..core.basejob  import SingleJob
-from ..core.settings import Settings
+from ...core.basejob  import SingleJob
+from ...core.settings import Settings
 
 
 __all__ = ['GamessJob']

@@ -1,7 +1,7 @@
 Crystal
 -------------------------
 
-.. currentmodule:: scm.plams.interfaces.crystal
+.. currentmodule:: scm.plams.interfaces.thirdparty.crystal
 
 More information about CRYSTAL can be found on its `official website <http://www.crystal.unito.it>`_.
 

@@ -2,10 +2,10 @@ import os
 
 from os.path import join as opj
 
-from ..core.basejob import SingleJob
-from ..core.private import saferun
-from ..core.results import Results
-from ..core.settings import Settings
+from ...core.basejob import SingleJob
+from ...core.private import saferun
+from ...core.results import Results
+from ...core.settings import Settings
 
 __all__ = ['DiracJob', 'DiracResults']
 

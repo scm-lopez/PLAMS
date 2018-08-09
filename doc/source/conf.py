@@ -259,12 +259,12 @@ rst_epilog = """
 .. |MOPACJob| replace:: :class:`~scm.plams.interfaces.mopac.MOPACJob`
 .. |MOPACResults| replace:: :class:`~scm.plams.interfaces.mopac.MOPACResults`
 
-.. |CrystalJob| replace:: :class:`CrystalJob<scm.plams.interfaces.crystal.CrystalJob>`
-.. |CrystalResults| replace:: :class:`CrystalResults<scm.plams.interfaces.crystal.CrystalResults>`
-.. |mol2CrystalConf| replace:: :meth:`mol2CrystalConf<scm.plams.interfaces.crystal.CrystalResults>`
+.. |CrystalJob| replace:: :class:`CrystalJob<scm.plams.interfaces.thirdparty.crystal.CrystalJob>`
+.. |CrystalResults| replace:: :class:`CrystalResults<scm.plams.interfaces.thirdparty.crystal.CrystalResults>`
+.. |mol2CrystalConf| replace:: :meth:`mol2CrystalConf<scm.plams.interfaces.thirdparty.crystal.CrystalResults>`
 
-.. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusJob`
-.. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusResults`
+.. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
+.. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`
 
 .. |VibrationsJob| replace:: :class:`~scm.plams.recipes.vibration.VibrationsJob`
 .. |IRJob| replace:: :class:`~scm.plams.recipes.vibration.IRJob`

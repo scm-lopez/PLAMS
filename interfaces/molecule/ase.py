@@ -1,8 +1,8 @@
-from ..core.basemol import Molecule,Atom
+from ...core.basemol import Molecule,Atom
 from numpy import zeros as npz
 from numpy import array as npa
 
-__all__ = ['toASE','fromASE']
+__all__ = ['toASE', 'fromASE']
 
 try:
     from ase import Atom as aseAtom

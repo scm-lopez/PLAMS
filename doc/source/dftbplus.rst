@@ -1,7 +1,7 @@
 DFTB+
 -------------------------
 
-.. currentmodule:: scm.plams.interfaces.dftbplus
+.. currentmodule:: scm.plams.interfaces.thirdparty.dftbplus
 
 DFTB+ is a density-functional tight-binding implemenation. More information about DFTB can be found on its `official website <http://www.dftb-plus.info>`_.
 
@@ -16,7 +16,7 @@ Preparing a calculation
 
 Preparing an instance of |DFTBPlusJob| follows the general principles for |SingleJob|. Information adjusting the input file is stored in the ``myjob.settings.input`` branch. The geometry of your system can be supplied via the class |Molecule|. Note that the molecule is transformed into the ``GenFormat`` with the ``C`` (cluster) or ``S`` (supercell) option, meaning the class can handle clusters and supercell systems. The option ``F`` for fractional coordinates is not available! See `the manual <http://www.dftb-plus.info/documentation/>`_ for further information on the different geometry-input types.
 
-    
+
 
 .. _dftbplus-input:
 
@@ -58,7 +58,7 @@ Example
 ::
 
             common = Settings()
-            
+
             common.input.driver._h = 'ConjugateGradient'
             common.input.hamiltonian._h = 'DFTB'
             common.input.hamiltonian.scc = 'yes'
@@ -72,18 +72,18 @@ Example
             common.input.hamiltonian.maxangularmomentum.c = '"p"'
             common.input.hamiltonian.maxangularmomentum.h = '"s"'
             common.input.parseroptions.parserversion = '4'
-            
+
             mol = Molecule(filename='mol.xyz') # read Molecule from mol.xyz
-            
+
             job = DFTBPlusJob(name='plamstest', molecule=mol, settings=common)
             jobres = job.run()
-            
+
             energy = jobres.get_energy(string='Fermi energy', unit='ev')
             print(energy)
-            
+
             mol = jobres.get_molecule()
             print(mol)
-            
+
             atomic_charges = jobres.get_atomic_charges()
             print(atomic_charges)
 

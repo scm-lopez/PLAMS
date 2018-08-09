@@ -21,7 +21,7 @@ try:
 except:
     __all__ = []
 
-from ..core.basemol import Molecule,Atom,Bond
+from ...core.basemol import Molecule, Atom, Bond
 
 def from_rdmol(rdkit_mol, confid=-1):
     """

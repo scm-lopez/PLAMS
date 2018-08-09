@@ -1,7 +1,7 @@
 Dirac
 -------------------------
 
-.. currentmodule:: scm.plams.interfaces.dirac
+.. currentmodule:: scm.plams.interfaces.thirdparty.dirac
 
 DIRAC is an *ab initio* quantum chemistry program for all electron relativistic calculation. It features a variety of methods including HF, MP2, DFT, CI and CC. More information about DIRAC can be found on its `official website <http://www.diracprogram.org>`_.
 

@@ -1,7 +1,7 @@
 import subprocess
 
-from ..core.basejob  import SingleJob
-from ..core.settings import Settings
+from ...core.basejob  import SingleJob
+from ...core.settings import Settings
 
 
 
