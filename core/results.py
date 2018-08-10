@@ -67,7 +67,7 @@ def _restrict(func):
 
         elif self.job.status in ['preview']:
             if config.ignore_failure:
-                log("WARNING: Trying to obtain results of job %s run in a preview mode. Returned value is None" % (self.job.name, self.job.status), 3)
+                log('WARNING: Trying to obtain results of job {} run in a preview mode. Returned value is None'.format(self.job.name), 3)
                 return None
             else:
                 raise ResultsError('Using Results associated with job run in a preview mode')
@@ -78,19 +78,19 @@ def _restrict(func):
                 if isinstance(arg, Results):
                     return func(self, *args, **kwargs)
             if config.ignore_failure:
-                log('WARNING: Trying to obtain results of crashed or failed job %s' % self.job.name, 3)
+                log('WARNING: Trying to obtain results of crashed or failed job {}'.format(self.job.name), 3)
                 try:
                     ret = func(self, *args, **kwargs)
                 except:
-                    log('Obtaining results of %s failed. Returned value is None' % self.job.name, 3)
+                    log('Obtaining results of {} failed. Returned value is None'.format(self.job.name), 3)
                     return None
-                log('Obtaining results of %s successful. However, no guarantee that they make sense'% self.job.name, 3)
+                log('Obtaining results of {} successful. However, no guarantee that they make sense'.format(self.job.name), 3)
                 return ret
             else:
                 raise ResultsError('Using Results associated with crashed or failed job')
 
         elif self.job.status in ['created', 'started', 'registered', 'running']:
-            log('Waiting for job %s to finish' % self.job.name, 3)
+            log('Waiting for job {} to finish'.format(self.job.name), 3)
             if _privileged_access():
                 self.finished.wait()
             else:
@@ -100,7 +100,7 @@ def _restrict(func):
         elif self.job.status in ['finished']:
             if _privileged_access():
                 return func(self, *args, **kwargs)
-            log('Waiting for job %s to finish' % self.job.name, 3)
+            log('Waiting for job {} to finish'.format(self.job.name), 3)
             self.done.wait()
             return func(self, *args, **kwargs)
 
@@ -213,12 +213,12 @@ class Results(metaclass=_MetaResults):
         """
         cmd = ['awk']
         for k,v in kwargs.items():
-            cmd += ['-v', '%s=%s'%(k,v)]
+            cmd += ['-v', '{}={}'.format(k,v)]
         if progfile:
             if os.path.isfile(progfile):
                 cmd += ['-f', progfile]
             else:
-                raise FileError('File %s not present' % progfile)
+                raise FileError('File {} not present'.format(progfile))
         else:
             cmd += [script]
         return self._process_file(filename, cmd)
@@ -230,7 +230,7 @@ class Results(metaclass=_MetaResults):
         try:
             output = self.job._filename('out')
         except AttributeError:
-            raise ResultsError('Job %s is not an instance of SingleJob, it does not have an output' % self.job.name)
+            raise ResultsError('Job {} is not an instance of SingleJob, it does not have an output'.format(self.job.name))
         return self.grep_file(output, pattern, options)
 
 
@@ -240,7 +240,7 @@ class Results(metaclass=_MetaResults):
         try:
             output = self.job._filename('out')
         except AttributeError:
-            raise ResultsError('Job %s is not an instance of SingleJob, it does not have an output' % self.job.name)
+            raise ResultsError('Job {} is not an instance of SingleJob, it does not have an output'.format(self.job.name))
         return self.awk_file(output, script, progfile, **kwargs)
 
 
@@ -254,7 +254,7 @@ class Results(metaclass=_MetaResults):
             os.rename(opj(self.job.path, old), opj(self.job.path, new))
             self.files[self.files.index(old)] = new
         else:
-            raise FileError('File %s not present in %s' % (old, self.job.path))
+            raise FileError('File {} not present in {}'.format(old, self.job.path))
 
 
     def get_file_chunk(self, filename, begin=None, end=None, match=0, inc_begin=False, inc_end=False, process=None):
@@ -294,7 +294,7 @@ class Results(metaclass=_MetaResults):
         try:
             output = self.job._filename('out')
         except AttributeError:
-            raise ResultsError('Job %s is not an instance of SingleJob, it does not have an output' % self.job.name)
+            raise ResultsError('Job {} is not an instance of SingleJob, it does not have an output'.format(self.job.name))
         return self.get_file_chunk(output, begin, end, match, inc_begin, inc_end, process)
 
 
@@ -336,7 +336,7 @@ class Results(metaclass=_MetaResults):
                     log('Deleting file '+f, 5)
 
         else:
-            log('WARNING: %s is not a valid keep/save argument' % str(arg), 3)
+            log('WARNING: {} is not a valid keep/save argument'.format(arg), 3)
         self.refresh()
 
 
@@ -385,7 +385,7 @@ class Results(metaclass=_MetaResults):
         if name in self.files:
             return opj(self.job.path, name)
         else:
-            raise FileError('File %s not present in %s' % (name, self.job.path))
+            raise FileError('File {} not present in {}'.format(name, self.job.path))
 
 
 
@@ -401,6 +401,6 @@ class Results(metaclass=_MetaResults):
             ret = process.stdout.decode().splitlines()
             return ret
         else:
-            raise FileError('File %s not present in %s' % (filename, self.job.path))
+            raise FileError('File {} not present in {}'.format(filename, self.job.path))
 
 

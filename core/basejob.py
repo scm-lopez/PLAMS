@@ -60,7 +60,7 @@ class Job(object):
 
     def __init__(self, name='plamsjob', settings=None, depend=None):
         if os.path.sep in name:
-            raise PlamsError('Job name cannot contain %s'%os.path.sep)
+            raise PlamsError('Job name cannot contain {}'.format(os.path.sep))
         self.status = 'created'
         self.results = self.__class__._result_type(self)
         self.name = name
@@ -78,7 +78,6 @@ class Job(object):
                 self.settings = settings.settings.copy()
 
 
-
     def __getstate__(self):
         """Prepare an instance for pickling.
 
@@ -87,6 +86,13 @@ class Job(object):
         remove = ['jobmanager', 'parent', 'default_settings', '_lock'] + self._dont_pickle
         return {k:v for k,v in self.__dict__.items() if k not in remove}
 
+
+    def _log_status(self, level):
+        """Log the status of this instance on a chosen log *level*. The message is uppercased to clearly stand out among other log entries."""
+        log('JOB {} {}'.format(self.name, self.status.upper()), level)
+
+
+    #=======================================================================
 
 
     def run(self, jobrunner=None, jobmanager=None, **kwargs):
@@ -101,10 +107,10 @@ class Job(object):
             This method does not do too much by itself. After simple initial preparation it passes control to job runner, which decides if a new thread should be started for this job. The role of the job runner is to execute three methods that make the full job life cycle: :meth:`~Job._prepare`, :meth:`~Job._execute` and :meth:`~Job._finalize`. During :meth:`~Job._execute` the job runner is called once again to execute the runscript (only in case of |SingleJob|).
         """
         if self.status != 'created':
-            raise JobError('Trying to run previously started job %s' % self.name)
+            raise JobError('Trying to run previously started job {}'.format(self.name))
 
         self.status = 'started'
-        log('Job %s started' % self.name, 1)
+        self._log_status(1)
 
         self.settings.run.soft_update(Settings(kwargs))
 
@@ -115,7 +121,6 @@ class Job(object):
         return self.results
 
 
-
     def pickle(self, filename=None):
         """Pickle this instance and save to a file indicated by *filename*. If ``None``, save to ``[jobname].dill`` in the job folder."""
         filename = filename or opj(self.path, self.name+'.dill')
@@ -123,8 +128,7 @@ class Job(object):
             try:
                 pickle.dump(self, f, -1)
             except:
-                log("Pickling of %s failed" % self.name, 1)
-
+                log('Pickling of {} failed'.format(self.name), 1)
 
 
     def check(self):
@@ -137,11 +141,9 @@ class Job(object):
         return True
 
 
-
     def hash(self):
         """Calculate the hash of this instance. Abstract method."""
         raise PlamsError('Trying to run an abstract method Job.hash()')
-
 
 
     def prerun(self):
@@ -151,6 +153,7 @@ class Job(object):
         """
         pass
 
+
     def postrun(self):
         """Actions to take just after the actual job execution.
 
@@ -158,25 +161,26 @@ class Job(object):
         """
         pass
 
+
     #=======================================================================
 
 
     def _prepare(self, jobmanager):
         """Prepare the job for execution. This method collects steps 1-7 from :ref:`job-life-cycle`. Should not be overridden. Returned value indicates if job execution should continue (|RPM| did not find this job previously run)."""
 
-        log('Starting %s._prepare()' % self.name, 7)
+        log('Starting {}._prepare()'.format(self.name), 7)
 
-        log('Resolving %s.depend' % self.name, 7)
+        log('Resolving {}.depend'.format(self.name), 7)
         if config.preview is False:
             for j in self.depend:
                 j.results.wait()
-        log('%s.depend resolved' % self.name, 7)
+        log('{}.depend resolved'.format(self.name), 7)
 
         jobmanager._register(self)
 
-        log('Starting %s.prerun()' % self.name, 5)
+        log('Starting {}.prerun()'.format(self.name), 5)
         self.prerun()
-        log('%s.prerun() finished' % self.name, 5)
+        log('{}.prerun() finished'.format(self.name), 5)
 
         for i in reversed(self.default_settings):
             self.settings.soft_update(i)
@@ -187,7 +191,7 @@ class Job(object):
                 prev.results._copy_to(self.results)
                 self.status = 'copied'
             except ResultsError as re:
-                log('Copying results of %s failed because of the following error: %s' % (prev.name, str(re)), 1)
+                log('Copying results of {} failed because of the following error: {}'.format(prev.name, str(re)), 1)
                 self.status = prev.status
             if self.settings.pickle:
                 self.pickle()
@@ -197,47 +201,48 @@ class Job(object):
                 self.parent._notify()
         else:
             self.status = 'running'
-            log('Starting %s._get_ready()' % self.name, 7)
+            log('Starting {}._get_ready()'.format(self.name), 7)
             self._get_ready()
-            log('%s._get_ready() finished' % self.name, 7)
+            log('{}._get_ready() finished'.format(self.name), 7)
 
-        log('%s._prepare() finished' % self.name, 7)
+        log('{}._prepare() finished'.format(self.name), 7)
+        self._log_status(3)
         return prev is None
-
 
 
     def _get_ready(self):
         """Get ready for :meth:`~Job._execute`. This is the last step before :meth:`~Job._execute` is called. Abstract method."""
         raise PlamsError('Trying to run an abstract method Job._get_ready()')
 
+
     def _execute(self, jobrunner):
         """Execute the job. Abstract method."""
         raise PlamsError('Trying to run an abstract method Job._execute()')
 
 
-
     def _finalize(self):
         """Gather the results of job execution and organize them. This method collects steps 9-12 from :ref:`job-life-cycle`. Should not be overridden."""
-        log('Starting %s._finalize()' % self.name, 7)
+        log('Starting {}._finalize()'.format(self.name), 7)
 
         if config.preview is False:
-            log('Collecting results of %s' % self.name, 7)
+            log('Collecting results of {}'.format(self.name), 7)
             self.results.collect()
             self.results.finished.set()
             if self.status != 'crashed':
                 self.status = 'finished'
+                self._log_status(3)
                 if self.check():
-                    log('%s.check() success. Cleaning results with keep = %s' % (self.name, self.settings.keep), 7)
+                    log('{}.check() success. Cleaning results with keep = {}'.format(self.name, self.settings.keep), 7)
                     self.results._clean(self.settings.keep)
-                    log('Starting %s.postrun()' % self.name, 5)
+                    log('Starting {}.postrun()'.format(self.name), 5)
                     self.postrun()
-                    log('%s.postrun() finished' % self.name, 5)
+                    log('{}.postrun() finished'.format(self.name), 5)
                     self.status = 'successful'
-                    log('Pickling %s' % self.name, 7)
+                    log('Pickling {}'.format(self.name), 7)
                     if self.settings.pickle:
                         self.pickle()
                 else:
-                    log('%s.check() failed' % self.name, 7)
+                    log('{}.check() failed'.format(self.name), 7)
                     self.status = 'failed'
         else:
             self.status = 'preview'
@@ -247,8 +252,8 @@ class Job(object):
         if self.parent and self in self.parent:
             self.parent._notify()
 
-        log('%s._finalize() finished' % self.name, 7)
-        log("Job %s finished with status '%s' "% (self.name, self.status), 1)
+        log('{}._finalize() finished'.format(self.name), 7)
+        self._log_status(1)
 
 
 #===========================================================================
@@ -275,11 +280,9 @@ class SingleJob(Job):
         self.molecule = molecule.copy() if isinstance(molecule, Molecule) else molecule
 
 
-
     def _filename(self, t):
         """Return filename for file of type *t*. *t* can be any key from ``_filenames`` dictionary. ``$JN`` is replaced with job name in returned string."""
         return self.__class__._filenames[t].replace('$JN', self.name)
-
 
 
     def get_input(self):
@@ -288,6 +291,7 @@ class SingleJob(Job):
         This method should return a single string with full content of the input file. It should process information stored in ``input`` branch of job's settings and in ``molecule`` attribute.
         """
         raise PlamsError('Trying to run an abstract method SingleJob._get_input()')
+
 
     def get_runscript(self):
         """Generate runscript. Abstract method.
@@ -311,9 +315,11 @@ class SingleJob(Job):
         """Calculate SHA256 hash of the input file."""
         return sha256(self.get_input())
 
+
     def hash_runscript(self):
         """Calculate SHA256 hash of the runscript."""
         return sha256(self._full_runscript())
+
 
     def hash(self):
         """Calculate unique hash of this instance.
@@ -343,7 +349,7 @@ class SingleJob(Job):
         elif mode == 'input+runscript':
             return sha256(self.hash_input() + self.hash_runscript())
         else:
-            raise PlamsError('Unsupported hashing method: ' + str(mode))
+            raise PlamsError('Unsupported hashing method: {}'.format(mode))
 
 
     def _full_runscript(self):
@@ -383,14 +389,14 @@ class SingleJob(Job):
 
         If preview mode is on, this method does nothing.
         """
-        log('Starting %s._execute()' % self.name, 7)
+        log('Starting {}._execute()'.format(self.name), 7)
         if config.preview is False:
             o = self._filename('out') if not self.settings.runscript.stdout_redirect else None
             retcode = jobrunner.call(runscript=self._filename('run'), workdir=self.path, out=o, err=self._filename('err'), runflags=self.settings.run)
             if retcode != 0:
-                log('WARNING: Job %s finished with nonzero return code' % self.name, 1)
+                log('WARNING: Job {} finished with nonzero return code'.format(self.name), 3)
                 self.status = 'crashed'
-        log('%s._execute() finished' % self.name, 7)
+        log('{}._execute() finished'.format(self.name), 7)
 
 
 #===========================================================================
@@ -435,7 +441,6 @@ class MultiJob(Job):
 
         The method defined here is a default template, returning ``None``, which means no new children jobs are generated and the entire execution of the parent job consists only of running jobs initially found in ``self.children``. To modify this behavior you can override this method in |MultiJob| subclass or use one of |binding_decorators|, just like with :ref:`prerun-postrun`.
         """
-
         return None
 
 
@@ -487,7 +492,7 @@ class MultiJob(Job):
 
     def _execute(self, jobrunner):
         """Run all children from ``children``. Then use :meth:`~MultiJob.new_children` and run all jobs produced by it. Repeat this procedure until :meth:`~MultiJob.new_children` returns an empty list. Wait for all started jobs to finish."""
-        log('Starting %s._execute()' % self.name, 7)
+        log('Starting {}._execute()'.format(self.name), 7)
         jr = self.childrunner or jobrunner
 
         for child in self:
@@ -515,4 +520,4 @@ class MultiJob(Job):
 
         while self._active_children > 0:
             time.sleep(config.sleepstep)
-        log('%s._execute() finished' % self.name, 7)
+        log('{}._execute() finished'.format(self.name), 7)

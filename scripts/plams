@@ -39,7 +39,7 @@ for input_file in args.file:
         with open(input_file, 'r', encoding='utf-8') as f:
             inputscript += f.read()
     else:
-        print('Error: File %s not found' % input_file)
+        print('Error: File {} not found'.format(input_file))
         sys.exit(1)
 
 
