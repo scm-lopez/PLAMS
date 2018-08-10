@@ -11,7 +11,7 @@ from os.path import join as opj
 
 from .basejob import MultiJob
 from .errors import PlamsError, FileError
-from .functions import log
+from .functions import config, log
 
 __all__ = ['JobManager']
 

@@ -8,7 +8,7 @@ from subprocess import DEVNULL, PIPE
 
 from .basejob import SingleJob
 from .errors import PlamsError
-from .functions import log
+from .functions import config, log
 from .private import saferun
 from .settings import Settings
 

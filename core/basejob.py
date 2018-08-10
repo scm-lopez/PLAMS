@@ -13,7 +13,7 @@ from os.path import join as opj
 
 from .basemol import Molecule
 from .errors import JobError, PlamsError, ResultsError
-from .functions import log
+from .functions import config, log
 from .private import sha256
 from .results import Results
 from .settings import Settings
@@ -445,7 +445,7 @@ class MultiJob(Job):
 
 
     def check(self):
-        """Check if the calculation was successful. Returns ``True`` if every children job has its ``status`` attribute set to ``'successful'``.
+        """Check if the calculation was successful. Returns ``True`` if every children job has its ``status`` attribute set to ``'successful'`` (or ``'copied').
         """
         return all([child.status in ['successful', 'copied'] for child in self])
 

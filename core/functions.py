@@ -1,4 +1,3 @@
-import builtins
 import glob
 import os
 import shutil
@@ -13,8 +12,9 @@ from os.path import isfile, isdir, expandvars, dirname
 from .errors import PlamsError
 from .settings import Settings
 
-__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'add_to_class', 'add_to_instance']
+__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'add_to_class', 'add_to_instance', 'config']
 
+config = Settings()
 
 #===========================================================================
 
@@ -34,8 +34,6 @@ def init(path=None, folder=None):
     .. warning::
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also :ref:`master-script`.
     """
-
-    builtins.config = Settings()
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
         defaults = expandvars('$PLAMSDEFAULTS')
@@ -138,7 +136,7 @@ def log(message, level=0):
 
     Logs are printed independently to both text file and standard output. If *level* is equal or lower than verbosity (defined by ``config.log.file`` or ``config.log.stdout``) the message is printed. Date and/or time can be added based on ``config.log.date`` and ``config.log.time``. All logging activity is thread safe.
     """
-    if 'config' in vars(builtins):
+    if 'log' in config:
         if level <= config.log.file or level <= config.log.stdout:
             message = str(message)
             prefix = ''

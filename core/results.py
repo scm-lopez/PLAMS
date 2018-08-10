@@ -13,7 +13,7 @@ from subprocess import PIPE
 
 from .private import saferun
 from .errors import ResultsError, FileError
-from .functions import log
+from .functions import config, log
 
 
 __all__ = ['Results']
