@@ -36,11 +36,6 @@ config.jobmanager.hashing = 'input'
 #Removes all empty subdirectories in the main working folder at the end of the script
 config.jobmanager.remove_empty_directories = True
 
-#Defines what action to take when a particular jobfolder already exists in the filesystem
-#Possible values are: None (throw exception), 'remove', 'rename' (to *.old)
-# This option is relevant only when the current run uses an existing, non-empty main working folder with some other folders inside
-config.jobmanager.jobfolder_exists = None
-
 
 
 #==== Job defaults =========================================================
@@ -82,12 +77,15 @@ config.log.time = True
 config.log.date = False
 
 
+
 #==== Subprocess retry =====================================================
 
 #All the subprocess.run() calls in PLAMS are wrapped with the saferun() function which will retry the run() call if OSError was raised. This is done mainly to deal with BlockingIOError no 11 (resource temporarily unavailable) in case of large number of run() calls in a short period of time (for example, when a large MultiJob submits its long list of children to a job scheduler). The parameters below define the number of attempts to be made for each run() call and the delay between them.
 
 config.saferun.repeat = 10
 config.saferun.delay = 1
+
+
 
 #==== Default JobRunner ====================================================
 

@@ -44,23 +44,31 @@ for input_file in args.file:
 
 
 #handle restart
-restart_backup = None
 if args.restart:
     if args.folder:
         restartdir = opj(args.path, args.folder) if args.path else args.folder
-        if os.path.isdir(restartdir):
-            if os.listdir(restartdir):
-                restart_backup = restartdir + '.res'
-                n = 1
-                while os.path.exists(restart_backup):
-                    n += 1
-                    restart_backup = restartdir + '.res' + str(n)
-                os.rename(restartdir, restart_backup)
-                args.load.append(restart_backup)
-        else:
-            print('WARNING: The folder specified for restart does not exist. Ignoring -r flag.')
     else:
-        print('WARNING: To perform a restart run you need to specify the folder with -f flag. Ignoring -r flag.')
+        basename = opj(args.path, 'plams_workdir') if args.path else 'plams_workdir'
+        restartdir = basename
+        n = 2
+        nextname = basename + '.' + str(n).zfill(3)
+        while os.path.exists(nextname):
+            n += 1
+            restartdir = nextname
+            nextname = basename + '.' + str(n).zfill(3)
+
+    if os.path.isdir(restartdir):
+        if os.listdir(restartdir):
+            restart_backup = restartdir + '.res'
+            n = 1
+            while os.path.exists(restart_backup):
+                n += 1
+                restart_backup = restartdir + '.res' + str(n)
+            os.rename(restartdir, restart_backup)
+            args.load.append(restart_backup)
+    else:
+        print('WARNING: The folder specified for restart does not exist. Ignoring -r flag.')
+
 
 
 #initialize PLAMS

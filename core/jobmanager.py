@@ -54,23 +54,17 @@ class JobManager(object):
         else:
             raise PlamsError('Invalid path: {}'.format(path))
 
-        if folder is None:
-            basename = 'plams.' + str(os.getpid())
-            self.foldername = basename
-            i = 1
-            while os.path.exists(opj(self.path, self.foldername)):
-                self.foldername = basename + '_' + str(i)
-                i += 1
-        else:
-            self.foldername = os.path.normpath(folder) #normpath removes trailing /
+        basename = os.path.normpath(folder) if folder else 'plams_workdir'
+        self.foldername = basename
+        n = 2
+        while os.path.exists(opj(self.path, self.foldername)):
+            self.foldername = basename + '.' + str(n).zfill(3)
+            n += 1
 
         self.workdir = opj(self.path, self.foldername)
         self.logfile = opj(self.workdir, self.foldername+'.log')
         self.input = opj(self.workdir, self.foldername+'.inp')
-        if not os.path.exists(self.workdir):
-            os.mkdir(self.workdir)
-        else:
-            log('WARNING: Folder {} already exists. It is strongly advised to use a fresh folder for every run. If you experience problems check config.jobmanager.jobfolder_exists setting in plams_defaults'.format(self.workdir), 1)
+        os.mkdir(self.workdir)
 
 
     def _register_name(self, job):
@@ -101,18 +95,6 @@ class JobManager(object):
                 job.path = opj(job.parent.path, job.name)
             else:
                 job.path = opj(self.workdir, job.name)
-        if os.path.exists(job.path):
-            if self.settings.jobfolder_exists == 'remove':
-                shutil.rmtree(job.path)
-            elif self.settings.jobfolder_exists == 'rename':
-                i = 1
-                while os.path.exists(job.path + '.old' + str(i)):
-                    i += 1
-                newname = job.path + '.old' + str(i)
-                os.rename(job.path, newname)
-                log('Folder {} already present. Renaming it to {}'.format(job.path, newname), 1)
-            else:
-                raise PlamsError('Folder {} already present in the filesystem. Consider using a fresh working folder or adjusting config.jobmanager.jobfolder_exists'.format(job.path))
         os.mkdir(job.path)
 
         self.jobs.append(job)
