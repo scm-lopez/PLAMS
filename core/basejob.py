@@ -131,18 +131,26 @@ class Job(object):
                 log('Pickling of {} failed'.format(self.name), 1)
 
 
-    def check(self):
-        """Check if the calculation was successful.
+    def ok(self, strict=True):
+        """Check if the execution of this instance was successful. If needed, wait for the job to finish and then check if the status is ``'successful'`` (or ``'copied'``).
 
-        This method can be overridden in concrete subclasses for different types of jobs. It should return a boolean value.
+            If this method is called before job's |run| method, a warning is logged and the returned value is ``False``. The most likely cause of such a behavior is simply forgetting about |run| call. However, in complicated workflows executed in parallel, it can sometimes naturally happen that one thread is ahead of others and calls :meth:`~Job.ok` before some other thread has a chance to call |run|. If you're experiencing that kind of problems, please consider using ``strict=False`` to skip the |run| check.  But keep in mind that skipping that check will deadlock the current thread if |run| never gets called.
 
-        The definition here serves as a default, to prevent crashing if a subclass does not define its own :meth:`~scm.plams.core.basejob.Job.check`. It always returns ``True``.
         """
-        return True
+        if strict and self.status == 'created': #first thing run() does is changing the status to 'started'
+            log('Job {} WARNING: ok() method was called before run(). Returned value is False. Please check the documentation'.format(self.name), 3)
+            return False
+        self.results.wait()
+        return self.status in ['successful', 'copied']
+
+
+    def check(self):
+        """Check if the execution of this instance was successful. Abstract method meant for internal use."""
+        raise PlamsError('Trying to run an abstract method Job.check()')
 
 
     def hash(self):
-        """Calculate the hash of this instance. Abstract method."""
+        """Calculate the hash of this instance. Abstract method meant for internal use"""
         raise PlamsError('Trying to run an abstract method Job.hash()')
 
 
@@ -352,6 +360,19 @@ class SingleJob(Job):
             raise PlamsError('Unsupported hashing method: {}'.format(mode))
 
 
+    def check(self):
+        """Check if the calculation was successful.
+
+        This method can be overridden in concrete subclasses of |SingleJob|. It should return a boolean value. The definition here serves as a default, to prevent crashing if a subclass does not define its own :meth:`~scm.plams.core.basejob.SingleJob.check`. It always returns ``True``.
+
+        .. warning::
+
+            This method is meant for internal usage and **should not** be explicitly called in your script (but it can be overridden in subclasses). Manually calling :meth:`~scm.plams.core.basejob.SingleJob.check` is not thread safe. For a thread safe function to evaluate the state of your job please use :meth:`~scm.plams.core.basejob.Job.ok`
+
+        """
+        return True
+
+
     def _full_runscript(self):
         """Generate full runscript, including shebang line and contents of ``pre`` and ``post``, if any.
 
@@ -450,9 +471,9 @@ class MultiJob(Job):
 
 
     def check(self):
-        """Check if the calculation was successful. Returns ``True`` if every children job has its ``status`` attribute set to ``'successful'`` (or ``'copied').
+        """Check if the execution of this instance was successful. Returns ``True`` if every children job has its ``status`` attribute set to ``'successful'`` (or ``'copied').
         """
-        return all([child.status in ['successful', 'copied'] for child in self])
+        return all([child.ok() for child in self])
 
 
     def other_jobs(self):
