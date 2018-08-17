@@ -9,8 +9,7 @@ from ..interfaces.adfsuite.band import BANDJob
 from ..interfaces.adfsuite.dftb import DFTBJob
 
 
-__all__ = ['ADFNumGradJob' ,'BANDNumGradJob', 'DFTBNumGradJob']
-
+__all__ = ['ADFNumGradJob']
 
 
 class NumGradResults(Results):
@@ -77,38 +76,9 @@ class NumGradJob(MultiJob):
 #===========================================================================
 
 
-def _bond_energy(results):
-    return results.readkf('Energy', 'Bond Energy')
-
 class ADFNumGradJob(NumGradJob):
     def __init__(self, **kwargs):
         NumGradJob.__init__(self, **kwargs)
         self.settings.numgrad.jobtype = ADFJob
-        self.settings.numgrad.get_energy = _bond_energy
-
-
-#===========================================================================
-
-
-def _BAND_totalenergy(results):
-    return results.readkf('Bond energies', 'final bond energy')
-
-class BANDNumGradJob(NumGradJob):
-    def __init__(self, **kwargs):
-        NumGradJob.__init__(self, **kwargs)
-        self.settings.numgrad.jobtype = BANDJob
-        self.settings.numgrad.get_energy = _BAND_totalenergy
-
-
-#===========================================================================
-
-
-def _DFTB_totalenergy(results):
-    return float(results.grep_output('Total Energy (hartree)')[0].split()[-1])
-
-class DFTBNumGradJob(NumGradJob):
-    def __init__(self, **kwargs):
-        NumGradJob.__init__(self, **kwargs)
-        self.settings.numgrad.jobtype = DFTBJob
-        self.settings.numgrad.get_energy = _DFTB_totalenergy
+        self.settings.numgrad.get_energy = lambda x: x.readkf('Energy', 'Bond Energy')
 
