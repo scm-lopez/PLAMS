@@ -13,9 +13,7 @@ from ...tools.kftools import KFFile
 from ...tools.units import Units
 
 
-
 __all__ = ['AMSJob', 'AMSResults']
-
 
 
 class AMSResults(Results):
@@ -92,30 +90,6 @@ class AMSResults(Results):
         return self._access_rkf(lambda x: x.path, file)
 
 
-    def _access_rkf(self, func, file='ams'):
-        """_process_kf(func, file='ams')
-
-        A skeleton method for accessing any of the ``.rkf`` files produced by AMS.
-
-        The *file* argument should be the identifier of the file to read. To access a file called ``something.rkf`` you need to call this function with ``file='something`'.
-
-        The *func* argument has to be a function to call on a chosen ``.rkf`` file. It should take one argument, an instance of |KFFile|.
-        """
-        #Try:
-        if file in self.rkfs:
-            return func(self.rkfs[file])
-
-        #Try harder:
-        filename = file + '.rkf'
-        self.refresh()
-        if filename in self.files:
-            self.rkfs[file] = KFFile(opj(self.job.path, filename))
-            return func(self.rkfs[file])
-
-        #Surrender:
-        raise FileError('File {} not present in {}'.format(filename, self.job.path))
-
-
     def readrkf(self, section, variable, file='ams'):
         """readrkf(section, variable, engine='ams')
         Read data from *section*/*variable* of a chosen ``.rkf`` file.
@@ -132,7 +106,7 @@ class AMSResults(Results):
         return self._access_rkf(lambda x: x.read(section, variable), file)
 
 
-    def read_section(self, section, file='ams'):
+    def read_rkf_section(self, section, file='ams'):
         """read_section(section, engine='ams')
 
         Return a dictionary with all variables from a given *section* of a chosen ``.rkf`` file.
@@ -147,6 +121,16 @@ class AMSResults(Results):
         return self._access_rkf(lambda x: x.read_section(section), file)
 
 
+    def get_rkf_skeleton(self, file='ams'):
+        """get_rkf_skeleton(file='ams')
+
+        Return a dictionary with the structure of a chosen ``.rkf`` file. Each key corresponds to a section name with the value being a set of variable names present in that section.
+
+        The *file* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``file='something`'.
+        """
+        return self._access_rkf(lambda x: x.get_skeleton(), file)
+
+
     def get_molecule(self, section, file='ams'):
         """get_molecule(section, file='ams')
 
@@ -156,33 +140,9 @@ class AMSResults(Results):
 
         All data used by this method is taken from the chosen ``.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
-        sectdict = self.read_section(section, file)
-        ret = Molecule()
-
-        coords = [sectdict['Coords'][i:i+3] for i in range(0,len(sectdict['Coords']),3)]
-        symbols = sectdict['AtomSymbols'].split()
-        for at, crd, sym, mass in zip(sectdict['AtomicNumbers'], coords, symbols, sectdict['AtomMasses']):
-            newatom = Atom(atnum=at, coords=crd, unit='bohr')
-            if sym.startswith('Gh.'):
-                sym = sym[3:]
-                newatom.properties.ghost = True
-            if '.' in sym:
-                sym, name = sym.split('.', 1)
-                newatom.properties.name = name
-            ret.add_atom(newatom)
-
-        if sectdict['Charge'] != 0:
-            ret.properties.charge = sectdict['Charge']
-
-        if 'nLatticeVectors' in sectdict:
-            ret.lattice = Units.convert([tuple(sectdict['LatticeVectors'][i:i+3]) for i in range(0,len(sectdict['LatticeVectors']),3)], 'bohr', 'angstrom')
-
-        if 'EngineAtomicInfo' in sectdict:
-            suffixes = sectdict['EngineAtomicInfo'].splitlines()
-            for at, suffix in zip(ret, suffixes):
-                at.properties.suffix = suffix
-
-        return ret
+        sectiondict = self.read_rkf_section(section, file)
+        if sectiondict:
+            return AMSResults._mol_from_rkf_section(sectiondict)
 
 
     def get_input_molecule(self):
@@ -201,26 +161,6 @@ class AMSResults(Results):
         All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
         return self.get_molecule('Molecule', 'ams')
-
-
-    def _process_engine_results(self, func, engine=None):
-        """_process_engine_results(func, engine=None)
-
-        A generic method skeleton for processing any engine results ``.rkf`` file. *func* should be a function that takes one argument (an instance of |KFFile|) and returns arbitrary data.
-
-        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
-        """
-        names = self.engine_names()
-        if engine is not None:
-            if engine in names:
-                return func(self.rkfs[engine])
-            else:
-                raise FileError('File {}.rkf not present in {}'.format(engine, self.job.path))
-        else:
-            if len(names) == 1:
-                return func(self.rkfs[names[0]])
-            else:
-                raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
 
 
     def get_engine_results(self, engine=None):
@@ -250,6 +190,80 @@ class AMSResults(Results):
                 ret[key] = val
             return ret
         return self._process_engine_results(properties, engine)
+
+
+#===========================================================================
+
+
+    def _access_rkf(self, func, file='ams'):
+        """_process_kf(func, file='ams')
+
+        A skeleton method for accessing any of the ``.rkf`` files produced by AMS.
+
+        The *file* argument should be the identifier of the file to read. To access a file called ``something.rkf`` you need to call this function with ``file='something`'.
+
+        The *func* argument has to be a function to call on a chosen ``.rkf`` file. It should take one argument, an instance of |KFFile|.
+        """
+        #Try:
+        if file in self.rkfs:
+            return func(self.rkfs[file])
+
+        #Try harder:
+        filename = file + '.rkf'
+        self.refresh()
+        if filename in self.files:
+            self.rkfs[file] = KFFile(opj(self.job.path, filename))
+            return func(self.rkfs[file])
+
+        #Surrender:
+        raise FileError('File {} not present in {}'.format(filename, self.job.path))
+
+
+    def _process_engine_results(self, func, engine=None):
+        """_process_engine_results(func, engine=None)
+
+        A generic method skeleton for processing any engine results ``.rkf`` file. *func* should be a function that takes one argument (an instance of |KFFile|) and returns arbitrary data.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        names = self.engine_names()
+        if engine is not None:
+            if engine in names:
+                return func(self.rkfs[engine])
+            else:
+                raise FileError('File {}.rkf not present in {}'.format(engine, self.job.path))
+        else:
+            if len(names) == 1:
+                return func(self.rkfs[names[0]])
+            else:
+                raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
+
+
+    @staticmethod
+    def _mol_from_rkf_section(sectiondict):
+        """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
+
+        ret = Molecule()
+        coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
+        symbols = sectiondict['AtomSymbols'].split()
+        for at, crd, sym, mass in zip(sectiondict['AtomicNumbers'], coords, symbols, sectiondict['AtomMasses']):
+            newatom = Atom(atnum=at, coords=crd, unit='bohr')
+            if sym.startswith('Gh.'):
+                sym = sym[3:]
+                newatom.properties.ghost = True
+            if '.' in sym:
+                sym, name = sym.split('.', 1)
+                newatom.properties.name = name
+            ret.add_atom(newatom)
+        if sectiondict['Charge'] != 0:
+            ret.properties.charge = sectiondict['Charge']
+        if 'nLatticeVectors' in sectiondict:
+            ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
+        if 'EngineAtomicInfo' in sectiondict:
+            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
+            for at, suffix in zip(ret, suffixes):
+                at.properties.suffix = suffix
+        return ret
 
 
 #===========================================================================
@@ -324,6 +338,8 @@ class AMSJob(SingleJob):
         }
         return sha256(self._serialize_input(special))
 
+
+#===========================================================================
 
 
     def _serialize_input(self, special):
@@ -432,6 +448,9 @@ class AMSJob(SingleJob):
             ret[ams][system][charge] = self.molecule.properties.charge
 
         return ret
+
+
+#===========================================================================
 
 
     @staticmethod
