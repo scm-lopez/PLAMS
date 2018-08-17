@@ -252,8 +252,6 @@ class AMSResults(Results):
         return self._process_engine_results(properties, engine)
 
 
-
-
 #===========================================================================
 #===========================================================================
 #===========================================================================
@@ -270,19 +268,12 @@ class AMSJob(SingleJob):
 
         #TODO
         """
-        def tuple2rkf(arg):
-            if len(arg) == 2 and isinstance(arg[1], str):
-                if isinstance(arg[0], AMSJob):
-                    return arg[0].results.rkfpath(arg[1])
-                if isinstance(arg[0], AMSResults):
-                    return arg[0].rkfpath(arg[1])
-            return str(arg)
 
         special = {
-            AMSJob: lambda x: x.results.rkfpath(), #TODO
-            AMSResults: lambda x: x.rkfpath(), #TODO
+            AMSJob: lambda x: x.results.rkfpath(),
+            AMSResults: lambda x: x.rkfpath(),
             KFFile: lambda x: x.path,
-            tuple: lambda x: tuple2rkf(x)
+            tuple: lambda x: AMSJob.tuple2rkf(x)
         }
         return self._serialize_input(special)
 
@@ -328,9 +319,11 @@ class AMSJob(SingleJob):
         special = {
             AMSJob: lambda x: x.hash_input(),
             AMSResults: lambda x: x.job.hash_input(),
-            KFFile: lambda x: x.path
+            KFFile: lambda x: x.path,
+            tuple: lambda x: AMSJob.tuple2rkf(x)
         }
         return sha256(self._serialize_input(special))
+
 
 
     def _serialize_input(self, special):
@@ -451,3 +444,13 @@ class AMSJob(SingleJob):
             smb = (smb+'.'+str(atom.properties.name)).lstrip('.')
         return smb
 
+
+    @staticmethod
+    def _tuple2rkf(arg):
+        """Transform a pair ``(x, name)`` where ``x`` is an instance of |AMSJob| or |AMSResults| and ``name`` is a name of ``.rkf`` file (``ams`` or engine) to an absolute file to that ``.rkf`` file."""
+        if len(arg) == 2 and isinstance(arg[1], str):
+            if isinstance(arg[0], AMSJob):
+                return arg[0].results.rkfpath(arg[1])
+            if isinstance(arg[0], AMSResults):
+                return arg[0].rkfpath(arg[1])
+        return str(arg)
