@@ -356,6 +356,16 @@ class KFFile(object):
         return ret
 
 
+    def get_skeleton(self):
+        """Return a dictionary reflecting the structure of this KF file. Each key in that dictionary corresponds to a section name of the KF file with the value being a set of variable names."""
+        ret = {}
+        for sec,var in self:
+            if sec not in ret:
+                ret[sec] = set()
+            ret[sec].add(var)
+        return ret
+
+
     def __getitem__(self, name):
         """Allow to use ``x = mykf['section%variable']`` or ``x = mykf[('section','variable')]`` instead of ``x = kf.read('section', 'variable')``."""
         section, variable = KFFile._split(name)
