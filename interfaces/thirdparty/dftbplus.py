@@ -169,7 +169,7 @@ class DFTBPlusJob(SingleJob):
         """dftb+ has to be in your $PATH!"""
         ret = 'dftb+ '
         if self.settings.runscript.stdout_redirect:
-            ret += ' >' + self._filenames('out')
+            ret += ' >' + self._filename('out')
         ret += '\n\n'
         return ret
 

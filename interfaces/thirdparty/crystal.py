@@ -197,7 +197,7 @@ class CrystalJob(SingleJob):
         ret = self._command
         ret += ' < ' + self._filename('inp')
         if self.settings.runscript.stdout_redirect:
-            ret += ' >' + self._filenames('out')
+            ret += ' >' + self._filename('out')
         ret += '\n\n'
         return ret
 
