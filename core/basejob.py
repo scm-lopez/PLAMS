@@ -12,7 +12,7 @@ except ImportError:
 from os.path import join as opj
 
 from .basemol import Molecule
-from .errors import JobError, PlamsError, ResultsError
+from .errors import FileError, JobError, PlamsError, ResultsError
 from .functions import config, log
 from .private import sha256
 from .results import Results
@@ -290,7 +290,7 @@ class SingleJob(Job):
 
     def _filename(self, t):
         """Return filename for file of type *t*. *t* can be any key from ``_filenames`` dictionary. ``$JN`` is replaced with job name in returned string."""
-        return self.__class__._filenames[t].replace('$JN', self.name)
+        return self._filenames[t].replace('$JN', self.name)
 
 
     def get_input(self):
@@ -418,6 +418,58 @@ class SingleJob(Job):
                 log('WARNING: Job {} finished with nonzero return code'.format(self.name), 3)
                 self.status = 'crashed'
         log('{}._execute() finished'.format(self.name), 7)
+
+
+    @classmethod
+    def load_external(cls, path, settings=None, molecule=None, finalize=False):
+        """Load an external job from *path*.
+
+        In this context an "external job" is an execution of some external binary that was not managed by PLAMS, and hence does not have a ``.dill`` file. It can also be used in situations where the execution was started with PLAMS, but the Python process was terminated before the execution finished, resulting in steps 9-12 of :ref:`job-life-cycle` not happening.
+
+        All the files produced by your computation should be placed in one folder and *path* should be the path to this folder. The name of the folder is used as a job name. Input, output, error and runscript files, if present, should have names defined in ``_filenames`` class attribute (usually ``[jobname].in``, ``[jobname].out``, ``[jobname].err`` and ``[jobname].run``). It is not required to supply all these files, but in most cases one would like to use at least the output file, in order to use methods like :meth:`~scm.plams.core.results.Results.grep_output` or :meth:`~scm.plams.core.results.Results.get_output_chunk`.
+
+        This method is a class method, so it is called via class object and it returns an instance of that class::
+
+            >>> j = SingleJob.load_external(path='some/path/jobname')
+            >>> type(j)
+            scm.plams.core.basejob.SingleJob
+            >>> a = AMSJob.load_external(path='some/path/jobname')
+            >>> type(a)
+            scm.plams.interfaces.adfsuite.ams.AMSJob
+
+        You can supply |Settings| and |Molecule| instances as *settings* and *molecule* parameters, they will end up attached to the returned job instance. If you don't do this, PLAMS will try to recreate them automatically using methods :meth:`~scm.plams.core.results.Results.recreate_settings` and :meth:`~scm.plams.core.results.Results.recreate_molecule` of the corresponding |Results| subclass. If no |Settings| instance is obtained in either way, the defaults from ``config.job`` are copied.
+
+        You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job.finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (``successful`` or ``failed``), followed by cleaning of the job folder (:ref:`cleaning`), |postrun| and pickling (:ref:`pickling`). If *finalize* is ``False``, the status of the returned job is ``copied``.
+        """
+
+        if not os.path.isdir(path):
+            raise FileError('Path {} does not exist, cannot load from it.'.format(path))
+
+        path = os.path.abspath(path)
+        jobname = os.path.basename(path)
+
+        job = cls(name=jobname)
+        job.path = path
+        job.status = 'copied'
+        job.results.collect()
+
+        job._filenames = {}
+        for t,name in cls._filenames.items():
+            fullname = name.replace('$JN', job.name)
+            if fullname in job.results.files:
+                job._filenames[t] = name
+            else:
+                log('The default {} file {} not present in {}'.format(t, fullname, job.path), 5)
+
+        job.settings  = settings or job.results.recreate_settings() or config.job.copy()
+        job.molecule  = molecule or job.results.recreate_molecule()
+
+        if finalize:
+            job._finalize()
+
+        return job
+
+
 
 
 #===========================================================================

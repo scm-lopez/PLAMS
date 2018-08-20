@@ -5,7 +5,7 @@ from os.path import join as opj
 from ...core.basejob import SingleJob
 from ...core.basemol import Molecule, Atom
 from ...core.errors import FileError
-from ...core.functions import log
+from ...core.functions import config, log
 from ...core.private import sha256
 from ...core.results import Results
 from ...core.settings import Settings
@@ -190,6 +190,37 @@ class AMSResults(Results):
                 ret[key] = val
             return ret
         return self._process_engine_results(properties, engine)
+
+
+    def recreate_molecule(self):
+        """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
+
+        If ``ams.rkf`` is present in the job folder, extract data from the ``InputMolecule`` section.
+        """
+        if 'ams' in self.rkfs:
+            return self.get_input_molecule()
+        return None
+
+
+    def recreate_settings(self):
+        """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
+
+        If ``ams.rkf`` is present in the job folder, extract user input and parse it back to a |Settings| instance using ``scm.input_parser``. Remove the ``system`` branch from that instance.
+        """
+        if 'ams' in self.rkfs:
+            user_input = self.readrkf('General', 'user input')
+            try:
+                from scm.input_parser import input_to_settings
+                inp = input_to_settings(user_input)
+            except:
+                log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path, 5))
+            s = Settings()
+            s.input = inp
+            del s.input.ams[s.input.ams.find_case('system')]
+            s.soft_update(config.job)
+            return s
+        return None
+
 
 
 #===========================================================================

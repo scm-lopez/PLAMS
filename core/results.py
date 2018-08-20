@@ -230,7 +230,9 @@ class Results(metaclass=_MetaResults):
         try:
             output = self.job._filename('out')
         except AttributeError:
-            raise ResultsError('Job {} is not an instance of SingleJob, it does not have an output'.format(self.job.name))
+            raise ResultsError('Job {} does not seem to be an instance of SingleJob, it does not have _filenames dictionary'.format(self.job.name))
+        except KeyError:
+            raise ResultsError('Job {} does not have an output'.format(self.job.name))
         return self.grep_file(output, pattern, options)
 
 
@@ -240,7 +242,9 @@ class Results(metaclass=_MetaResults):
         try:
             output = self.job._filename('out')
         except AttributeError:
-            raise ResultsError('Job {} is not an instance of SingleJob, it does not have an output'.format(self.job.name))
+            raise ResultsError('Job {} does not seem to be an instance of SingleJob, it does not have _filenames dictionary'.format(self.job.name))
+        except KeyError:
+            raise ResultsError('Job {} does not have an output'.format(self.job.name))
         return self.awk_file(output, script, progfile, **kwargs)
 
 
@@ -296,6 +300,22 @@ class Results(metaclass=_MetaResults):
         except AttributeError:
             raise ResultsError('Job {} is not an instance of SingleJob, it does not have an output'.format(self.job.name))
         return self.get_file_chunk(output, begin, end, match, inc_begin, inc_end, process)
+
+
+    def recreate_molecule(self):
+        """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
+
+        The definiton here serves as a deafult fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_molecule`.
+        """
+        return None
+
+
+    def recreate_settings(self):
+        """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
+
+        The definiton here serves as a deafult fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_settings`.
+        """
+        return None
 
 
 

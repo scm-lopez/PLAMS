@@ -225,6 +225,7 @@ rst_epilog = """
 .. |run| replace:: :meth:`~scm.plams.core.basejob.Job.run`
 .. |prerun| replace:: :meth:`~scm.plams.core.basejob.Job.prerun`
 .. |postrun| replace:: :meth:`~scm.plams.core.basejob.Job.postrun`
+.. |load_external| replace:: :meth:`~scm.plams.core.basejob.SingleJob.load_external`
 
 .. |Atom| replace:: :class:`~scm.plams.core.basemol.Atom`
 .. |Bond| replace:: :class:`~scm.plams.core.basemol.Bond`
