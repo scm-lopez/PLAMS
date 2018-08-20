@@ -523,7 +523,7 @@ class MultiJob(Job):
 
 
     def check(self):
-        """Check if the execution of this instance was successful. Returns ``True`` if every children job has its ``status`` attribute set to ``'successful'`` (or ``'copied').
+        """Check if the execution of this instance was successful. Returns ``True`` if every children job has its ``status`` attribute set to ``'successful'`` (or ``'copied'``).
         """
         return all([child.ok() for child in self])
 
