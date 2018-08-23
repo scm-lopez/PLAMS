@@ -7,9 +7,6 @@ DFTB+ is a density-functional tight-binding implemenation. More information abou
 
 PLAMS offers a simple and incomplete DFTB+ interface. It is so far capable of handling molecular calculations. The relevant classes are |DFTBPlusJob| and |DFTBPlusResults|.
 
-.. adfsuite::
-
-    DFTB+ is not a part of ADF Suite. To run DFTB+ calculations with PLAMS you need to obtain and install DFTB+ manually.
 
 Preparing a calculation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

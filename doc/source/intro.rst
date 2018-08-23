@@ -21,7 +21,7 @@ That requires significant effort to be put into data hygiene to avoid confusing 
 Each of the above steps, apart from actual calculation done by a molecular modeling program, needs to be performed by a human.
 Preparing and editing text files, creating folders in the filesystem, copying files between them and reading data from output are tedious, repetitive and highly error-prone work.
 Some users deal with it using automation, usually in form of ad hoc shell scripts.
-A few programs, like ADF Suite, offer graphical user interface to help with this kind of work, but again, input preparation and output examination, even though assisted with convenient tools, have to be done by a human.
+A few programs, like Amsterdam Modeling Suite, offer graphical user interface to help with this kind of work, but again, input preparation and output examination, even though assisted with convenient tools, have to be done by a human.
 Quite often it turns out to be a performance bottleneck to create big  automatic computational workflows, where output data of one calculation is used (usually after some processing) as an input to another calculation, sometimes done with different program on a different machine.
 
 PLAMS was created to solve these problems.
@@ -50,7 +50,7 @@ The most important features of PLAMS:
 *   prevention of multiple runs of the same job
 *   easy data transfer between separate runs
 *   efficient restarting in case of crash
-*   full coverage of all input options and output data in ADFSuite programs
+*   full coverage of all input options and output data in Amsterdam Modeling Suite programs
 *   easy extendable for other programs, job schedulers, file formats etc.
 *   interfaces for Dirac, ORCA, CP2K, DFTB+, Crystal (and more coming soon)
 
@@ -176,9 +176,6 @@ The following special boxes appear within this documentation:
 
     More detailed technical explanation of some part of the code aimed at users with better technical background. Understanding it may require advanced Python knowledge. These parts can be safely skipped without a harm to general comprehension.
 
-.. adfsuite::
-
-    Information for users who obtained PLAMS as a part of ADF Modeling Suite. Describes how PLAMS is integrated with other tools from the suite.
 
 It is assumed that the reader has some basic understanding of Python programming language.
 Gentle introduction to Python can be found in the excellent :ref:`Python Tutorial<tutorial-index>` and other parts of the official Python documentation.

@@ -11,7 +11,6 @@ from docutils.parsers.rst.directives.admonitions import Important,Danger,Attenti
 from sphinx.locale import admonitionlabels
 
 admonitionlabels['important'] = 'Technical'
-admonitionlabels['attention'] = 'ADF Suite'
 admonitionlabels['danger'] = 'Warning'
 
 def modify_signature(app, what, name, obj, options, signature,
@@ -25,7 +24,6 @@ def setup(app):
         app.add_stylesheet('boxes.css')
     app.add_directive('warning', Danger)
     app.add_directive('technical', Important)
-    app.add_directive('adfsuite', Attention)
     app.connect('autodoc-process-signature', modify_signature)
 
 

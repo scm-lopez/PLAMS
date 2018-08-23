@@ -7,9 +7,6 @@ DIRAC is an *ab initio* quantum chemistry program for all electron relativistic 
 
 PLAMS offers a simple DIRAC interface and is capable of running DIRAC calculations. The relevant classes are |DiracJob| and |DiracResults|.
 
-.. adfsuite::
-
-    DIRAC is not a part of ADF Suite. To run DIRAC calculations with PLAMS you need to obtain and install DIRAC manually.
 
 Preparing a calculation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

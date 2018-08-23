@@ -7,9 +7,6 @@ More information about CRYSTAL can be found on its `official website <http://www
 
 PLAMS offers a simple CRYSTAL interface which does not offer access to all possible input types of CRYSTAL just most. CRYSTAL14 was used by the developer, but as far as the developer can tell the new input features from CRYSTAL17 can be achieved with this interface. Older CRYSTAL versions are more restrictive with the input, so they have not been tested. The relevant classes are |CrystalJob| and |Results|.
 
-.. adfsuite::
-
-    CRYSTAL is not a part of ADF Suite. To run CRYSTAL calculations with PLAMS you need to obtain and install CRYSTAL manually.
 
 Preparing a calculation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
