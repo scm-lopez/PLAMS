@@ -1,18 +1,14 @@
 __all__ = ['Settings']
 
 class Settings(dict):
-    """Automatic multi-level dictionary. Subclass of built-in :class:`dict`.
+    """Automatic multi-level dictionary. Subclass of built-in class :class:`dict`.
 
     The shortcut dot notation (``s.basis`` instead of ``s['basis']``) can be used for keys that:
 
     *   are strings
     *   don't contain whitespaces
-    *   begin with a letter or underscore
+    *   begin with a letter or an underscore
     *   don't both begin and end with two or more underscores.
-
-    .. warning::
-
-        As of PLAMS v1.1 strings used as keys do **NOT** get lowercased, they are used as is.
 
     Iteration follows lexicographical order (via :func:`sorted` function)
 
@@ -41,74 +37,6 @@ class Settings(dict):
         for k,v in self.items():
             if isinstance(v, dict):
                 self[k] = Settings(v)
-
-
-
-    def __missing__(self, name):
-        """When requested key is not present, add it with an empty |Settings| instance as a value.
-
-        This method is essential for automatic insertions in deeper levels. Without it things like::
-
-            >>> s = Settings()
-            >>> s.a.b.c = 12
-
-        will not work.
-        """
-        self[name] = Settings()
-        return self[name]
-
-
-
-    def __setitem__(self, name, value):
-        """Like regular __setitem__, but if the value is a dict, convert it to |Settings|."""
-        if isinstance(value, dict):
-            value = Settings(value)
-        dict.__setitem__(self, name, value)
-
-
-
-    def __getattr__(self, name):
-        """If name is not a magic method, redirect it to __getitem__."""
-        if (name.startswith('__') and name.endswith('__')):
-            return dict.__getattr__(self, name)
-        return self[name]
-
-    def __setattr__(self, name, value):
-        """If name is not a magic method, redirect it to __setitem__."""
-        if name.startswith('__') and name.endswith('__'):
-            dict.__setattr__(self, name, value)
-        self[name] = value
-
-    def __delattr__(self, name):
-        """If name is not a magic method, redirect it to __delitem__."""
-        if name.startswith('__') and name.endswith('__'):
-            dict.__delattr__(self, name)
-        del self[name]
-
-
-
-    def _str(self, indent):
-        """Print contents with *indent* spaces of indentation. Recursively used for printing nested |Settings| instances with proper indentation."""
-        ret = ''
-        for name in self:
-            value = self[name]
-            ret += ' '*indent + str(name) + ': \t'
-            if isinstance(value, Settings):
-                ret += '\n' + value._str(indent+len(str(name))+1)
-            else:
-                ret += str(value) + '\n'
-        return ret
-
-    def __str__(self): return self._str(0)
-    __repr__ = __str__
-
-
-
-    def __iter__(self):
-        """Iteration through keys follows lexicographical order."""
-        return iter(sorted(self.keys()))
-
-
 
     def copy(self):
         """Return a new instance that is a copy of this one. Nested |Settings| instances are copied recursively, not linked.
@@ -261,6 +189,7 @@ class Settings(dict):
                 key2:    value2
             system:
                 key1:    value1
+
             >>> t = Settings()
             >>> t.system.key1 = value1
             >>> t[t.find_case('System')].key2 = value2
@@ -279,8 +208,7 @@ class Settings(dict):
 
 
     def as_dict(self):
-        """
-        Return a copy of this instance with all |Settings| replaced by the regular Python dict.
+        """Return a copy of this instance with all |Settings| replaced by regular Python dictionaries.
         """
         d = {}
         for k, v in self.items():
@@ -292,6 +220,74 @@ class Settings(dict):
         return d
 
 
+    #=======================================================================
+
+
+    def __iter__(self):
+        """Iteration through keys follows lexicographical order."""
+        return iter(sorted(self.keys()))
+
+
+    def __missing__(self, name):
+        """When requested key is not present, add it with an empty |Settings| instance as a value.
+
+        This method is essential for automatic insertions in deeper levels. Without it things like::
+
+            >>> s = Settings()
+            >>> s.a.b.c = 12
+
+        will not work.
+        """
+        self[name] = Settings()
+        return self[name]
+
+
+    def __setitem__(self, name, value):
+        """Like regular ``__setitem__``, but if the value is a dict, convert it to |Settings|."""
+        if isinstance(value, dict):
+            value = Settings(value)
+        dict.__setitem__(self, name, value)
+
+
+
+    def __getattr__(self, name):
+        """If name is not a magic method, redirect it to ``__getitem__``."""
+        if (name.startswith('__') and name.endswith('__')):
+            return dict.__getattr__(self, name)
+        return self[name]
+
+
+    def __setattr__(self, name, value):
+        """If name is not a magic method, redirect it to ``__setitem__``."""
+        if name.startswith('__') and name.endswith('__'):
+            dict.__setattr__(self, name, value)
+        self[name] = value
+
+
+    def __delattr__(self, name):
+        """If name is not a magic method, redirect it to ``__delitem__``."""
+        if name.startswith('__') and name.endswith('__'):
+            dict.__delattr__(self, name)
+        del self[name]
+
+
+    def _str(self, indent):
+        """Print contents with *indent* spaces of indentation. Recursively used for printing nested |Settings| instances with proper indentation."""
+        ret = ''
+        for name in self:
+            value = self[name]
+            ret += ' '*indent + str(name) + ': \t'
+            if isinstance(value, Settings):
+                ret += '\n' + value._str(indent+len(str(name))+1)
+            else:
+                ret += str(value) + '\n'
+        return ret
+
+
+    def __str__(self):
+        return self._str(0)
+
+    __repr__ = __str__
     __iadd__ = soft_update
     __add__ = merge
     __copy__ = copy
