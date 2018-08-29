@@ -34,19 +34,21 @@ class Job(object):
     *   :meth:`~Job.hash` (see |RPM|)
     *   |prerun| and |postrun| (see :ref:`prerun-postrun`)
 
-    Other methods should remain unchanged.
+    All other methods should remain unchanged.
 
     Class attribute ``_result_type`` defines the type of results associated with this job. It should point to a class and it **must** be a |Results| subclass.
 
-    Every job instance has the following attributes. Values of these attributes are adjusted automatically and should not be set by the user:
+    Every job instance has the following attributes:
 
-    *   ``status`` -- current status of the job in human-readable format.
-    *   ``results`` -- reference to a results instance. An empty instance of the type stored in ``_result_type`` is created when the job constructor is called.
+    Attributes adjusted automatically that should not be changed by the user:
+
+    *   ``status`` -- current status of the job. Possible values: *created*, *started*, *registered*, *running*, *finished*, *crashed*, *failed*, *successful*, *copied*, *preview*.
+    *   ``results`` -- a reference to a results instance. An empty instance of the type stored in ``_result_type`` is created when the job object is created.
     *   ``path`` -- an absolute path to the job folder.
     *   ``jobmanager`` -- a job manager associated with this job.
     *   ``parent`` -- a pointer to the parent job if this job is a child job of some |MultiJob|. ``None`` otherwise.
 
-    These attributes can be modified, but only before |run| is called:
+    Attributes that can be modified, but only before |run| is called:
 
     *   ``name`` -- the name of the job.
     *   ``settings`` -- settings of the job.
@@ -78,33 +80,19 @@ class Job(object):
                 self.settings = settings.settings.copy()
 
 
-    def __getstate__(self):
-        """Prepare an instance for pickling.
-
-        Attributes ``jobmanager``, ``parent``, ``default_settings`` and ``_lock`` are removed, as well as all attributes listed in ``self._dont_pickle``.
-        """
-        remove = ['jobmanager', 'parent', 'default_settings', '_lock'] + self._dont_pickle
-        return {k:v for k,v in self.__dict__.items() if k not in remove}
-
-
-    def _log_status(self, level):
-        """Log the status of this instance on a chosen log *level*. The message is uppercased to clearly stand out among other log entries."""
-        log('JOB {} {}'.format(self.name, self.status.upper()), level)
-
-
     #=======================================================================
 
 
     def run(self, jobrunner=None, jobmanager=None, **kwargs):
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``). Other keyword arguments (*\*\*kwargs*) are stored in ``run`` branch of job's settings. Returned value is the |Results| instance associated with this job.
 
-        .. note::
+        .. warning::
 
             This method should **not** be overridden.
 
         .. technical::
 
-            This method does not do too much by itself. After simple initial preparation it passes control to job runner, which decides if a new thread should be started for this job. The role of the job runner is to execute three methods that make the full job life cycle: :meth:`~Job._prepare`, :meth:`~Job._execute` and :meth:`~Job._finalize`. During :meth:`~Job._execute` the job runner is called once again to execute the runscript (only in case of |SingleJob|).
+            This method does not do too much by itself. After some initial preparation it passes control to the job runner, which decides if a new thread should be started for this job. The role of the job runner is to execute three methods that make the full job life cycle: :meth:`~Job._prepare`, :meth:`~Job._execute` and :meth:`~Job._finalize`. During :meth:`~Job._execute` the job runner is called once again to execute the runscript (only in case of |SingleJob|).
         """
         if self.status != 'created':
             raise JobError('Trying to run previously started job {}'.format(self.name))
@@ -132,7 +120,7 @@ class Job(object):
 
 
     def ok(self, strict=True):
-        """Check if the execution of this instance was successful. If needed, wait for the job to finish and then check if the status is ``'successful'`` (or ``'copied'``).
+        """Check if the execution of this instance was successful. If needed, wait for the job to finish and then check if the status is *successful* (or *copied*).
 
             If this method is called before job's |run| method, a warning is logged and the returned value is ``False``. The most likely cause of such a behavior is simply forgetting about |run| call. However, in complicated workflows executed in parallel, it can sometimes naturally happen that one thread is ahead of others and calls :meth:`~Job.ok` before some other thread has a chance to call |run|. If you're experiencing that kind of problems, please consider using ``strict=False`` to skip the |run| check.  But keep in mind that skipping that check will deadlock the current thread if |run| never gets called.
 
@@ -150,14 +138,14 @@ class Job(object):
 
 
     def hash(self):
-        """Calculate the hash of this instance. Abstract method meant for internal use"""
+        """Calculate the hash of this instance. Abstract method meant for internal use."""
         raise PlamsError('Trying to run an abstract method Job.hash()')
 
 
     def prerun(self):
         """Actions to take before the actual job execution.
 
-        This method is initially empty, it can be defined in subclasses or directly added to either whole class or a single instance using |binding_decorators|.
+        This method is initially empty, it can be defined in subclasses or directly added to either the whole class or a single instance using |binding_decorators|.
         """
         pass
 
@@ -165,7 +153,7 @@ class Job(object):
     def postrun(self):
         """Actions to take just after the actual job execution.
 
-        This method is initially empty, it can be defined in subclasses or directly added to either whole class or a single instance using |binding_decorators|.
+        This method is initially empty, it can be defined in subclasses or directly added to either the whole class or a single instance using |binding_decorators|.
         """
         pass
 
@@ -174,7 +162,7 @@ class Job(object):
 
 
     def _prepare(self, jobmanager):
-        """Prepare the job for execution. This method collects steps 1-7 from :ref:`job-life-cycle`. Should not be overridden. Returned value indicates if job execution should continue (|RPM| did not find this job previously run)."""
+        """Prepare the job for execution. This method collects steps 1-7 from :ref:`job-life-cycle`. Should not be overridden. Returned value indicates if job execution should continue (|RPM| did not find this job as previously run)."""
 
         log('Starting {}._prepare()'.format(self.name), 7)
 
@@ -229,7 +217,7 @@ class Job(object):
 
 
     def _finalize(self):
-        """Gather the results of job execution and organize them. This method collects steps 9-12 from :ref:`job-life-cycle`. Should not be overridden."""
+        """Gather the results of the job execution and organize them. This method collects steps 9-12 from :ref:`job-life-cycle`. Should not be overridden."""
         log('Starting {}._finalize()'.format(self.name), 7)
 
         if config.preview is False:
@@ -264,6 +252,20 @@ class Job(object):
         self._log_status(1)
 
 
+    def __getstate__(self):
+        """Prepare this job instance for pickling.
+
+        Attributes ``jobmanager``, ``parent``, ``default_settings`` and ``_lock`` are removed, as well as all attributes listed in ``self._dont_pickle``.
+        """
+        remove = ['jobmanager', 'parent', 'default_settings', '_lock'] + self._dont_pickle
+        return {k:v for k,v in self.__dict__.items() if k not in remove}
+
+
+    def _log_status(self, level):
+        """Log the status of this instance on a chosen log *level*. The message is uppercased to clearly stand out among other log entries."""
+        log("JOB '{}' {}".format(self.name, self.status.upper()), level)
+
+
 #===========================================================================
 #===========================================================================
 #===========================================================================
@@ -276,7 +278,7 @@ class SingleJob(Job):
 
     Class attribute ``_filenames`` defines default names for input, output, runscript and error files. If you wish to override this attribute it should be a dictionary with string keys ``'inp'``, ``'out'``, ``'run'``, ``'err'``. The value for each key should be a string describing corresponding file's name. Shortcut ``$JN`` can be used for job's name. The default value is defined in the following way::
 
-        >>> _filenames = {'inp':'$JN.in', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
+        _filenames = {'inp':'$JN.in', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
 
     This class defines no new methods that could be directly called in your script. Methods that can and should be overridden are :meth:`~SingleJob.get_input` and :meth:`~SingleJob.get_runscript`.
 
@@ -288,31 +290,26 @@ class SingleJob(Job):
         self.molecule = molecule.copy() if isinstance(molecule, Molecule) else molecule
 
 
-    def _filename(self, t):
-        """Return filename for file of type *t*. *t* can be any key from ``_filenames`` dictionary. ``$JN`` is replaced with job name in returned string."""
-        return self._filenames[t].replace('$JN', self.name)
-
-
     def get_input(self):
         """Generate the input file. Abstract method.
 
-        This method should return a single string with full content of the input file. It should process information stored in ``input`` branch of job's settings and in ``molecule`` attribute.
+        This method should return a single string with the full content of the input file. It should process information stored in the ``input`` branch of job settings and in the ``molecule`` attribute.
         """
         raise PlamsError('Trying to run an abstract method SingleJob._get_input()')
 
 
     def get_runscript(self):
-        """Generate runscript. Abstract method.
+        """Generate the runscript. Abstract method.
 
-        This method should return a single string with runscript contents. It can process information stored in ``runscript`` branch of job's settings. In general the full runscript has the following form::
+        This method should return a single string with the runscript contents. It can process information stored in ``runscript`` branch of job  settings. In general the full runscript has the following form::
 
             [first line defined by job.settings.runscript.shebang]
 
-            [contents of job.settings.runscript.pre, if any]
+            [contents of job.settings.runscript.pre, when present]
 
             [value returned by get_runscript()]
 
-            [contents of job.settings.runscript.post, if any]
+            [contents of job.settings.runscript.post, when present]
 
         When overridden, this method should pay attention to ``.runscript.stdout_redirect`` key in job's ``settings``.
         """
@@ -326,7 +323,7 @@ class SingleJob(Job):
 
     def hash_runscript(self):
         """Calculate SHA256 hash of the runscript."""
-        return sha256(self._full_runscript())
+        return sha256(self.full_runscript())
 
 
     def hash(self):
@@ -339,8 +336,8 @@ class SingleJob(Job):
         Currently supported values for ``hashing`` are:
 
         *   ``False`` or ``None`` -- returns ``None`` and disables |RPM|.
-        *   ``input`` -- returns hash of the input file.
-        *   ``runscript`` -- returns hash of the runscript.
+        *   ``input`` -- returns the hash of the input file.
+        *   ``runscript`` -- returns the hash of the runscript.
         *   ``input+runscript`` -- returns SHA256 hash of the concatenation of **hashes** of input and runscript.
         """
         if self.jobmanager:
@@ -373,12 +370,8 @@ class SingleJob(Job):
         return True
 
 
-    def _full_runscript(self):
-        """Generate full runscript, including shebang line and contents of ``pre`` and ``post``, if any.
-
-        .. technical::
-
-            In practice this method is just a wrapper around :meth:`~SingleJob.get_runscript`.
+    def full_runscript(self):
+        """Generate the full runscript, including shebang line and contents of ``pre`` and ``post``, if any. In practice this method is just a simple wrapper around :meth:`~SingleJob.get_runscript`.
         """
         ret = self.settings.runscript.shebang +'\n\n'
         if 'pre' in self.settings.runscript:
@@ -390,7 +383,7 @@ class SingleJob(Job):
 
 
     def _get_ready(self):
-        """Generate input and runscript files in the job folder. Methods :meth:`get_input` and :meth:`get_runscript` are used for that purpose."""
+        """Create input and runscript files in the job folder. Methods :meth:`get_input` and :meth:`full_runscript` are used for that purpose. Filenames correspond to entries in the `_filenames` attribute"""
         inpfile = opj(self.path, self._filename('inp'))
         runfile = opj(self.path, self._filename('run'))
 
@@ -398,7 +391,7 @@ class SingleJob(Job):
             inp.write(self.get_input())
 
         with open(runfile, 'w') as run:
-            run.write(self._full_runscript())
+            run.write(self.full_runscript())
 
         os.chmod(runfile, os.stat(runfile).st_mode | stat.S_IEXEC)
 
@@ -420,6 +413,11 @@ class SingleJob(Job):
         log('{}._execute() finished'.format(self.name), 7)
 
 
+    def _filename(self, t):
+        """Return filename for file of type *t*. *t* can be any key from ``_filenames`` dictionary. ``$JN`` is replaced with job name in the returned string."""
+        return self._filenames[t].replace('$JN', self.name)
+
+
     @classmethod
     def load_external(cls, path, settings=None, molecule=None, finalize=False):
         """Load an external job from *path*.
@@ -439,7 +437,7 @@ class SingleJob(Job):
 
         You can supply |Settings| and |Molecule| instances as *settings* and *molecule* parameters, they will end up attached to the returned job instance. If you don't do this, PLAMS will try to recreate them automatically using methods :meth:`~scm.plams.core.results.Results.recreate_settings` and :meth:`~scm.plams.core.results.Results.recreate_molecule` of the corresponding |Results| subclass. If no |Settings| instance is obtained in either way, the defaults from ``config.job`` are copied.
 
-        You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job.finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (``successful`` or ``failed``), followed by cleaning of the job folder (:ref:`cleaning`), |postrun| and pickling (:ref:`pickling`). If *finalize* is ``False``, the status of the returned job is ``copied``.
+        You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (:ref:`cleaning`), |postrun| and pickling (:ref:`pickling`). If *finalize* is ``False``, the status of the returned job is *copied*.
         """
 
         if not os.path.isdir(path):
@@ -482,20 +480,23 @@ class MultiJob(Job):
 
     In addition to constructor arguments and attributes defined by |Job|, the constructor of this class accepts two keyword arguments:
 
-    *   ``children`` -- should be a list (or other iterable container) containing children jobs.
-    *   ``childrunner`` -- by default all the children jobs are run using the same |JobRunner| as the parent job. If you wish to use a different |JobRunner| for children, you can pass it using this argument.
+    *   ``children`` -- iterable container with children jobs (usually a list or a dictionary).
+    *   ``childrunner`` -- by default all the children jobs are run using the same |JobRunner| as the parent job. If you wish to use a different |JobRunner| for children, you can pass it using ``childrunner``.
 
     Values passed as ``children`` and ``childrunner`` are stored as instance attributes and can be adjusted later, but before the |run| method is called.
 
     This class defines no new methods that could be directly called in your script.
 
-    When executed, a multijob runs all its children using the same |run| arguments. If you need to specify different run flags for children you can do it by manually setting them in children job |Settings|::
+    When executed, a multijob runs all its children using the same |JobManager| and |JobRunner| (unless ``childrunner`` is set). If you need to specify different run flags for children you can do it by manually setting them in child job settings::
 
-        >>> childjob.settings.run.arg = 'value'
+        childjob = myjob.children[0]
+        childjob.settings.run.arg = 'value'
 
-    Since ``run`` branch of settings gets soft-updated by run flags, value set this way is not overwritten by parent job.
+    Since the ``run`` branch of settings gets soft-updated with run flags, the value set this way is not overwritten by parent job.
 
-    Job folder of a multijob gets cleaned independently of its children. See |cleaning| for details.
+    The job folder of a multijob gets cleaned independently of its children. See |cleaning| for details.
+
+    Private attributes ``_active_children`` and ``_lock`` are essential for proper parallel execution. Please do not modify them.
     """
     def __init__(self, children=None, childrunner=None, **kwargs):
         Job.__init__(self, **kwargs)
@@ -512,18 +513,18 @@ class MultiJob(Job):
 
         The goal of this method is to produce a new portion of children jobs. Newly created jobs should be returned in a container compatible with ``self.children`` (e.g. list for list, dict for dict). No adjustment of newly created jobs' ``parent`` attribute is needed. This method **cannot** modify ``_active_children`` attribute.
 
-        The method defined here is a default template, returning ``None``, which means no new children jobs are generated and the entire execution of the parent job consists only of running jobs initially found in ``self.children``. To modify this behavior you can override this method in |MultiJob| subclass or use one of |binding_decorators|, just like with :ref:`prerun-postrun`.
+        The method defined here is a default template, returning ``None``, which means no new children jobs are generated and the entire execution of the parent job consists only of running jobs initially found in ``self.children``. To modify this behavior you can override this method in a |MultiJob| subclass or you can use one of |binding_decorators|, just like with :ref:`prerun-postrun`.
         """
         return None
 
 
     def hash(self):
-        """Hashing for multijobs is disabled by default. Return ``None``."""
+        """Hashing for multijobs is disabled by default. Returns ``None``."""
         return None
 
 
     def check(self):
-        """Check if the execution of this instance was successful. Returns ``True`` if every children job has its ``status`` attribute set to ``'successful'`` (or ``'copied'``).
+        """Check if the execution of this instance was successful, by calling :meth:`Job.ok` of all the children jobs.
         """
         return all([child.ok() for child in self])
 
@@ -533,10 +534,10 @@ class MultiJob(Job):
 
         Sometimes |prerun| or |postrun| methods create and run some small jobs that don't end up in ``children`` collection, but are still considered a part of a |MultiJob| instance (their ``parent`` atribute points to the |MultiJob| and their working folder is inside MultiJob's working folder). This method provides an iterator that goes through all such jobs.
 
-        Each attribute of ``self`` that is an instance of a |Job| and has it's parent pointing to ``self`` is returned, in random order.
+        Each attribute of this |MultiJob| that is of type |Job| and has it's parent pointing to this |MultiJob| is returned, in a random order.
         """
         for attr in self.__dict__.values():
-            if isinstance(attr, Job):
+            if isinstance(attr, Job) and attr.parent == self:
                 yield attr
 
 

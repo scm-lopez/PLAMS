@@ -90,7 +90,7 @@ def _restrict(func):
                 raise ResultsError('Using Results associated with crashed or failed job')
 
         elif self.job.status in ['created', 'started', 'registered', 'running']:
-            log('Waiting for job {} to finish'.format(self.job.name), 3)
+            log('Waiting for job {} to finish'.format(self.job.name), 1)
             if _privileged_access():
                 self.finished.wait()
             else:
@@ -100,7 +100,7 @@ def _restrict(func):
         elif self.job.status in ['finished']:
             if _privileged_access():
                 return func(self, *args, **kwargs)
-            log('Waiting for job {} to finish'.format(self.job.name), 3)
+            log('Waiting for job {} to finish'.format(self.job.name), 1)
             self.done.wait()
             return func(self, *args, **kwargs)
 
@@ -136,9 +136,9 @@ class Results(metaclass=_MetaResults):
 
     ``job`` attribute stores a reference to associated job. ``files`` attribute is a list with contents of the job folder. ``_rename_map`` is a class attribute with the dictionary storing the default renaming scheme.
 
-    Bracket notation (``myresults[filename]`` can be used to obtain full absolute paths to files in the job folder.
+    Bracket notation (``myresults[filename]``) can be used to obtain full absolute paths to files in the job folder.
 
-    Instance methods are automatically wrapped with access guardian which ensures thread safety (see :ref:`parallel`).
+    Instance methods are automatically wrapped with the "access guardian" that ensures thread safety (see :ref:`parallel`).
     """
     _rename_map = {}
 
@@ -150,11 +150,11 @@ class Results(metaclass=_MetaResults):
 
 
     def refresh(self):
-        """Refresh the contents of ``files`` list. Traverse the job folder (and all its subfolders) and collect relative paths to all files found there, except files with ``.dill`` extension.
+        """Refresh the contents of the ``files`` list. Traverse the job folder (and all its subfolders) and collect relative paths to all files found there, except files with ``.dill`` extension.
 
-        This is a cheap and fast method that should be used every time there is some risk that contents of the job folder changed and ``files`` list is no longer up-to-date. For proper working of various PLAMS elements it is crucial that ``files`` always contains up-to-date information about contents of job folder.
+        This is a cheap and fast method that should be used every time there is a risk the contents of the job folder changed and ``files`` is no longer up-to-date. For proper working of various PLAMS elements it is crucial that ``files`` always contains up-to-date information about the contents of the job folder.
 
-        All functions and methods defined in PLAMS that could change the state of job folder take care about refreshing ``files``, so there is no need to manually call :meth:`~Results.refresh` after, for example, :meth:`~Results.rename`. If you are implementing new method of that kind, don't forget about refreshing.
+        All functions and methods defined in PLAMS that could change the state of the job folder refresh the ``files`` list, so there is no need to manually call :meth:`~Results.refresh` after, for example, :meth:`~Results.rename`. If you are implementing a new method of that kind, please don't forget about refreshing.
         """
         self.files = []
         for pth, dirs, files in os.walk(self.job.path):
@@ -164,7 +164,7 @@ class Results(metaclass=_MetaResults):
 
 
     def collect(self):
-        """Collect the files present in the job folder after execution of the job is finished. This method is simply :meth:`~Results.refresh` plus rename according to ``_rename_map``.
+        """Collect the files present in the job folder after execution of the job is finished. This method is simply :meth:`~Results.refresh` followed by renaming according to the ``_rename_map``.
 
         If you wish to override this function, you have to call the parent version at the beginning.
         """
@@ -201,11 +201,23 @@ class Results(metaclass=_MetaResults):
         return self._process_file(filename, cmd)
 
 
+    def grep_output(self, pattern='', options=''):
+        """grep_output(pattern='', options='')
+        Shortcut for :meth:`~Results.grep_file` on the output file."""
+        try:
+            output = self.job._filename('out')
+        except AttributeError:
+            raise ResultsError('Job {} does not seem to be an instance of SingleJob, it does not have _filenames dictionary'.format(self.job.name))
+        except KeyError:
+            raise ResultsError('Job {} does not have an output'.format(self.job.name))
+        return self.grep_file(output, pattern, options)
+
+
     def awk_file(self, filename, script='', progfile=None, **kwargs):
         """awk_file(filename, script='', progfile=None, **kwargs)
         Execute an AWK script on a file given by *filename*.
 
-        The AWK script can be supplied in two ways: either by directly passing the contents of the script (should be a single string) as a *script* argument, or by providing the path (absolute or relative to the file pointed by *filename*) to some external file containing the actual AWK script using *progfile* argument. If *progfile* is not ``None``, the *script* argument is ignored.
+        The AWK script can be supplied in two ways: either by directly passing the contents of the script (should be a single string) as the *script* argument, or by providing the path (absolute or relative to *filename*) to a text file with an AWK script as the *progfile* argument. If *progfile* is not ``None``, *script* is ignored.
 
         Other keyword arguments (*\*\*kwargs*) can be used to pass additional variables to AWK (see ``-v`` flag in AWK manual)
 
@@ -224,18 +236,6 @@ class Results(metaclass=_MetaResults):
         return self._process_file(filename, cmd)
 
 
-    def grep_output(self, pattern='', options=''):
-        """grep_output(pattern='', options='')
-        Shortcut for :meth:`~Results.grep_file` on the output file."""
-        try:
-            output = self.job._filename('out')
-        except AttributeError:
-            raise ResultsError('Job {} does not seem to be an instance of SingleJob, it does not have _filenames dictionary'.format(self.job.name))
-        except KeyError:
-            raise ResultsError('Job {} does not have an output'.format(self.job.name))
-        return self.grep_file(output, pattern, options)
-
-
     def awk_output(self, script='', progfile=None, **kwargs):
         """awk_output(script='', progfile=None, **kwargs)
         Shortcut for :meth:`~Results.awk_file` on the output file."""
@@ -250,7 +250,7 @@ class Results(metaclass=_MetaResults):
 
     def rename(self, old, new):
         """rename(old, new)
-        Rename a file from ``files``. In both *old* and *new* shortcut ``$JN`` can be used."""
+        Rename a file from ``files``. In both *old* and *new* the shortcut ``$JN`` for job name can be used."""
         old = old.replace('$JN', self.job.name)
         new = new.replace('$JN', self.job.name)
         self.refresh()
@@ -264,11 +264,11 @@ class Results(metaclass=_MetaResults):
     def get_file_chunk(self, filename, begin=None, end=None, match=0, inc_begin=False, inc_end=False, process=None):
         """get_file_chunk(filename, begin=None, end=None, match=0, inc_begin=False, inc_end=False, process=None)
 
-        Extract a chunk of a text file given by *filename* consisting of all the lines between a line containing *begin* and a line containing *end*.
+        Extract a chunk of a text file given by *filename*, consisting of all the lines between a line containing *begin* and a line containing *end*.
 
-        *begin* and *end* should be simple strings (no regular expressions allowed) or ``None`` (in that case matching is done from the very beginning or until the very end of the file). If multiple blocks delimited by *begin* end *end* are present in the file, *match* can be used to indicate which one should be printed (*match*=0 prints all of them). *inc_begin* and *inc_end* can be used to include/exclude the delimiting lines in the final result (by default they are excluded).
+        *begin* and *end* should be simple strings (no regular expressions allowed) or ``None`` (in that case matching is done from the beginning or until the end of the file). If multiple blocks delimited by *begin* end *end* are present in the file, *match* can be used to indicate which one should be printed (*match*=0 prints all of them). *inc_begin* and *inc_end* can be used to include the delimiting lines in the final result (by default they are excluded).
 
-        Returned value is a list of strings. *process* can be used to provide a function executed on each element of this list before returning it.
+        The returned value is a list of strings. *process* can be used to provide a function executed on each element of this list before returning it.
         """
         current_match = 0
         ret = []
@@ -360,30 +360,30 @@ class Results(metaclass=_MetaResults):
         self.refresh()
 
 
-    def _copy_to(self, other):
-        """_copy_to(other)
-        Copy these results to *other*.
+    def _copy_to(self, newresults):
+        """_copy_to(newresults)
+        Copy these results to *newresults*.
 
-        This method is used when |RPM| discovers an attempt to run a job identical to the one previously run. Instead of execution, results of the previous job are copied/linked to the new one.
+        This method is used when |RPM| discovers an attempt to run a job identical to a previously run job. Instead of the execution, results of the previous job are copied/linked to the new one.
 
-        This method is called from results of old job and *other* should be results of new job. The goal is to faithfully recreate the state of ``self`` in ``other``. To achieve that all contents of jobs folder are copied (or hardlinked, if your platform allows that and ``self.settings.link_files`` is ``True``) to other's job folder. Moreover, all attributes of ``self`` (other than ``job`` and ``files``) are exported to *other* using :meth:`~Results._export_attribute` method.
+        This method is called from |Results| of the old job and *newresults* should be |Results| of the new job. The goal is to faithfully recreate the state of this |Results| instance in ``newresults``. To achieve that, all the contents of the job folder are copied (or hardlinked, if your platform allows that and ``job.settings.link_files`` is ``True``) to other's job folder. Moreover, all attributes of this |Results| instance (other than ``job`` and ``files``) are exported to *newresults* using :meth:`~Results._export_attribute` method.
         """
         for name in self.files:
-            newname = Results._replace_job_name(name, self.job.name, other.job.name)
-            args = (opj(self.job.path, name), opj(other.job.path, newname))
+            newname = Results._replace_job_name(name, self.job.name, newresults.job.name)
+            args = (opj(self.job.path, name), opj(newresults.job.path, newname))
             if os.name == 'posix' and self.job.settings.link_files is True:
                 os.link(*args)
             else:
                 shutil.copy(*args)
-            other.files.append(newname)
+            newresults.files.append(newname)
         for k,v in self.__dict__.items():
             if k in ['job', 'files', 'done', 'finished']: continue
-            other.__dict__[k] = self._export_attribute(v, other)
+            newresults.__dict__[k] = self._export_attribute(v, newresults)
 
 
     def _export_attribute(self, attr, other):
         """_export_attribute(attr, other)
-        Export this instance's attribute to *other*. This method should be overridden in your |Results| subclass if it has some attribute that is not properly copyable by :func:`python3:copy.deepcopy`.
+        Export this instance's attribute to *other*. This method should be overridden in your |Results| subclass if it has some attributes that are not properly handled by :func:`python3:copy.deepcopy`.
 
         *other* is the |Results| instance, *attr* is the **value** of the attribute to be copied. See :meth:`SCMJob._export_attribute<scm.plams.interfaces.adfsuite.scmjob.SCMResults._export_attribute>` for an example implementation.
         """
