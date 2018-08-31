@@ -18,7 +18,7 @@ Entries in this list correspond to paths to files relative to the job folder, so
 
 .. note::
 
-    Files produced by :ref:`pickling` are excluded from the ``files`` list. Every file with ``.dill`` extension is simply ignored by |Results|.
+    Files produced by |pickling| are excluded from the ``files`` list. Every file with ``.dill`` extension is simply ignored by |Results|.
 
 If you need an absolute path to some file, the bracket notation known from dictionaries is defined for |Results| objects.
 When supplied with an entry from ``files`` list, it returns the absolute path to that file.
@@ -309,7 +309,7 @@ API
 
 .. technical::
 
-    Other parts of ``results`` module described below are responsible for giving |Results| class its unique behavior described in :ref:`parallel`. They are presented here for the sake of completeness, from a user's perspective this information is not too relevant.
+    Other parts of ``results`` module described below are responsible for giving |Results| class its unique behavior described in |parallel|. They are presented here for the sake of completeness, from a user's perspective this information is not too relevant.
 
     .. autoclass:: _MetaResults
     .. autofunction:: _restrict

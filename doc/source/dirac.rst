@@ -53,7 +53,7 @@ Initially, when an instance of |DiracJob| is created, the following ``pam`` opti
     >>> self.settings.runscript.pam.noarch = True
     >>> self.settings.runscript.pam.get = ['DFCOEF', 'GRIDOUT', 'dirac.xml']
 
-Their role is to obtain from DIRAC scratch space all the files produced by your calculation (they can be later discarded with :ref:`cleaning` if not needed) and prevent creating a ``.tgz`` archive out of them (to allow PLAMS to process them). These two default flags can be changed or removed if needed, but this can hinder some |Results| functionalities, so make sure to know what you are doing.
+Their role is to obtain from DIRAC scratch space all the files produced by your calculation (they can be later discarded with |cleaning| if not needed) and prevent creating a ``.tgz`` archive out of them (to allow PLAMS to process them). These two default flags can be changed or removed if needed, but this can hinder some |Results| functionalities, so make sure to know what you are doing.
 
 You don't need to manually set mandatory ``inp`` and ``mol`` flags, they are added automatically just before the runscript is generated. If, for some reason, you don't want to use automatic molecule handling and wish to provide a geometry file by yourself, all you need to do is to set ``mol`` entry in ``myjob.settings.runscript.pam`` with the path of your geometry file. PLAMS will then ignore geometry stored in ``myjob.molecule`` and use the supplied path.
 

@@ -102,7 +102,7 @@ To sum up, a proper PLAMS script needs to look like this::
 
 and it should be executed from the command line with ``python [filename]`` (``startpython [filename]`` in case of AMS Python stack).
 Keeping these restrictions in mind can be a bit inconvenient, so PLAMS comes with the launcher that takes care of the proper initialization and cleaning.
-See :ref:`master-script` for details.
+See |master-script| for details.
 
 Of course PLAMS can be also run interactively.
 After starting your favorite Python interpreter you need to manually import and initialize the environment with ``from scm.plams import *`` and |init|.

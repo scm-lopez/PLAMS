@@ -138,7 +138,7 @@ class Results(metaclass=_MetaResults):
 
     Bracket notation (``myresults[filename]``) can be used to obtain full absolute paths to files in the job folder.
 
-    Instance methods are automatically wrapped with the "access guardian" that ensures thread safety (see :ref:`parallel`).
+    Instance methods are automatically wrapped with the "access guardian" that ensures thread safety (see |parallel|).
     """
     _rename_map = {}
 

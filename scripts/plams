@@ -76,7 +76,7 @@ if args.restart:
 init(path=args.path, folder=args.folder)
 
 #write down input script
-with open(config.jm.input, 'w', encoding='utf-8') as f:
+with open(config.default_jobmanager.input, 'w', encoding='utf-8') as f:
     f.write(inputscript)
 
 #load jobs from -l folders
@@ -85,7 +85,7 @@ for path in args.load:
 
 #execute input script
 try:
-    exec(compile(open(config.jm.input, encoding='utf-8').read(), config.jm.input, 'exec'), plams_namespace)
+    exec(compile(open(config.default_jobmanager.input, encoding='utf-8').read(), config.default_jobmanager.input, 'exec'), plams_namespace)
 except KeyboardInterrupt:
     sys.exit(0)
 except Exception as e:

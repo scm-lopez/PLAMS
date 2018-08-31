@@ -28,10 +28,10 @@ def init(path=None, folder=None):
     *   If ``$ADFHOME`` variable is in your environment and ``$ADFHOME/scripting/scm/plams/plams_defaults`` exists, it is used.
     *   Otherwise, the path ``../plams_defaults`` relative to the current file (``functions.py``) is checked. If defaults file is not found there, an exception is raised.
 
-    Next, a |JobManager| instance is created as ``config.jm`` using *path* and *folder* to determine the main working folder. Settings used by this instance are directly linked from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, the string ``plams_workdir`` is used.
+    Next, a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings used by this instance are directly linked from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, the string ``plams_workdir`` is used.
 
     .. warning::
-      This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also :ref:`master-script`.
+      This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
@@ -45,14 +45,14 @@ def init(path=None, folder=None):
     exec(compile(open(defaults).read(), defaults, 'exec'))
 
     from .jobmanager import JobManager
-    config.jm = JobManager(config.jobmanager, path, folder)
+    config.default_jobmanager = JobManager(config.jobmanager, path, folder)
 
     log('Running PLAMS located in {}'.format(dirname(dirname(__file__))) ,5)
     log('Using Python {}.{}.{} located in {}'.format(*sys.version_info[:3], sys.executable), 5)
     log('PLAMS defaults were loaded from {}'.format(defaults) ,5)
 
     log('PLAMS environment initialized', 5)
-    log('PLAMS working folder: {}'.format(config.jm.workdir), 1)
+    log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
 
     try:
         import dill
@@ -66,7 +66,7 @@ def init(path=None, folder=None):
 def finish(otherJM=None):
     """Wait for all threads to finish and clean the environment.
 
-    This function must be called at the end of your script for :ref:`cleaning` to take place. See :ref:`master-script` for details.
+    This function must be called at the end of your script for |cleaning| to take place. See |master-script| for details.
 
     If for some reason you use other job managers than the default one, they need to passed as *otherJM* list.
     """
@@ -74,7 +74,7 @@ def finish(otherJM=None):
         if thread.name == 'plamsthread':
             thread.join()
 
-    config.jm._clean()
+    config.default_jobmanager._clean()
     if otherJM:
         for jm in otherJM:
             jm._clean()
@@ -82,15 +82,15 @@ def finish(otherJM=None):
     log('PLAMS run finished. Goodbye', 3)
 
     if config.erase_workdir is True:
-        shutil.rmtree(config.jm.workdir)
+        shutil.rmtree(config.default_jobmanager.workdir)
 
 
 #===========================================================================
 
 
 def load(filename):
-    """Load previously saved job from ``.dill`` file. This is just a shortcut for |load_job| method of the default |JobManager| ``config.jm``."""
-    return config.jm.load_job(filename)
+    """Load previously saved job from ``.dill`` file. This is just a shortcut for |load_job| method of the default |JobManager| ``config.default_jobmanager``."""
+    return config.default_jobmanager.load_job(filename)
 
 
 #===========================================================================
@@ -105,11 +105,11 @@ def load_all(path, jobmanager=None):
 
     The purpose of this function is to provide quick and easy way of restarting a script that previously failed. Loading all successful jobs from the previous run prevents double work and allows the script to proceed directly to the place where it failed.
 
-    Jobs are loaded using default job manager stored in ``config.jm``. If you wish to use a different one you can pass it as *jobmanager* argument of this function.
+    Jobs are loaded using default job manager stored in ``config.default_jobmanager``. If you wish to use a different one you can pass it as *jobmanager* argument of this function.
 
     Returned value is a dictionary containing all loaded jobs as values and absolute paths to ``.dill`` files as keys.
     """
-    jm = jobmanager or config.jm
+    jm = jobmanager or config.default_jobmanager
     loaded_jobs = {}
     for foldername in filter(lambda x: isdir(opj(path,x)), os.listdir(path)):
         maybedill = opj(path,foldername,foldername+'.dill')
@@ -148,7 +148,7 @@ def log(message, level=0):
                 with _stdlock:
                     print(message)
             if level <= config.log.file and 'jm' in config:
-                with _filelock, open(config.jm.logfile, 'a') as f:
+                with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
                     f.write(message + '\n')
 
 
@@ -171,7 +171,7 @@ def add_to_class(classname):
 
     The added method is visible from subclasses of *classname* so ``@add_to_class(Results)`` will also work in the above example.
 
-    If *classname* is |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see :ref:`parallel`).
+    If *classname* is |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
     from .results import _restrict, _MetaResults
     def decorator(func):
@@ -200,7 +200,7 @@ def add_to_instance(instance):
 
     The added method is visible only for one particular instance and it overrides any methods defined on class level or added with :func:`add_to_class` decorator.
 
-    If *instance* is an instance of |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see :ref:`parallel`).
+    If *instance* is an instance of |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
     from .results import _restrict, Results
     def decorator(func):

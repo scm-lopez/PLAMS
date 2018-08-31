@@ -54,7 +54,7 @@ class Job(object):
     *   ``settings`` -- settings of the job.
     *   ``default_settings`` -- see :ref:`default-settings`.
     *   ``depend`` -- a list of explicit dependencies.
-    *   ``_dont_pickle`` -- additional list of this instance's attributes that will be removed before pickling. See :ref:`pickling` for details.
+    *   ``_dont_pickle`` -- additional list of this instance's attributes that will be removed before pickling. See |pickling| for details.
 
     """
 
@@ -103,7 +103,7 @@ class Job(object):
         self.settings.run.soft_update(Settings(kwargs))
 
         jobrunner = jobrunner or config.default_jobrunner
-        jobmanager = jobmanager or config.jm
+        jobmanager = jobmanager or config.default_jobmanager
 
         jobrunner._run_job(self, jobmanager)
         return self.results
@@ -437,7 +437,7 @@ class SingleJob(Job):
 
         You can supply |Settings| and |Molecule| instances as *settings* and *molecule* parameters, they will end up attached to the returned job instance. If you don't do this, PLAMS will try to recreate them automatically using methods :meth:`~scm.plams.core.results.Results.recreate_settings` and :meth:`~scm.plams.core.results.Results.recreate_molecule` of the corresponding |Results| subclass. If no |Settings| instance is obtained in either way, the defaults from ``config.job`` are copied.
 
-        You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (:ref:`cleaning`), |postrun| and pickling (:ref:`pickling`). If *finalize* is ``False``, the status of the returned job is *copied*.
+        You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (|cleaning|), |postrun| and pickling (|pickling|). If *finalize* is ``False``, the status of the returned job is *copied*.
         """
 
         if not os.path.isdir(path):

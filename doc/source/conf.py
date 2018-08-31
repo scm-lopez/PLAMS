@@ -196,7 +196,7 @@ add_module_names = False
 pygments_style = 'sphinx'
 
 # configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'python3': ('http://docs.python.org/3.5', None)}
+intersphinx_mapping = {'python3': ('http://docs.python.org/3.6', None)}
 
 autodoc_default_flags = ['members', 'private-members', 'special-members']
 autodoc_member_order = 'bysource'
@@ -243,10 +243,13 @@ rst_epilog = """
 .. |KFReader| replace:: :class:`~scm.plams.tools.kftools.KFReader`
 .. |KFFile| replace:: :class:`~scm.plams.tools.kftools.KFFile`
 
+.. |AMSJob| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSJob`
+.. |AMSResults| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSResults`
+.. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
+.. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`
+
 .. |SCMJob| replace:: :class:`~scm.plams.interfaces.adfsuite.SCMJob`
 .. |SCMResults| replace:: :class:`~scm.plams.interfaces.adfsuite.SCMResults`
-.. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.SCMJob>`
-.. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.SCMResults>`
 .. |BANDJob| replace:: :class:`BANDJob<scm.plams.interfaces.adfsuite.SCMJob>`
 .. |BANDResults| replace:: :class:`BANDResults<scm.plams.interfaces.adfsuite.SCMResults>`
 .. |DFTBJob| replace:: :class:`DFTBJob<scm.plams.interfaces.adfsuite.SCMJob>`
@@ -272,7 +275,7 @@ rst_epilog = """
 .. |cleaning| replace:: :ref:`cleaning`
 .. |pickling| replace:: :ref:`pickling`
 .. |restarting| replace:: :ref:`restarting`
-.. |master_script| replace:: :ref:`master-script`
+.. |master-script| replace:: :ref:`master-script`
 .. |binding_decorators| replace:: :ref:`binding-decorators`
 .. |parallel| replace:: :ref:`parallel`
 """

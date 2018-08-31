@@ -24,6 +24,7 @@ config.erase_workdir = False
 
 
 #==== JobManager defaults ==================================================
+#(Below is a template for a default settings object for JobManager. It is not the same as the default JobManager. The default JobManager instance is stored as config.default_jobmanager)
 
 #When two or more jobs have the same name, all the jobs apart from the first one are renamed to [jobname].002 ([jobname].003 etc.)
 # The number here defines how many digits are used for that counter

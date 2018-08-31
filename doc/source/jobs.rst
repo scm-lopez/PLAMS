@@ -134,7 +134,7 @@ It is done by invoking the |run| method, which returns a |Results| object::
 (the |Results| object can be also accessed as ``myjob.results``).
 Various keyword arguments can be passed to |run|.
 With ``jobrunner`` and ``jobmanager`` you can specify which |JobRunner| and |JobManager| to use for your job.
-If those arguments are omitted, the default instances stored in ``config.default_jobrunner`` and ``config.jm`` are taken.
+If those arguments are omitted, the default instances stored in ``config.default_jobrunner`` and ``config.default_jobmanager`` are taken.
 All other keyword arguments are collected and stored in ``myjob.settings.run`` branch of job settings, as one flat level.
 They can be used later by various objects involved in running your job, for example |GridRunner| uses them to build the command executed to submit the runscript to the queueing system.
 
