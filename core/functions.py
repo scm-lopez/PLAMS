@@ -20,15 +20,15 @@ config = Settings()
 
 
 def init(path=None, folder=None):
-    """Initialize PLAMS environment. Create global ``config`` and default |JobManager|.
+    """Initialize PLAMS environment. Create global ``config`` and the default |JobManager|.
 
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
 
-    *   If ``$PLAMSDEFAULTS`` variable is in your environment and it points to a file, this file is used (executed as Python script).
+    *   If ``$PLAMSDEFAULTS`` variable is in your environment and it points to a file, this file is used (executed as a Python script).
     *   If ``$ADFHOME`` variable is in your environment and ``$ADFHOME/scripting/scm/plams/plams_defaults`` exists, it is used.
     *   Otherwise, the path ``../plams_defaults`` relative to the current file (``functions.py``) is checked. If defaults file is not found there, an exception is raised.
 
-    Next, a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings used by this instance are directly linked from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, the string ``plams_workdir`` is used.
+    Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.
 
     .. warning::
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
@@ -57,7 +57,7 @@ def init(path=None, folder=None):
     try:
         import dill
     except ImportError:
-        log('WARNING: importing dill failed. Falling back to default pickle module. Expect problems with pickling', 1)
+        log('WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling', 1)
 
 
 #===========================================================================
@@ -68,7 +68,7 @@ def finish(otherJM=None):
 
     This function must be called at the end of your script for |cleaning| to take place. See |master-script| for details.
 
-    If for some reason you use other job managers than the default one, they need to passed as *otherJM* list.
+    If you used some other job managers than just the default one, they need to be passed as *otherJM* list.
     """
     for thread in threading.enumerate():
         if thread.name == 'plamsthread':
@@ -99,11 +99,11 @@ def load(filename):
 def load_all(path, jobmanager=None):
     """Load all jobs from *path*.
 
-    This function works as a multiple execution of |load_job|. It searches for ``.dill`` files inside the directory given by *path*, yet not directly in it, but one level deeper. In other words, all files matching ``path/*/*.dill`` are used. That way a path to the main working folder of a previously run script can be used to import all the jobs run by that script.
+    This function works as multiple executions of |load_job|. It searches for ``.dill`` files inside the directory given by *path*, yet not directly in it, but one level deeper. In other words, all files matching ``path/*/*.dill`` are used. That way a path to the main working folder of a previously run script can be used to import all the jobs run by that script.
 
-    In case of partially failed |MultiJob| instances (some children jobs finished successfully, but not all) the function will search for ``.dill`` files in children folders. That means, if ``path/[foldername]/`` contains some subfolders (for children jobs) but does not contail a ``.dill`` file (the |MultiJob| was not fully successful), it will look into these subfolders. This behavior is recursive up to arbitrary folder tree depth.
+    In case of partially failed |MultiJob| instances (some children jobs finished successfully, but not all) the function will search for ``.dill`` files in children folders. That means, if ``path/[multijobname]/`` contains some subfolders (for children jobs) but does not contail a ``.dill`` file (the |MultiJob| was not fully successful), it will look into these subfolders. This behavior is recursive up to any folder tree depth.
 
-    The purpose of this function is to provide quick and easy way of restarting a script that previously failed. Loading all successful jobs from the previous run prevents double work and allows the script to proceed directly to the place where it failed.
+    The purpose of this function is to provide a quick way of restarting a script. Loading all successful jobs from the previous run prevents double work and allows the new execution of the script to proceed directly to the place where the previous execution failed.
 
     Jobs are loaded using default job manager stored in ``config.default_jobmanager``. If you wish to use a different one you can pass it as *jobmanager* argument of this function.
 
@@ -131,7 +131,7 @@ _filelock = threading.Lock()
 def log(message, level=0):
     """Log *message* with verbosity *level*.
 
-    Logs are printed independently to both text file and standard output. If *level* is equal or lower than verbosity (defined by ``config.log.file`` or ``config.log.stdout``) the message is printed. Date and/or time can be added based on ``config.log.date`` and ``config.log.time``. All logging activity is thread safe.
+    Logs are printed independently to the text logfile (a file called ``logfile`` in the main working folder) and to the standard output. If *level* is equal or lower than verbosity (defined by ``config.log.file`` or ``config.log.stdout``) the message is printed. Date and/or time can be added based on ``config.log.date`` and ``config.log.time``. All logging activity is thread safe.
     """
     if 'log' in config:
         if level <= config.log.file or level <= config.log.stdout:
@@ -165,11 +165,11 @@ def add_to_class(classname):
         def get_energy(self):
             return self.readkf('Energy', 'Bond Energy')
 
-    After executing the above code all instances of ``ADFResults`` (even the ones created earlier) are enriched with ``get_energy`` method that can be invoked by::
+    After executing the above code all instances of ``ADFResults`` in the current script (even the ones created beforehand) are enriched with ``get_energy`` method that can be invoked by::
 
         someadfresults.get_energy()
 
-    The added method is visible from subclasses of *classname* so ``@add_to_class(Results)`` will also work in the above example.
+    The added method is accessible also from subclasses of *classname* so ``@add_to_class(Results)`` in the above example will work too.
 
     If *classname* is |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
@@ -198,7 +198,7 @@ def add_to_instance(instance):
 
         results.get_energy()
 
-    The added method is visible only for one particular instance and it overrides any methods defined on class level or added with :func:`add_to_class` decorator.
+    The added method is accessible only for that one particular instance and it overrides any methods with the same name defined on a class level (in original class' source) or added with :func:`add_to_class` decorator.
 
     If *instance* is an instance of |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
