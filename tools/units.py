@@ -9,7 +9,7 @@ __all__ = ['Units']
 
 
 class Units(object):
-    """Singleton class for units converter.
+    """A singleton class for unit converter.
 
     All values are based on `2014 CODATA recommended values <http://physics.nist.gov/cuu/Constants>`_.
 
