@@ -3,7 +3,14 @@ Molecule
 
 .. currentmodule:: scm.plams.core.basemol
 
-In this chapter the PLAMS module responsible for handling molecular geometries is presented. Information about atomic coordinates can be read from (or written to) files of various types: ``xyz``, ``pdb``, ``mol`` or ``mol2``. PLAMS not only extracts relevant data from those files, but also tries to "understand" the structure of the underlying molecule in terms of atoms and bonds between them, allowing you to perform a variety of simple operations like, for example, moving or rotating some parts of the molecule, splitting it into multiple parts, merging two molecules etc. Classes defined in this module are |Molecule|, |Atom| and |Bond|. They interact with each other to provide a basic set of functionalities for geometry handling.
+In this chapter the PLAMS module responsible for handling molecular geometries is presented.
+Information about atomic coordinates can be read from (or written to) files of various types: ``xyz``, ``pdb``, ``mol`` or ``mol2``.
+PLAMS not only extracts the relevant data from those files, but also tries to "understand" the structure of the underlying molecule in terms of atoms and bonds between them, allowing performing a variety of simple operations like moving or rotating some parts of the molecule, splitting it into multiple parts, merging two molecules etc.
+Classes defined in this module are |Molecule|, |Atom| and |Bond|.
+
+.. note::
+
+    For importing coordinates in other formats and performing more advanced operations you can use |Molecule| interfaces to :ref:`ASEAtoms` and :ref:`RDKit`.
 
 
 
