@@ -15,7 +15,7 @@ from ..tools.pdbtools import PDBHandler, PDBRecord
 from ..tools.periodic_table import PT
 from ..tools.units import Units
 
-__all__ = ['Atom', 'Bond', 'Molecule', 'read_molecules']
+__all__ = ['Atom', 'Bond', 'Molecule']
 
 
 
@@ -1583,31 +1583,4 @@ class Molecule (object):
             b.mol = mol
             mol.add_bond(b)
         return mol
-
-
-#===========================================================================
-
-
-def read_molecules(folder, formats=None):
-    """Read all molecules from *folder*.
-
-    Read all the files present in *folder* with extensions compatible with :meth:`Molecule.read<scm.plams.core.basemol.Molecule.read>`. Returned value is a dictionary with keys being molecule names (filename without extension) and values being |Molecule| instances.
-
-    The optional argument *formats* can be used to narrow down the search to files with specified extensions::
-
-        molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
-
-    """
-
-    extensions = formats or list(Molecule._readformat.keys())
-    is_valid = lambda x: os.path.isfile(opj(folder,x)) and any([x.endswith('.'+ext) for ext in extensions])
-    filenames = filter(is_valid, os.listdir(folder))
-    ret = {}
-    for f in filenames:
-        m = Molecule(opj(folder,f))
-        ret[m.properties.name] = m
-    return ret
-
-
-
 

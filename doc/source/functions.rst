@@ -11,7 +11,7 @@ This chapter gathers information about public functions that can be used in PLAM
 .. autofunction:: finish
 .. autofunction:: load
 .. autofunction:: load_all
-.. autofunction:: scm.plams.core.basemol.read_molecules
+.. autofunction:: read_molecules
 
 .. _logging:
 

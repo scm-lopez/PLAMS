@@ -12,7 +12,7 @@ from os.path import isfile, isdir, expandvars, dirname
 from .errors import PlamsError
 from .settings import Settings
 
-__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'add_to_class', 'add_to_instance', 'config']
+__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'add_to_class', 'add_to_instance', 'config', 'read_molecules']
 
 config = Settings()
 
@@ -125,6 +125,30 @@ def load_all(path, jobmanager=None):
 #===========================================================================
 
 
+def read_molecules(folder, formats=None):
+    """Read all molecules from *folder*.
+
+    Read all the files present in *folder* with extensions compatible with :meth:`Molecule.read<scm.plams.core.basemol.Molecule.read>`. Returned value is a dictionary with keys being molecule names (filename without extension) and values being |Molecule| instances.
+
+    The optional argument *formats* can be used to narrow down the search to files with specified extensions::
+
+        molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
+
+    """
+    from .basemol import Molecule
+    extensions = formats or list(Molecule._readformat.keys())
+    is_valid = lambda x: isfile(opj(folder,x)) and any([x.endswith('.'+ext) for ext in extensions])
+    filenames = filter(is_valid, os.listdir(folder))
+    ret = {}
+    for f in filenames:
+        m = Molecule(opj(folder,f))
+        ret[m.properties.name] = m
+    return ret
+
+
+#===========================================================================
+
+
 _stdlock = threading.Lock()
 _filelock = threading.Lock()
 
@@ -147,7 +171,7 @@ def log(message, level=0):
             if level <= config.log.stdout:
                 with _stdlock:
                     print(message)
-            if level <= config.log.file and 'jm' in config:
+            if level <= config.log.file and 'default_jobmanager' in config:
                 with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
                     f.write(message + '\n')
 
