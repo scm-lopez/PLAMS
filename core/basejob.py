@@ -18,7 +18,7 @@ from .private import sha256
 from .results import Results
 from .settings import Settings
 
-__all__ = ['SingleJob','MultiJob']
+__all__ = ['SingleJob', 'MultiJob']
 
 
 class Job(object):
@@ -280,7 +280,7 @@ class SingleJob(Job):
 
         _filenames = {'inp':'$JN.in', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
 
-    This class defines no new methods that could be directly called in your script. Methods that can and should be overridden are :meth:`~SingleJob.get_input` and :meth:`~SingleJob.get_runscript`.
+    This class defines no new methods that could be directly called in your script. Methods that can and should be overridden are |get_input| and |get_runscript|.
 
     """
     _filenames = {'inp':'$JN.in', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
@@ -371,7 +371,7 @@ class SingleJob(Job):
 
 
     def full_runscript(self):
-        """Generate the full runscript, including shebang line and contents of ``pre`` and ``post``, if any. In practice this method is just a simple wrapper around :meth:`~SingleJob.get_runscript`.
+        """Generate the full runscript, including shebang line and contents of ``pre`` and ``post``, if any. In practice this method is just a simple wrapper around |get_runscript|.
         """
         ret = self.settings.runscript.shebang +'\n\n'
         if 'pre' in self.settings.runscript:
@@ -383,7 +383,7 @@ class SingleJob(Job):
 
 
     def _get_ready(self):
-        """Create input and runscript files in the job folder. Methods :meth:`get_input` and :meth:`full_runscript` are used for that purpose. Filenames correspond to entries in the `_filenames` attribute"""
+        """Create input and runscript files in the job folder. Methods |get_input| and :meth:`full_runscript` are used for that purpose. Filenames correspond to entries in the `_filenames` attribute"""
         inpfile = opj(self.path, self._filename('inp'))
         runfile = opj(self.path, self._filename('run'))
 

@@ -221,6 +221,8 @@ rst_epilog = """
 .. |SingleJob| replace:: :class:`~scm.plams.core.basejob.SingleJob`
 .. |MultiJob| replace:: :class:`~scm.plams.core.basejob.MultiJob`
 .. |run| replace:: :meth:`~scm.plams.core.basejob.Job.run`
+.. |get_input| replace:: :meth:`~scm.plams.core.basejob.SingleJob.get_input`
+.. |get_runscript| replace:: :meth:`~scm.plams.core.basejob.SingleJob.get_runscript`
 .. |prerun| replace:: :meth:`~scm.plams.core.basejob.Job.prerun`
 .. |postrun| replace:: :meth:`~scm.plams.core.basejob.Job.postrun`
 .. |load_external| replace:: :meth:`~scm.plams.core.basejob.SingleJob.load_external`

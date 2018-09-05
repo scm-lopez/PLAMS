@@ -257,7 +257,7 @@ Subclassing SingleJob
 |SingleJob| class was designed in a way that makes subclassing it quick and easy.
 Thanks to that it takes very little effort to create a PLAMS interface for new external binary.
 
-Your new class has to, of course, be a subclass of |SingleJob| and define methods :meth:`~SingleJob.get_input` and :meth:`~SingleJob.get_runscript`::
+Your new class has to, of course, be a subclass of |SingleJob| and define methods |get_input| and |get_runscript|::
 
     class MyJob(SingleJob):
         def get_input(self):
@@ -269,12 +269,12 @@ Your new class has to, of course, be a subclass of |SingleJob| and define method
 
 .. note::
 
-    :meth:`~SingleJob.get_runscript` method should properly handle output redirection based on the value of ``myjob.settings.runscript.stdout_redirect``. When ``False``, no redirection should occur inside the runscript. If ``True``, the runscript should be constructed in such a way that the standard output is redirected (using ``>``) to the output file, which name can be accessed as ``self._filename('out')``.
+    |get_runscript| method should properly handle output redirection based on the value of ``myjob.settings.runscript.stdout_redirect``. When ``False``, no redirection should occur inside the runscript. If ``True``, the runscript should be constructed in such a way that the standard output is redirected (using ``>``) to the output file, which name can be accessed as ``self._filename('out')``.
 
 This is sufficient for your new job to work properly with other PLAMS components.
 However, there are other useful attributes and methods that can be overridden:
 
-*   :meth:`~Job.check` -- the default version of this method defined in |SingleJob| always returns ``True`` and hence disables any correctness checking. If you wish to enable checking for your new class, you need to define :meth:`~Job.check` method in it, just like :meth:`~SingleJob.get_input` and :meth:`~SingleJob.get_runscript` in the example above. It should take no other arguments than ``self`` and return a boolean value indicating if the job execution was successful. This method is privileged to have an early access to |Results| methods in exactly the same way as |postrun|.
+*   :meth:`~Job.check` -- the default version of this method defined in |SingleJob| always returns ``True`` and hence disables any correctness checking. If you wish to enable checking for your new class, you need to define :meth:`~Job.check` method in it, just like |get_input| and |get_runscript| in the example above. It should take no other arguments than ``self`` and return a boolean value indicating if the job execution was successful. This method is privileged to have an early access to |Results| methods in exactly the same way as |postrun|.
 *   if you wish to create a special |Results| subclass for results of your new job, make sure to let the job know about it::
 
         class MyResults(Results):
