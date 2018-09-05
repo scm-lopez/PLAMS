@@ -1,6 +1,8 @@
 DFTB+
 -------------------------
 
+(*contributed by* `Patrick Melix <https://www.researchgate.net/profile/Patrick_Melix>`_\)
+
 .. currentmodule:: scm.plams.interfaces.thirdparty.dftbplus
 
 DFTB+ is a density-functional tight-binding implemenation. More information about DFTB can be found on its `official website <http://www.dftb-plus.info>`_.

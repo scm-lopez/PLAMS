@@ -1,6 +1,8 @@
 Crystal
 -------------------------
 
+(*contributed by* `Patrick Melix <https://www.researchgate.net/profile/Patrick_Melix>`_\)
+
 .. currentmodule:: scm.plams.interfaces.thirdparty.crystal
 
 More information about CRYSTAL can be found on its `official website <http://www.crystal.unito.it>`_.
