@@ -13,7 +13,8 @@ The last chapter presents a bit different kind of interfaces, so called *molecul
 They offer a way of using PLAMS |Molecule| class with other libraries capable of manipulating molecular coordinates.
 
 .. toctree::
+    :maxdepth: 3
 
-    adfsuite
+    amssuite
     thirdparty
     molinterfaces
