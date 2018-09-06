@@ -1032,14 +1032,16 @@ class Molecule (object):
         return sum([at.mass for at in self.atoms])
 
 
-    def get_formula(self):
+    def get_formula(self, as_dict=False):
         """Calculate the molecular formula of the molecule.
 
-        The returned formula is a dictionary with keys being atomic symbols. The value for each key is the number of atoms of that type::
+        Here molecular formula is a dictionary with keys being atomic symbols. The value for each key is the number of atoms of that type. If *as_dict* is ``True``, that dictionary is returned. Otherwise, it is converted into a string::
 
             >>> mol = Molecule('Ubiquitin.xyz')
-            >>> print(m.get_formula())
+            >>> print(m.get_formula(True))
             {'N': 105, 'C': 378, 'O': 118, 'S': 1, 'H': 629}
+            >>> print(m.get_formula(False))
+            C378H629N105O118S1
 
         """
         ret = {}
@@ -1047,7 +1049,12 @@ class Molecule (object):
             if atom.symbol not in ret:
                 ret[atom.symbol] = 0
             ret[atom.symbol] +=1
-        return ret
+        if as_dict:
+            return ret
+        s = ''
+        for key in sorted(ret):
+            s += '{}{}'.format(key,ret[key])
+        return s
 
 
     def apply_strain(self, strain):
