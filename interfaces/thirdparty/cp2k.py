@@ -32,9 +32,13 @@ class Cp2kJob(SingleJob):
                     ret += '{}&{}\n'.format(indent, key)
                     for el in value:
                         if el.upper() == "XC_FUNCTIONAL":
-                            v = value[el]
-                            ret += '  {}&XC_FUNCTIONAL {}\n'.format(indent, v)
-                            ret += '  {}&END\n'.format(indent)
+                            x = value[el]
+                            if not isinstance(x, Settings):
+                                ret += '  {}&XC_FUNCTIONAL {}\n'.format(indent, x)
+                                ret += '  {}&END\n'.format(indent)
+                            else:
+                                v = parse(el, x, indent)
+                                ret += '{}{}\n'.format(indent, v)
                         else:
                             ret += parse(el, value[el], indent + '  ')
                     ret += '{}&END\n'.format(indent)
