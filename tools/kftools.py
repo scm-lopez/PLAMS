@@ -192,10 +192,10 @@ class KFReader(object):
                         indexblock = self._read_block(f, pb+i)
                         header = self._parse(indexblock[:hlen],[(32,'s'),(7,self.word)])[0]
                         body = self._parse(indexblock[hlen:],[(32,'s'),(6,self.word)])
-                        for var, vlb, vstart, vlen, _xx1, _xx2, vtype in body:
+                        for var, vlb, vstart, vlen, _xx1, vused, vtype in body:
                             var = var.rstrip(' ')
                             if var == 'EMPTY': continue
-                            self._sections[key][var] = (vtype, vlb, vstart, vlen)
+                            self._sections[key][var] = (vtype, vlb, vstart, vused)
 
             for k,v in self._data.items():
                 self._data[k] = sorted(v)
