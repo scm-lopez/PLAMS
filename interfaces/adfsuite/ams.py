@@ -17,6 +17,8 @@ __all__ = ['AMSJob', 'AMSResults']
 
 
 class AMSResults(Results):
+    """AMSResults
+    """
 
 
     def __init__(self, *args, **kwargs):
@@ -92,7 +94,7 @@ class AMSResults(Results):
         """readrkf(section, variable, engine='ams')
         Read data from *section*/*variable* of a chosen ``.rkf`` file.
 
-        The *file* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``file='something`'.
+        The *file* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``file='something``'.
 
         The type of the returned value depends on the type of *variable* defined inside KF file. It can be: single int, list of ints, single float, list of floats, single boolean, list of booleans or string.
 
@@ -124,7 +126,7 @@ class AMSResults(Results):
 
         Return a dictionary with the structure of a chosen ``.rkf`` file. Each key corresponds to a section name with the value being a set of variable names present in that section.
 
-        The *file* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``file='something`'.
+        The *file* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``file='something``'.
         """
         return self._access_rkf(lambda x: x.get_skeleton(), file)
 
@@ -134,7 +136,7 @@ class AMSResults(Results):
 
         Return a |Molecule| instance stored in a given *section* of a chosen ``.rkf`` file.
 
-        The *file* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``file='something`'.
+        The *file* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``file='something``'.
 
         All data used by this method is taken from the chosen ``.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
@@ -152,7 +154,7 @@ class AMSResults(Results):
         return self.get_molecule('InputMolecule', 'ams')
 
 
-    def get_final_molecule(self):
+    def get_main_molecule(self):
         """get_main_molecule()
         Return a |Molecule| instance with final coordinates.
 
@@ -166,7 +168,7 @@ class AMSResults(Results):
 
         Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
 
-        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something``'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read_section('AMSResults'), engine)
 
@@ -175,7 +177,7 @@ class AMSResults(Results):
         """get_properties()
         Return a dictionary with all the entries from ``Properties`` section from an engine results ``.rkf`` file.
 
-        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something``'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         def properties(kf):
             n = kf.read('Properties', 'nEntries')
@@ -229,7 +231,7 @@ class AMSResults(Results):
 
         A skeleton method for accessing any of the ``.rkf`` files produced by AMS.
 
-        The *file* argument should be the identifier of the file to read. To access a file called ``something.rkf`` you need to call this function with ``file='something`'.
+        The *file* argument should be the identifier of the file to read. To access a file called ``something.rkf`` you need to call this function with ``file='something``'.
 
         The *func* argument has to be a function to call on a chosen ``.rkf`` file. It should take one argument, an instance of |KFFile|.
         """
@@ -253,7 +255,7 @@ class AMSResults(Results):
 
         A generic method skeleton for processing any engine results ``.rkf`` file. *func* should be a function that takes one argument (an instance of |KFFile|) and returns arbitrary data.
 
-        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something`'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something``'. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         names = self.engine_names()
         if engine is not None:
@@ -301,6 +303,8 @@ class AMSResults(Results):
 
 
 class AMSJob(SingleJob):
+    """AMSJob
+    """
     _result_type = AMSResults
 
 

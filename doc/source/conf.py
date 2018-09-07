@@ -247,21 +247,36 @@ rst_epilog = """
 
 .. |AMSJob| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSJob`
 .. |AMSResults| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSResults`
+
 .. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
 .. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`
 
-.. |SCMJob| replace:: :class:`~scm.plams.interfaces.adfsuite.SCMJob`
-.. |SCMResults| replace:: :class:`~scm.plams.interfaces.adfsuite.SCMResults`
-.. |BANDJob| replace:: :class:`BANDJob<scm.plams.interfaces.adfsuite.SCMJob>`
-.. |BANDResults| replace:: :class:`BANDResults<scm.plams.interfaces.adfsuite.SCMResults>`
-.. |DFTBJob| replace:: :class:`DFTBJob<scm.plams.interfaces.adfsuite.SCMJob>`
-.. |DFTBResults| replace:: :class:`DFTBResults<scm.plams.interfaces.adfsuite.SCMResults>`
+.. |SCMJob| replace:: :class:`~scm.plams.interfaces.adfsuite.scmjob.SCMJob`
+.. |SCMResults| replace:: :class:`~scm.plams.interfaces.adfsuite.scmjob.SCMResults`
+
+.. |BANDJob| replace:: :class:`BANDJob<scm.plams.interfaces.adfsuite.band.BANDJob>`
+.. |BANDResults| replace:: :class:`BANDResults<scm.plams.interfaces.adfsuite.band.BANDResults>`
+
+.. |DFTBJob| replace:: :class:`DFTBJob<scm.plams.interfaces.adfsuite.dftb.DFTBJob>`
+.. |DFTBResults| replace:: :class:`DFTBResults<scm.plams.interfaces.adfsuite.dftb.DFTBesults>`
+
+.. |MOPACJob| replace:: :class:`~scm.plams.interfaces.adfsuite.mopac.MOPACJob`
+.. |MOPACResults| replace:: :class:`~scm.plams.interfaces.adfsuite.mopac.MOPACResults`
+
+.. |ReaxFFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.reaxff.ReaxFFJob`
+.. |ReaxFFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.reaxff.ReaxFFResults`
+
+.. |UFFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.uff.UFFJob`
+.. |UFFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.uff.UFFResults`
+
+.. |DensfJob| replace:: :class:`~scm.plams.interfaces.adfsuite.densf.DensfJob`
+.. |DensfResults| replace:: :class:`~scm.plams.interfaces.adfsuite.densf.DensfResults`
+
+.. |FCFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.fcf.FCFJob`
+.. |FCFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.fcf.FCFResults`
 
 .. |DiracJob| replace:: :class:`~scm.plams.interfaces.dirac.DiracJob`
 .. |DiracResults| replace:: :class:`~scm.plams.interfaces.dirac.DiracResults`
-
-.. |MOPACJob| replace:: :class:`~scm.plams.interfaces.mopac.MOPACJob`
-.. |MOPACResults| replace:: :class:`~scm.plams.interfaces.mopac.MOPACResults`
 
 .. |CrystalJob| replace:: :class:`CrystalJob<scm.plams.interfaces.thirdparty.crystal.CrystalJob>`
 .. |mol2CrystalConf| replace:: :func:`mol2CrystalConf<scm.plams.interfaces.thirdparty.crystal.mol2CrystalConf>`

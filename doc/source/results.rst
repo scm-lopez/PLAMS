@@ -194,7 +194,7 @@ To picture this matter we will use the following script that performs geometry o
     ... #other settings adjustments for geometry optimisation
     go_results = go.run()
 
-    opt_geo = go_results.get_final_molecule()
+    opt_geo = go_results.get_main_molecule()
 
     freq = ADFJob(name='Freq', molecule=opt_geo)
     freq.settings.input.geometry.frequencies = True
@@ -227,13 +227,13 @@ We need to fix the script:
 
     @add_to_instance(freq)
     def prerun(self):
-        self.molecule = go_results.get_final_molecule()
+        self.molecule = go_results.get_main_molecule()
 
     freq_results = freq.run()
 
     do_other_work() # further part of the script, independent of GeomOpt and Freq
 
-The results request (``go_results.get_final_molecule()``) have been moved from the main script to the |prerun| method of the "Freq" job.
+The results request (``go_results.get_main_molecule()``) have been moved from the main script to the |prerun| method of the "Freq" job.
 The |prerun| method is executed in job's thread rather than in the main thread.
 That means the main thread starts the "Freq" job immediately after starting the "GeomOpt" job and then directly proceeds to ``do_other_work()``.
 Meanwhile in the thread spawned for the "Freq" job the result request for molecule is made and only that thread waits for "GeomOpt" to finish.
