@@ -17,9 +17,7 @@ __all__ = ['AMSJob', 'AMSResults']
 
 
 class AMSResults(Results):
-    """AMSResults
-    """
-
+    """A specialized |Results| subclass for accessing the results of |AMSJob|."""
 
     def __init__(self, *args, **kwargs):
         Results.__init__(self, *args, **kwargs)
@@ -303,17 +301,18 @@ class AMSResults(Results):
 
 
 class AMSJob(SingleJob):
-    """AMSJob
-    """
+    """A class representing a single computation with AMS driver. The corresponding results type is |AMSResults|."""
     _result_type = AMSResults
 
 
     def get_input(self):
-        """Generate the input file.
+        """Generate the input file. This method is just a wrapper around :meth:`_serialize_input`.
 
-        This method is just a wrapper around :meth:`_serialize_input`.
+        Each instance of |AMSJob| or |AMSResults| present as a value in ``settings.input`` branch is replaced with an absolute path to ``ams.rkf`` file of that job.
 
-        #TODO
+        If you need to use a path to some engine specific ``.rkf`` file rather than the main ``ams.rkf`` file, you can to it by supplying a tuple ``(x, name)`` where ``x`` is an instance of |AMSJob| or |AMSResults| and ``name`` is a string with the name of the ``.rkf`` file you want. For example, ``(myjob, 'dftb')`` will transform to the absolute path to ``dftb.rkf`` file in ``myjob``'s folder, if such a file is present.
+
+        Instances of |KFFile| are replaced with absolute paths to corresponding files.
         """
 
         special = {
@@ -361,7 +360,7 @@ class AMSJob(SingleJob):
     def hash_input(self):
         """Calculate the hash of the input file.
 
-        All instances of |SCMJob| or |SCMResults| present as values in ``settings.input`` branch are replaced with hashes of corresponding job's inputs. Instances of |KFFile| are replaced with absolute paths to corresponding files.
+        All instances of |AMSJob| or |AMSResults| present as values in ``settings.input`` branch are replaced with hashes of corresponding job's inputs. Instances of |KFFile| are replaced with absolute paths to corresponding files.
         """
         special = {
             AMSJob: lambda x: x.hash_input(),
@@ -378,7 +377,7 @@ class AMSJob(SingleJob):
     def _serialize_input(self, special):
         """Transform the contents of ``settings.input`` branch into string with blocks, keys and values.
 
-        First, the contents of ``settings.input`` are extended with entries returned by :meth:`_serialize_molecule`. Then the contents of ``settings.input.ams`` are used to generate AMS text input. Finally, every other (than ``ams``) entry in ``settings.input`` other is used to generate engine specific input.
+        First, the contents of ``settings.input`` are extended with entries returned by :meth:`_serialize_molecule`. Then the contents of ``settings.input.ams`` are used to generate AMS text input. Finally, every other (than ``ams``) entry in ``settings.input`` is used to generate engine specific input.
 
         Special values can be indicated with *special* argument, which should be a dictionary having types of objects as keys and functions translating these types to strings as values.
         """
@@ -499,7 +498,7 @@ class AMSJob(SingleJob):
 
     @staticmethod
     def _tuple2rkf(arg):
-        """Transform a pair ``(x, name)`` where ``x`` is an instance of |AMSJob| or |AMSResults| and ``name`` is a name of ``.rkf`` file (``ams`` or engine) to an absolute file to that ``.rkf`` file."""
+        """Transform a pair ``(x, name)`` where ``x`` is an instance of |AMSJob| or |AMSResults| and ``name`` is a name of ``.rkf`` file (``ams`` or engine) to an absolute path to that ``.rkf`` file."""
         if len(arg) == 2 and isinstance(arg[1], str):
             if isinstance(arg[0], AMSJob):
                 return arg[0].results.rkfpath(arg[1])
