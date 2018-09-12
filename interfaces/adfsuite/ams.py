@@ -17,7 +17,8 @@ __all__ = ['AMSJob', 'AMSResults']
 
 
 class AMSResults(Results):
-    """A specialized |Results| subclass for accessing the results of |AMSJob|."""
+    """A specialized |Results| subclass for accessing the results of |AMSJob|.
+    """
 
     def __init__(self, *args, **kwargs):
         Results.__init__(self, *args, **kwargs)
@@ -221,7 +222,7 @@ class AMSResults(Results):
 
 
 
-#===========================================================================
+    #=========================================================================
 
 
     def _access_rkf(self, func, file='ams'):
@@ -301,7 +302,8 @@ class AMSResults(Results):
 
 
 class AMSJob(SingleJob):
-    """A class representing a single computation with AMS driver. The corresponding results type is |AMSResults|."""
+    """A class representing a single computation with AMS driver. The corresponding results type is |AMSResults|.
+    """
     _result_type = AMSResults
 
 
@@ -371,7 +373,7 @@ class AMSJob(SingleJob):
         return sha256(self._serialize_input(special))
 
 
-#===========================================================================
+    #=========================================================================
 
 
     def _serialize_input(self, special):
@@ -465,7 +467,7 @@ class AMSJob(SingleJob):
             log("The lattice of Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(self.name), 3)
 
         ret = Settings()
-        if atoms not in s:
+        if atoms not in s and self.molecule:
             for i,atom in enumerate(self.molecule):
                 ret[ams][system][atoms]['_'+str(i+1)] = atom.str(
                     symbol=self._atom_symbol(atom),
@@ -482,7 +484,7 @@ class AMSJob(SingleJob):
         return ret
 
 
-#===========================================================================
+    #=========================================================================
 
 
     @staticmethod
