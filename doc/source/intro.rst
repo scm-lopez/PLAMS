@@ -109,7 +109,9 @@ Don't worry if something in the above code is incomprehensible or confusing.
 Everything you need to know to understand how PLAMS works and how to write your own scripts is explained in next chapters of this documentation.
 
 When executed, the above script creates an uniquely named working folder, then runs 24 independent ADF single point calculations, each in a separate subfolder of the working folder.
-All the files created by each run are saved in the corresponding subfolder for future reference. Finally, the following table describing the potential energy curve of a hydrogen molecule is written to the standard output::
+All the files created by each run are saved in the corresponding subfolder for future reference. Finally, the following table describing the potential energy curve of a hydrogen molecule is written to the standard output:
+
+.. code-block:: none
 
     d[A]    E[kcal/mol]
     0.30    143.301

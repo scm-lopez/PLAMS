@@ -348,7 +348,9 @@ class Molecule (object):
 
     The ``lattice`` attribute is used to store information about lattice vectors in case of periodic structures. Some job types will automatically use that data while constructing input files. ``lattice`` should be a list of up to 3 vectors (for different types of periodicity: chain, slab or bulk), each of which needs to be a list or a tuple of 3 numbers.
 
-    Lattice vectors can be directly read from and written to ``xyz`` files using the following convention (please mind the fact that this is an unofficial extension to the XYZ format)::
+    Lattice vectors can be directly read from and written to ``xyz`` files using the following convention (please mind the fact that this is an unofficial extension to the XYZ format):
+
+    .. code-block:: none
 
         3
 
@@ -1100,7 +1102,9 @@ class Molecule (object):
     def __str__(self):
         """Return a string representation of the molecule.
 
-        Information about atoms is printed in ``xyz`` format fashion -- each atom in a separate, enumerated line. Then, if the molecule contains any bonds, they are printed. Each bond is printed in a separate line, with information about both atoms and bond order. Example::
+        Information about atoms is printed in ``xyz`` format fashion -- each atom in a separate, enumerated line. Then, if the molecule contains any bonds, they are printed. Each bond is printed in a separate line, with information about both atoms and bond order. Example:
+
+        .. code-block:: none
 
                   Atoms:
                     1         N       0.00000       0.00000       0.38321
@@ -1158,7 +1162,7 @@ class Molecule (object):
     def __add__(self, other):
         """Create a new molecule that is a sum of this molecule and some *other* molecule::
 
-        >>> newmol = mol1 + mol2
+            newmol = mol1 + mol2
 
         The new molecule has atoms, bonds and all other elements distinct from both components. The ``properties`` of ``newmol`` are a copy of the ``properties`` of ``mol1`` :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the ``properties`` of ``mol2``.
         """
@@ -1170,7 +1174,7 @@ class Molecule (object):
     def __iadd__(self, other):
         """Add some *other* molecule to this one::
 
-        >>> protein += water
+            protein += water
 
         All atoms and bonds present in *other* are copied and copies are added to this molecule. The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
         """

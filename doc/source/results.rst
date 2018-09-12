@@ -293,11 +293,11 @@ Hence it is a good practice to set cleaning only on one level (either in a paren
 Another shortcut can be used for cleaning in multijobs: ``$CH`` is expanded with every possible child name.
 For example, if you have a multijob ``mj`` with 5 single job children (``child1``, ``child2`` and so on) and you wish to keep only input and output files of children jobs you can set::
 
-    >>> mj.settings.save = ['$CH/$CH.in', '$CH/$CH.out']
+    mj.settings.save = ['$CH/$CH.in', '$CH/$CH.out']
 
 It is equivalent to::
 
-    >>> mj.settings.save = ['child1/child1.in', 'child2/child2.in', ... , 'child1/child1.out', 'child2/child2.out', ...]
+    mj.settings.save = ['child1/child1.in', 'child2/child2.in', ... , 'child1/child1.out', 'child2/child2.out', ...]
 
 As you can see above, while cleaning a multijob folder you have to keep in mind that files in subfolders are kept as relative paths.
 

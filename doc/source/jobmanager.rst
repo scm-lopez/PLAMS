@@ -152,7 +152,9 @@ Then you run your corrected script and no unnecessary work is done: all the fini
 
 If you're executing your PLAMS scripts using the |master-script| restarting is even easier. It can be done in two ways:
 
-1.  If you wish to perform the restart run in a fresh, empty working folder, all you need to do is to import the contents of the previous working folder (from the crashed run) using ``-l`` flag::
+1.  If you wish to perform the restart run in a fresh, empty working folder, all you need to do is to import the contents of the previous working folder (from the crashed run) using ``-l`` flag:
+
+    .. code-block:: none
 
         plams myscript.plms
         [17:28:40] PLAMS working folder: /home/user/plams_workdir
@@ -164,7 +166,9 @@ If you're executing your PLAMS scripts using the |master-script| restarting is e
     This is eqivalent to putting ``load_all('plams_workdir')`` at the top of ``myscript.plms`` and running it with the usual ``plams myscript.plms``.
 
 
-2.  If you would prefer an in-place restart in the same working folder, you can use ``-r`` flag::
+2.  If you would prefer an in-place restart in the same working folder, you can use ``-r`` flag:
+
+    .. code-block:: none
 
         plams myscript.plms
         [17:28:40] PLAMS working folder: /home/user/plams_workdir

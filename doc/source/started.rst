@@ -210,12 +210,14 @@ and you execute it with::
 
     plams -v n=10 -v basis=DZP script1.plms
 
-the standard output will be::
+the standard output will be:
+
+.. code-block:: none
 
     Chosen basis: DZP
     Number of points: 10
     str
-    # [output of "do something"]
+    [rest of the output]
 
 Three important things to keep in mind about ``-v`` parameter:
 
@@ -253,9 +255,9 @@ For example, after::
 
     $ plams -f stuff myscript.plms
     [17:28:40] PLAMS working folder: /home/user/stuff
-    #[some successful work]
+    # [some successful work]
     [17:56:22] Execution interrupted by the following exception:
-    #[exception details]
+    # [exception details]
 
 you can edit ``myscript.plms``, remove the cause of crash and restart your script with::
 
@@ -269,9 +271,9 @@ The same example with the default folder name::
 
     $ plams myscript.plms
     [17:28:40] PLAMS working folder: /home/user/plams_workdir
-    #[some successful work]
+    # [some successful work]
     [17:56:22] Execution interrupted by the following exception:
-    #[exception details]
+    # [exception details]
 
     [...debug the script...]
 

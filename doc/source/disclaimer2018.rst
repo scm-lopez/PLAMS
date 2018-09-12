@@ -1,7 +1,7 @@
 Disclaimer about AMS2018
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The 2018 release of Amsterdam Modeling Suite is a very special one. It's the first time the AMS driver (TODO: ref) unifying the way our software is run is introduced.
+The 2018 release of Amsterdam Modeling Suite is a very special one. It's the first time the `AMS driver  <../AMS/General.html>`__ unifying the way our software is run is introduced.
 However, not all the programs have been yet transformed into AMS engines, which results in a somewhat "hybrid" setup.
 
 Before the 2018 version each of our programs was a separate binary: ADF, BAND, DFTB, ReaxFF, MOPAC, UFF.

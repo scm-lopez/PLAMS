@@ -200,7 +200,9 @@ class GridRunner(JobRunner):
             gr = GridRunner(parallel=True, maxjobs=4, grid='slurm')
             j.run(jobrunner=gr, queue='short', nodes=2, J='something', O='')
 
-        will be::
+        will be:
+
+        .. code-block:: none
 
             sbatch -D {workdir} -e {err} -o {out} -p short -N 2 -J something -O  {runscript}
 

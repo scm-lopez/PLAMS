@@ -50,7 +50,7 @@ The following keyword arguments are common for all types of jobs:
 
 Those values do not need to be passed to the constructor, they can be set or changed later (but they should be fixed before the job starts to run)::
 
-    myjob = ADFJob()
+    myjob = AMSJob()
     myjob.name = 'myfirstjob'
     myjob.settings.runscript.pre = 'echo HelloWorld'
 
