@@ -5,7 +5,7 @@ __all__ = ['MOPACJob', 'MOPACResults']
 
 
 class MOPACResults(SCMResults):
-    """A class for result of computation done with MOPAC.
+    """A class for results of computation done with MOPAC.
 
     This class inherits all methods from |SCMResults|.
 
@@ -61,7 +61,7 @@ class MOPACJob(SingleJob):
 
         The name of the MOPAC executable is taken from class attribute ``MOPACJob._command``. If you experience problems running MOPAC, check if that value corresponds to the name of the executable and this executable is visible in your ``$PATH`` (in case of ADFSuite it's in ``$ADFBIN``). Note that a bare MOPAC executable should be used here, please avoid using any wrappers.
 
-        The execution of MOPAC binary is followed by calling a simple command line tool ``tokf`` which reads various output text files produced by MOPAC and collects all the data in a binary KF file. See :ref:`kf_files` for details.
+        The execution of MOPAC binary is followed by calling a simple command line tool ``tokf`` which reads various output text files produced by MOPAC and collects all the data in a binary KF file. See :ref:`kf-files` for details.
         """
         ret = self._command + ' ' + self._filename('inp')
         if self.settings.runscript.stdout_redirect:

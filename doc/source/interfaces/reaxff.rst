@@ -1,4 +1,4 @@
-Legacy: BAND, DFTB, UFF
+ReaxFF
 -------------------------
 
 Coming soon.

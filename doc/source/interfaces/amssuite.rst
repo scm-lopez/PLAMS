@@ -9,5 +9,8 @@ All possible input keywords and options are covered, as well as extraction of ar
     disclaimer2018
     ams
     adf
+    reaxff
     mopac
+    postadf
+    kffiles
     legacy

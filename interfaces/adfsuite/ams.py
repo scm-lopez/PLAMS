@@ -17,8 +17,7 @@ __all__ = ['AMSJob', 'AMSResults']
 
 
 class AMSResults(Results):
-    """A specialized |Results| subclass for accessing the results of |AMSJob|.
-    """
+    """A specialized |Results| subclass for accessing the results of |AMSJob|."""
 
     def __init__(self, *args, **kwargs):
         Results.__init__(self, *args, **kwargs)

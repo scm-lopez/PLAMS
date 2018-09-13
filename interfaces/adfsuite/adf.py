@@ -12,6 +12,7 @@ __all__ = ['ADFJob', 'ADFResults']
 
 
 class ADFResults(SCMResults):
+    """A specialized |SCMResults| subclass for accessing the results of |ADFJob|."""
     _kfext = '.t21'
     _rename_map = {'TAPE{}'.format(i) : '$JN.t{}'.format(i) for i in range(10,100)}
 
