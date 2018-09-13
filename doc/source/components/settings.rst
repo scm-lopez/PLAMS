@@ -58,7 +58,7 @@ It is convenient to think of a |Settings| object as a tree.
 The root of the tree is the top instance (``s`` in the above example), "proper values" are stored in leaves (a leaf is a childless node) and internal nodes correspond to nested |Settings| instances (we will call them *branches*).
 Tree representation of ``s`` from the example above is illustrated on the following picture:
 
-.. image:: _static/set_tree.*
+.. image:: ../_static/set_tree.*
 
 
 Tree-like structure could also be achieved with regular dictionaries, but in a rather cumbersome way::

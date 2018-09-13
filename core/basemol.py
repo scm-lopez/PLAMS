@@ -990,11 +990,11 @@ class Molecule (object):
 
         Before:
 
-        .. image:: _static/wrap.*
+        .. image:: ../_static/wrap.*
 
         After:
 
-        .. image:: _static/wrap2.*
+        .. image:: ../_static/wrap2.*
 
         """
         length = Units.convert(length, length_unit, 'angstrom')

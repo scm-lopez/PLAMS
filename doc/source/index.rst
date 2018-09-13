@@ -12,5 +12,5 @@ Python Library for Automating Molecular Simulations
 
     intro
     started
-    components
-    interfaces
+    components/main
+    interfaces/main

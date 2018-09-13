@@ -4,7 +4,7 @@ AMS driver
 .. currentmodule:: scm.plams.interfaces.adfsuite.ams
 
 The AMS driver is a new program introduced in the 2018 release that unifies the way in which different computational engines of Amsterdam Modelling Suite are called.
-You can find more information about AMS in the `corresponding part of the documentation. <../AMS/General.html>`__
+You can find more information about AMS in the `corresponding part of the documentation. <../../AMS/General.html>`__
 
 
 
@@ -200,7 +200,7 @@ or::
     myjob = AMSJob(...)
     myjob.molecule = mol
 
-A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../AMS/System.html>`__ for details).
+A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`__ for details).
 Various details of this process can be adjusted based on attributes of the supplied |Molecule|.
 If ``mol.lattice`` is nonempty, the information about periodicity vectors is printed to the ``lattice`` subblock of the ``system`` block.
 If the supplied lattice consists of 1 or 2 vectors that do not follow the convention requied by AMS (first vector aligned with X axis, second vector aligned with XY plane) the whole system is rotated to meet these criteria.
@@ -267,7 +267,7 @@ An alternative way of supplying molecular coordinates is to use the ``GeometryFi
     myjob = AMSJob(settings=s)
 
 In such a case the contents of ``myjob.molecule`` attribute are completely ignored and the geoemtry from the given file is used.
-Currently only the `extended XYZ format <../AMS/Appendices.html#extendedxyz>`__ for details) is supported.
+Currently only the `extended XYZ format <../../AMS/Appendices.html#extendedxyz>`__ for details) is supported.
 
 
 
