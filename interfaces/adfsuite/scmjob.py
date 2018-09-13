@@ -191,6 +191,10 @@ class SCMJob(SingleJob):
 
 
     def get_input(self):
+        """Generate the input file. This method is just a wrapper around :meth:`_serialize_input`.
+
+        Each instance of |SCMJob| or |SCMResults| present as a value in ``settings.input`` branch is replaced with an absolute path to the main KF file of that job.
+        """
         special = {
             SCMJob: lambda x: x.results._kfpath(),
             SCMResults: lambda x: x._kfpath(),
