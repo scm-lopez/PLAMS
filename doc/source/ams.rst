@@ -271,13 +271,19 @@ Currently only the `extended XYZ format <../AMS/Appendices.html#extendedxyz>`__ 
 
 
 
-API
-~~~
+AMSJob API
+~~~~~~~~~~
 
 .. autoclass:: AMSJob(name='plamsjob', molecule=None, settings=None, depend=None)
     :exclude-members: _result_type
+    :no-private-members:
 
+
+
+AMSResults API
+~~~~~~~~~~~~~~
 
 .. autoclass:: AMSResults
+    :no-private-members:
 
 
