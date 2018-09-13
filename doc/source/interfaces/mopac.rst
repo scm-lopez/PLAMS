@@ -4,7 +4,7 @@ MOPAC
 .. currentmodule:: scm.plams.interfaces.adfsuite.mopac
 
 
-MOPAC (Molecular Orbital PACkage) is a semiempirical quantum chemistry program based on NDDO approximation. More information about MOPAC can be found on its `official website <http://openmopac.net/>`_. MOPAC is also distributed as a part of ADFSuite, where it is integrated with suite's graphical interface.
+MOPAC (Molecular Orbital PACkage) is a semiempirical quantum chemistry program based on NDDO approximation. More information about MOPAC can be found on its `official website <http://openmopac.net/>`_. MOPAC is also distributed as a part of Amsterdam Modeling Suite, where it is integrated with suite's graphical interface.
 
 PLAMS features a basic MOPAC interface defined with classes |MOPACJob| and |MOPACResults|.
 
@@ -23,7 +23,7 @@ Since blocks and subblocks are not present in MOPAC's input, the ```myjob.settin
 *   ``myjob.settings.input.keyword = (val1, val2, ...)`` will print ``keyword=(val1,val2,...)`` (when value is a **tuple**)
 *   ``myjob.settings.input.keyword = [val1, val2, ...]`` will print ``keyword(val1,val2,...)`` (when value is a **list**)
 
-Moreover, if the keyword ``AUX`` is not supplied by the user, it is automatically inserted in the form ``AUX(0,PRECISSION=9)`` (for compatibility with ADFSuite GUI).
+Moreover, if the keyword ``AUX`` is not supplied by the user, it is automatically inserted in the form ``AUX(0,PRECISSION=9)`` (for compatibility with AMSSuite GUI).
 
 MOPAC allows to freeze each coordinate of each atom separately. This information is extracted from ``mopac_freeze`` key in each atom's properties. If present, this key should contain a string with all axes that you wish to freeze for a particular atom::
 

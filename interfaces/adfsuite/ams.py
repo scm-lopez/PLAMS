@@ -471,7 +471,7 @@ class AMSJob(SingleJob):
 
     @staticmethod
     def _atom_symbol(atom):
-        """Return the atomic symbol of *atom*. Ensure proper formatting for ADFSuite input taking into account ``ghost`` and ``name`` entries in ``properties`` of *atom*."""
+        """Return the atomic symbol of *atom*. Ensure proper formatting for AMSuite input taking into account ``ghost`` and ``name`` entries in ``properties`` of *atom*."""
         smb = atom.symbol if atom.atnum > 0 else ''  #Dummy atom should have '' instead of 'Xx'
         if 'ghost' in atom.properties and atom.properties.ghost:
             smb = ('Gh.'+smb).rstrip('.')

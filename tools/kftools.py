@@ -22,7 +22,7 @@ class KFReader(object):
 
     The constructor argument *path* should be a string with a path (relative or absolute) to an existing KF file.
 
-    *blocksize* indicates the length of basic KF file block. So far, all KF files produced by any of ADFSuite programs have the same block size of 4096 bytes. Unless you're doing something *very* special, you should not touch this value.
+    *blocksize* indicates the length of basic KF file block. So far, all KF files produced by any of Amsterdam Modeling Suite programs have the same block size of 4096 bytes. Unless you're doing something *very* special, you should not touch this value.
 
     Organization of data inside KF file can depend on a machine on which this file was produced. Two parameters can vary: the length of integer (32 or 64 bit) and endian (little or big). These parameters have to be determined before any reading can take place, otherwise the results will have no sense. If the constructor argument *autodetect* is ``True``, the constructor attempts to automatically detect the format of a given KF file, allowing to read files created on a machine with different endian or integer length. This automatic detection is enabled by default and it is advised to leave it that way. If you wish to disable it, you should set ``endian`` and ``word`` attributes manually before reading anything (see the code for details).
 

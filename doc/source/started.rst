@@ -32,7 +32,7 @@ Installing PLAMS
 
 You can install PLAMS on your computer using one of the following ways:
 
-1.  If you are using ADFSuite, PLAMS is shipped as a part of ``scm`` Python package (``$ADFHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with ADFSuite (you can access it with ``startpython`` command). The launch script is added to ``$ADFBIN``, so it should be directly visible from your command line (as long as ``$ADFBIN`` is in your ``$PATH``).
+1.  If you are using Amsterdam Modeling Suite, PLAMS is shipped as a part of ``scm`` Python package (``$ADFHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``startpython`` command). The launch script is added to ``$ADFBIN``, so it should be directly visible from your command line (as long as ``$ADFBIN`` is in your ``$PATH``).
 
 2. The latest PLAMS stable release can be installed directly from PyPi by typing ``pip install plams`` in your command line. The launch scipt will be installed along other global system executables (platform dependent) and should be visible from your command line.
 
@@ -47,7 +47,7 @@ PLAMS requires the following Python packages as dependencies:
 *   `ase <https://wiki.fysik.dtu.dk/ase>`_ (optional dependency)
 *   `rdkit <https://pypi.org/project/rdkit>`_ (optional dependency)
 
-If you use ADFSuite, all the above packages are already included in our Python stack.
+If you are using Amsterdam Modeling Suite, all the above packages are already included in our Python stack.
 When you install PLAMS using ``pip``, the required packages (numpy and dill)will be installed automatically.
 For optional dependencies, or in any other case you can install them with ``pip install [package name]``.
 

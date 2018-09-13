@@ -1,9 +1,13 @@
 ===================================================
-Python Library for Automating Molecular Simulations
+Table of contents
 ===================================================
 
+.. image:: _static/plams_logo.*
 
-**Table of Contents**
+---------------------------------------------------
+Python Library for Automating Molecular Simulations
+---------------------------------------------------
+
 
 .. toctree::
     :maxdepth: 3
@@ -12,5 +16,5 @@ Python Library for Automating Molecular Simulations
 
     intro
     started
-    components/main
-    interfaces/main
+    components/components
+    interfaces/interfaces

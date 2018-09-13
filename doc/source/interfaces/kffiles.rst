@@ -1,9 +1,10 @@
+.. _kf-files:
+
 KF files
 -------------------------
 
 .. currentmodule:: scm.plams.tools.kftools
 
-.. _kf-files:
 
 KF is the main format for storing binary data used in all Amsterdam Modeling Suite programs.
 All ``TAPEXX`` and ``.rkf`` files are KF files.

@@ -11,7 +11,7 @@ class MOPACResults(SCMResults):
 
     .. technical::
 
-        In case of a MOPAC job, preparation is much different from other programs of ADFSuite, but the result handling is quite similar due to presence of KF files. Therefore |MOPACResults| is a subclass of |SCMResults|, but |MOPACJob| is not a subclass of |SCMJob|.
+        In case of a MOPAC job, preparation is much different from other programs of AMSuite, but the result handling is quite similar due to presence of KF files. Therefore |MOPACResults| is a subclass of |SCMResults|, but |MOPACJob| is not a subclass of |SCMJob|.
     """
     _rename_map = {'results.rkf':'$JN.rkf', '$JN.in.aux':'$JN.aux', '$JN.in.arc':'$JN.arc', '$JN.in.out':'$JN.out' }
     _kfext = '.rkf'
@@ -59,7 +59,7 @@ class MOPACJob(SingleJob):
     def get_runscript(self):
         """Generate a MOPAC runscript.
 
-        The name of the MOPAC executable is taken from class attribute ``MOPACJob._command``. If you experience problems running MOPAC, check if that value corresponds to the name of the executable and this executable is visible in your ``$PATH`` (in case of ADFSuite it's in ``$ADFBIN``). Note that a bare MOPAC executable should be used here, please avoid using any wrappers.
+        The name of the MOPAC executable is taken from class attribute ``MOPACJob._command``. If you experience problems running MOPAC, check if that value corresponds to the name of the executable and this executable is visible in your ``$PATH`` (in case of AMSuite it's in ``$ADFBIN``). Note that a bare MOPAC executable should be used here, please avoid using any wrappers.
 
         The execution of MOPAC binary is followed by calling a simple command line tool ``tokf`` which reads various output text files produced by MOPAC and collects all the data in a binary KF file. See :ref:`kf-files` for details.
         """

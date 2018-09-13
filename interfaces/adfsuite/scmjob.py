@@ -187,7 +187,7 @@ class SCMJob(SingleJob):
     def __init__(self, **kwargs):
         SingleJob.__init__(self, **kwargs)
         if self.__class__._command in self.__class__._legacy:
-            log("LEGACY WARNING: Job {} uses executable '{}' which is not present in ADF2018. Please use AMSJob (unless you're running an older version of ADFSuite)".format(self.name, self.__class__._command), 1)
+            log("LEGACY WARNING: Job {} uses executable '{}' which is not present in AMS2018. Please use AMSJob (unless you're running an older version of ADFSuite)".format(self.name, self.__class__._command), 1)
 
 
     def get_input(self):
