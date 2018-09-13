@@ -295,5 +295,8 @@ rst_epilog = """
 .. |master-script| replace:: :ref:`master-script`
 .. |binding_decorators| replace:: :ref:`binding-decorators`
 .. |parallel| replace:: :ref:`parallel`
+
+.. |nbsp| unicode:: 0xA0
+   :trim:
 """
 
