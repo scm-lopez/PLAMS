@@ -33,7 +33,7 @@ Recipes
 
 .. toctree::
 
-    numgrad
     adffragment
     adfnbo
+    numgrad
     molecule_gun
