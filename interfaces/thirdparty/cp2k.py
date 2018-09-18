@@ -35,7 +35,7 @@ class Cp2kJob(SingleJob):
                                 v = parse(el, x, indent)
                                 ret += '{}{}\n'.format(indent, v)
                             else:
-                                ret += '  {}&XC_FUNCTIONAL {}\n'.format(indent, 'pbe')
+                                ret += '  {}&XC_FUNCTIONAL {}\n'.format(indent, x)
                                 ret += '  {}&END\n'.format(indent)
                         else:
                             ret += parse(el, value[el], indent + '  ')
