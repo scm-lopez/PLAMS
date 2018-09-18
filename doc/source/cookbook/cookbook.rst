@@ -14,7 +14,7 @@ Simple examples
 
 .. toctree::
 
-
+    transfer_integrals
     multijob
 
 

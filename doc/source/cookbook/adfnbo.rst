@@ -2,7 +2,7 @@ NBO with ADF
 --------------------
 
 NBO 6.0 is a tool for Natural Bond order analysis that uses the results of an ADF calculation.
-More information about NBO can be found in the corresponding section of the `ADF manual  <../../AMS/ADF/Input/Advanced_analysis.html#adfnbo-gennbo-nbo-analysis>`__.
+More information about NBO can be found in the corresponding section of the `ADF manual  <../../ADF/Input/Advanced_analysis.html#adfnbo-gennbo-nbo-analysis>`__.
 
 NBO analysis is performed based on a prior ADF calculation (with some special keywords) by using two separate binary executables: ``adfnbo`` and ``gennbo6``.
 In this case no special job type is created for these binaries.

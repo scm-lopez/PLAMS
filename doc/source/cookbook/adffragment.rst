@@ -1,3 +1,5 @@
+.. _adf-fragment-recipe:
+
 ADF fragment job
 --------------------
 
