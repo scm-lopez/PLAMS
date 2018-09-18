@@ -4,7 +4,6 @@ from ...core.basejob  import SingleJob
 from ...core.settings import Settings
 
 
-
 class Cp2kJob(SingleJob):
     """
     A class representing a single computational job with `CP2K <https://www.cp2k.org/>`
@@ -20,9 +19,8 @@ class Cp2kJob(SingleJob):
         def parse(key, value, indent=''):
             ret = ''
             key = key.upper()
-            print("Keys: ", key)
             if isinstance(value, Settings):
-                if not any(k in key for k in _reserved_keywords):
+                if not any(k == key for k in _reserved_keywords):
                     ret += '{}&{}\n'.format(indent, key)
                     for el in value:
                         ret += parse(el, value[el], indent + '  ')
@@ -33,12 +31,12 @@ class Cp2kJob(SingleJob):
                     for el in value:
                         if el.upper() == "XC_FUNCTIONAL":
                             x = value[el]
-                            if not isinstance(x, Settings):
-                                ret += '  {}&XC_FUNCTIONAL {}\n'.format(indent, x)
-                                ret += '  {}&END\n'.format(indent)
-                            else:
+                            if isinstance(x, Settings):
                                 v = parse(el, x, indent)
                                 ret += '{}{}\n'.format(indent, v)
+                            else:
+                                ret += '  {}&XC_FUNCTIONAL {}\n'.format(indent, 'pbe')
+                                ret += '  {}&END\n'.format(indent)
                         else:
                             ret += parse(el, value[el], indent + '  ')
                     ret += '{}&END\n'.format(indent)
