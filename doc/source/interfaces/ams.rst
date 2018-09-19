@@ -4,7 +4,7 @@ AMS driver
 .. currentmodule:: scm.plams.interfaces.adfsuite.ams
 
 The AMS driver is a new program introduced in the 2018 release that unifies the way in which different computational engines of Amsterdam Modelling Suite are called.
-You can find more information about AMS in the `corresponding part of the documentation. <../../AMS/General.html>`__
+You can find more information about AMS in the `corresponding part of the documentation <../../AMS/General.html>`_.
 
 
 
@@ -81,7 +81,8 @@ The contents of each branch of ``myjob.settings.input`` are translated to a stri
 
 *   Entries within each block (including the top level) are listed in the alphabetical order.
 *   Both keys and values are kept in their original case.
-*   Strings used as values can contain spaces and all kinds of special characters, including new lines. They are printed in an unchanged form in the input file.
+*   Strings used as values can contain spaces and all kinds of special characters, including new lines.
+    They are printed in an unchanged form in the input file.
 *   If you need to put a key without any value, you can use ``True`` or an empty string as a value::
 
         s.input.ams.block.key = True
@@ -124,7 +125,8 @@ The contents of each branch of ``myjob.settings.input`` are translated to a stri
           block residue
         end
 
-*   Some blocks require (or allow) something to be put in the header line, next to the block name. Special key ``_h`` is helpful in these situations::
+*   Some blocks require (or allow) something to be put in the header line, next to the block name.
+    Special key ``_h`` is helpful in these situations::
 
         s.input.ams.block._h = 'header=very important'
         s.input.ams.block.key1 = 'value1'
@@ -200,7 +202,7 @@ or::
     myjob = AMSJob(...)
     myjob.molecule = mol
 
-A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`__ for details).
+A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`_ for details).
 Various details of this process can be adjusted based on attributes of the supplied |Molecule|.
 If ``mol.lattice`` is nonempty, the information about periodicity vectors is printed to the ``lattice`` subblock of the ``system`` block.
 If the supplied lattice consists of 1 or 2 vectors that do not follow the convention requied by AMS (first vector aligned with X axis, second vector aligned with XY plane) the whole system is rotated to meet these criteria.
@@ -208,7 +210,8 @@ If ``mol.properties.charge`` exists, it is used as the ``charge`` key in the ``s
 
 Moreover, each |Atom| present in the supplied |Molecule| has its own ``properties`` attribute that can be used to adjust the details of the line generated for this atom in the ``atoms`` block:
 
-*   The atomic symbol is generated based on the atomic number stored in the ``atnum`` attribute of the |Atom|. The atomic number of 0 corresponds to the "dummy atom" for which the symbol is empty.
+*   The atomic symbol is generated based on the atomic number stored in the ``atnum`` attribute of the |Atom|.
+    The atomic number of 0 corresponds to the "dummy atom" for which the symbol is empty.
 *   If ``atom.properties.ghost`` exists and is ``True``, the atomic symbol is prefixed with ``Gh.``.
 *   If ``atom.properties.name`` exists, the name is added after the atomic symbol, separated by a single dot.
 *   Leading, trailing and double dots are removed from the atomic symbol.
@@ -267,7 +270,7 @@ An alternative way of supplying molecular coordinates is to use the ``GeometryFi
     myjob = AMSJob(settings=s)
 
 In such a case the contents of ``myjob.molecule`` attribute are completely ignored and the geoemtry from the given file is used.
-Currently only the `extended XYZ format <../../AMS/Appendices.html#extendedxyz>`__ for details) is supported.
+Currently only the `extended XYZ format <../../AMS/Appendices.html#extendedxyz>`_ for details) is supported.
 
 
 

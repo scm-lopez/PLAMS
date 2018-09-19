@@ -152,7 +152,8 @@ If you wish to permanently change some setting for all PLAMS executions, you can
 
 .. note::
 
-    You can create multiple "profiles" of PLAMS behavior by creating multiple different copies of ``plams_defaults`` (also with different filenames). If the environmental variable ``$PLAMSDEFAULTS`` is present and its value points to an existing file, this file is used instead of ``plams_defaults`` from the root folder.
+    You can create multiple "profiles" of PLAMS behavior by creating multiple different copies of ``plams_defaults`` (also with different filenames).
+    If the environmental variable ``$PLAMSDEFAULTS`` is present and its value points to an existing file, this file is used instead of ``plams_defaults`` from the root folder.
 
 
 
@@ -164,4 +165,5 @@ API
 
 .. note::
 
-    Methods :meth:`~Settings.update` and :meth:`~Settings.soft_update` are complementary. Given two |Settings| instances ``A`` and ``B``, the command ``A.update(B)`` would result in ``A`` being exactly the same as ``B`` would be after ``B.soft_update(A)``.
+    Methods :meth:`~Settings.update` and :meth:`~Settings.soft_update` are complementary.
+    Given two |Settings| instances ``A`` and ``B``, the command ``A.update(B)`` would result in ``A`` being exactly the same as ``B`` would be after ``B.soft_update(A)``.

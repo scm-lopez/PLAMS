@@ -32,13 +32,16 @@ Installing PLAMS
 
 You can install PLAMS on your computer using one of the following ways:
 
-1.  If you are using Amsterdam Modeling Suite, PLAMS is shipped as a part of ``scm`` Python package (``$ADFHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``startpython`` command). The launch script is added to ``$ADFBIN``, so it should be directly visible from your command line (as long as ``$ADFBIN`` is in your ``$PATH``).
+1.  If you are using Amsterdam Modeling Suite, PLAMS is shipped as a part of ``scm`` Python package (``$ADFHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``startpython`` command).
+    The launch script is added to ``$ADFBIN``, so it should be directly visible from your command line (as long as ``$ADFBIN`` is in your ``$PATH``).
 
-2. The latest PLAMS stable release can be installed directly from PyPi by typing ``pip install plams`` in your command line. The launch scipt will be installed along other global system executables (platform dependent) and should be visible from your command line.
+2.  The latest PLAMS stable release can be installed directly from PyPi by typing ``pip install plams`` in your command line.
+    The launch scipt will be installed along other global system executables (platform dependent) and should be visible from your command line.
 
-3. Any current or historic version can be downloaded or cloned from PLAMS `GitHub page <https://github.com/SCM-NV/PLAMS>`_. The ``release`` branch points to the latests stable release, while the ``master`` branch is the most recent development snapshot.
+3.  Any current or historic version can be downloaded or cloned from PLAMS `GitHub page <https://github.com/SCM-NV/PLAMS>`_.
+    The ``release`` branch points to the latests stable release, while the ``master`` branch is the most recent development snapshot.
 
-4. You can combine methods 2 and 3 and fetch PLAMS from GitHub using ``pip``: ``pip install git+https://github.com/SCM-NV/PLAMS.git@master`` (make sure to have Git installed and to choose the proper branch)
+4.  You can combine methods 2 and 3 and fetch PLAMS from GitHub using ``pip``: ``pip install git+https://github.com/SCM-NV/PLAMS.git@master`` (make sure to have Git installed and to choose the proper branch)
 
 PLAMS requires the following Python packages as dependencies:
 
@@ -76,11 +79,16 @@ Inside your Python interpreter or in Python scripts PLAMS is visible as a subpac
 
 .. note::
 
-    Usually in Python ``import *`` is considered a bad practice and discouraged. However, PLAMS internally takes care of the namespace tidiness and imports only necessary things with ``import *``. Importing with ``import *`` allows you to use identifiers like ``Molecule`` or ``AMSJob`` instead of ``scm.plams.Molecule`` or ``scm.plams.AMSJob`` which makes your scripts shorter and more readable. Throughout this documentation it is assumed that ``import *`` is used so identifiers are not prefixed with ``scm.plams.`` in any example.
+    Usually in Python ``import *`` is considered a bad practice and discouraged.
+    However, PLAMS internally takes care of the namespace tidiness and imports only necessary things with ``import *``.
+    Importing with ``import *`` allows you to use identifiers like ``Molecule`` or ``AMSJob`` instead of ``scm.plams.Molecule`` or ``scm.plams.AMSJob`` which makes your scripts shorter and more readable.
+    Throughout this documentation it is assumed that ``import *`` is used so identifiers are not prefixed with ``scm.plams.`` in any example.
 
 .. technical::
 
-    PLAMS namespace is automatically built when importing the package. All Python modules present in any of four main subpackages (``core``, ``tools``, ``interfaces``, ``recipes``) are processed and each module's ``__all__`` attributes are added to the main namespace. That scheme works in plug'n'play manner -- if you add a new ``.py`` file with properly defined ``__all__`` attribute in one of the four abovementioned folders, names defined in that ``__all__`` attribute will be added to the main namespace.
+    PLAMS namespace is automatically built when importing the package.
+    All Python modules present in any of four main subpackages (``core``, ``tools``, ``interfaces``, ``recipes``) are processed and each module's ``__all__`` attributes are added to the main namespace.
+    That scheme works in plug'n'play manner -- if you add a new ``.py`` file with properly defined ``__all__`` attribute in one of the four abovementioned folders, names defined in that ``__all__`` attribute will be added to the main namespace.
 
 
 A PLAMS script is in fact a general Python script that makes use of classes and functions defined in the PLAMS library.
@@ -190,7 +198,8 @@ will use ``/home/user/science/polymers`` as the main working folder regardless w
 
 .. note::
 
-    Each PLAMS run creates a fresh, empty directory for its main working folder. If you try to use an existing folder (or don't pick any and ``plams_workdir`` already exists in the current directory), a unique folder is going to be created anyway, by appending ``.002`` (or ``.003``, ``.004`` and so on) to the name of your folder.
+    Each PLAMS run creates a fresh, empty directory for its main working folder.
+    If you try to use an existing folder (or don't pick any and ``plams_workdir`` already exists in the current directory), a unique folder is going to be created anyway, by appending ``.002`` (or ``.003``, ``.004`` and so on) to the name of your folder.
 
 
 Passing variables
@@ -223,7 +232,8 @@ Three important things to keep in mind about ``-v`` parameter:
 
 *   no spaces around equal sign,
 *   each variable requires separate ``-v``,
-*   the type of the variable is **always** string (like in the example above). If you want to pass some numerical values, make sure to convert them from strings to numbers inside your script.
+*   the type of the variable is **always** string (like in the example above).
+    If you want to pass some numerical values, make sure to convert them from strings to numbers inside your script.
 
 
 Importing past jobs
@@ -300,5 +310,6 @@ That way you can build your own library of reusable code snippets for tasks that
 
 .. note::
 
-    The ``.plms`` file extension for PLAMS scripts is just a convention. Scripts can be any text files.
+    The ``.plms`` file extension for PLAMS scripts is just a convention.
+    Scripts can be any text files.
 

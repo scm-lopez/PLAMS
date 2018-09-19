@@ -94,7 +94,8 @@ A cubic box can be easily specified by::
 
   penta.input.force_eval.subsys.cell.ABC = "[angstrom] 50 50 50"
 
-That results in a simulation cube of 50 cubic angstroms. For a more detailed description of *cp2k* input see manual_.
+That results in a simulation cube of 50 cubic angstroms.
+For a more detailed description of *cp2k* input see manual_.
 
 .. _cp2k: https://www.cp2k.org/
 

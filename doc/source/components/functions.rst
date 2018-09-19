@@ -48,7 +48,8 @@ For example, if you find level 5 too verbose and still want to be able to switch
 
 .. note::
 
-    Your own code can (and should) contain some |log| calls. They are very important for debugging purposes.
+    Your own code can (and should) contain some |log| calls.
+    They are very important for debugging purposes.
 
 .. autofunction:: log
 
@@ -62,8 +63,12 @@ Binding decorators
 Sometimes one wants to expand the functionality of a class by adding a new method or modifying an existing one.
 It can be done in a few different ways:
 
-*   One can go directly to the source code defining the class and modify it there before running a script. Such a change is global -- it affects all the future scripts, so in most cases it is not a good thing (for defining |prerun|, for example).
-*   Creating a subclass with new or modified method definitions is usually the best solution. It can be done directly in your script before the work is done or in a separate dedicated file executed before the actual script (see |master-script|). Newly defined class can be then used instead of the old one. However, this solution fails in some rare cases when a method needs to differ for different instances or when it needs to be changed during the runtime of the script.
+*   One can go directly to the source code defining the class and modify it there before running a script.
+    Such a change is global -- it affects all the future scripts, so in most cases it is not a good thing (for defining |prerun|, for example).
+*   Creating a subclass with new or modified method definitions is usually the best solution.
+    It can be done directly in your script before the work is done or in a separate dedicated file executed before the actual script (see |master-script|).
+    Newly defined class can be then used instead of the old one.
+    However, this solution fails in some rare cases when a method needs to differ for different instances or when it needs to be changed during the runtime of the script.
 *   PLAMS binding decorators (|add_to_class| and |add_to_instance|) can be used.
 
 Binding decorators allow to bind methods to existing classes or even directly to particular instances without having to define a subclass.
@@ -89,4 +94,5 @@ The function needs to have a valid method syntax, so it should have ``self`` as 
 
 .. technical::
 
-    Each of the above decorators is in fact a decorator factory that, given an object (class or instance), produces a decorator that binds function as a method of that object. Both decorators are adding instance methods only, they cannot be used for static or class methods.
+    Each of the above decorators is in fact a decorator factory that, given an object (class or instance), produces a decorator that binds function as a method of that object.
+    Both decorators are adding instance methods only, they cannot be used for static or class methods.

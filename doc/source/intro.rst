@@ -109,7 +109,8 @@ Don't worry if something in the above code is incomprehensible or confusing.
 Everything you need to know to understand how PLAMS works and how to write your own scripts is explained in next chapters of this documentation.
 
 When executed, the above script creates an uniquely named working folder, then runs 24 independent ADF single point calculations, each in a separate subfolder of the working folder.
-All the files created by each run are saved in the corresponding subfolder for future reference. Finally, the following table describing the potential energy curve of a hydrogen molecule is written to the standard output:
+All the files created by each run are saved in the corresponding subfolder for future reference.
+Finally, the following table describing the potential energy curve of a hydrogen molecule is written to the standard output:
 
 .. code-block:: none
 
@@ -172,11 +173,14 @@ The following special boxes appear within this documentation:
 
 .. warning::
 
-    Information absolutely critical for correct and secure work of the whole library. You should never violate rules given here.
+    Information absolutely critical for correct and secure work of the whole library.
+    You should never violate rules given here.
 
 .. technical::
 
-    More detailed technical explanation of some part of the code aimed at users with better technical background. Understanding it may require advanced Python knowledge. These parts can be safely skipped without a harm to general comprehension.
+    More detailed technical explanation of some part of the code aimed at users with better technical background.
+    Understanding it may require advanced Python knowledge.
+    These parts can be safely skipped without a harm to general comprehension.
 
 
 It is assumed that the reader has some basic understanding of Python programming language.
@@ -185,4 +189,6 @@ Gentle introduction to Python can be found in the excellent :ref:`Python Tutoria
 Majority of examples presented within this document use as an external binary either ADF or AMS.
 Please refer to the corresponding program's manual if some clarification is needed.
 
-The last section presents a collection of real life example scripts that cover various possible applications of PLAMS. Due to early stage of the project this section is not yet too extensive. Users are warmly welcome to help with enriching it, as well as to provide any kind of feedback regarding either PLAMS itself or this documentation to support@scm.com or directly on PLAMS `github page <https://github.com/SCM-NV/PLAMS>`_
+The last section presents a collection of real life example scripts that cover various possible applications of PLAMS.
+Due to early stage of the project this section is not yet too extensive.
+Users are warmly welcome to help with enriching it, as well as to provide any kind of feedback regarding either PLAMS itself or this documentation to support@scm.com or directly on PLAMS `GitHub page <https://github.com/SCM-NV/PLAMS>`_.

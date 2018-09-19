@@ -18,9 +18,11 @@ All interactions are handled automatically from |run| or other methods.
 
 .. technical::
 
-   Usually there is no need to use any other job manager than the default one. Splitting work between multiple instances of |JobManager| may lead to some problems (different instances don't communicate, so |RPM| does not work properly).
+   Usually there is no need to use any other job manager than the default one.
+   Splitting work between multiple instances of |JobManager| may lead to some problems (different instances don't communicate, so |RPM| does not work properly).
 
-   However, it is possible to manually create another instance of |JobManager| (with a different working folder) and use it for part of your jobs (by passing it as ``jobmanager`` keyword argument to |run|). If you decide to do so, make sure to pass all instances of |JobManager| you manually created to |finish| (as a list).
+   However, it is possible to manually create another instance of |JobManager| (with a different working folder) and use it for part of your jobs (by passing it as ``jobmanager`` keyword argument to |run|).
+   If you decide to do so, make sure to pass all instances of |JobManager| you manually created to |finish| (as a list).
 
    An example application for that could be running jobs within your script on many different machines (for example via SSH) and having a separate |JobManager| on each of them.
 
@@ -41,7 +43,8 @@ Results from previous job's folder can be either copied or linked to the current
 
 .. note::
 
-    Linking is done using hard links. Windows does not support hard links so if you are running PLAMS under Windows results are always copied.
+    Linking is done using hard links.
+    Windows does not support hard links so if you are running PLAMS under Windows results are always copied.
 
 The crucial part of the whole rerun prevention logic is a properly working :meth:`~scm.plams.core.basejob.Job.hash` function.
 It is a function that takes the whole job instance and produces its hash.
@@ -54,7 +57,9 @@ If you decide to implement your own hashing method, it can be done by overriding
 
 .. warning::
 
-    It may happen that two jobs with the same input and runscript files correspond to different jobs (for example, if they rely on some external file that is supplied using relative path). Sometimes it's even a desired behavior to run multiple different copies of the same job (for example, multiple MD trajectories with the same starting point and random initial velocities). If you are experiencing problems (PLAMS refuses to run a job, becasue it was already run in the past), you can disable the rerun prevention with ``config.default_jobmanager.settings.hashing = None``.
+    It may happen that two jobs with the same input and runscript files correspond to different jobs (for example, if they rely on some external file that is supplied using relative path).
+    Sometimes it's even a desired behavior to run multiple different copies of the same job (for example, multiple MD trajectories with the same starting point and random initial velocities).
+    If you are experiencing problems (PLAMS refuses to run a job, becasue it was already run in the past), you can disable the rerun prevention with ``config.default_jobmanager.settings.hashing = None``.
 
 Hashing is disabled for |MultiJob| instances since they don't have inputs and runscripts.
 Of course single jobs that are children of multijobs are hashed in the normal way, so trying to run exactly the same multijob twice will not trigger rerun prevention on the multijob level, but rather for every children job separately, effectively preventing any doubled work.
@@ -83,7 +88,11 @@ This operation brings back the old |Job| instance in (almost) the same state it 
 
 .. note::
 
-    The default Python pickling package :mod:`pickle<pickle>` is not powerful enough to handle some of common PLAMS objects. Fortunately, the `dill <https://pypi.python.org/pypi/dill>`_ package provides an excellent replacement for ``pickle``, following the same interface and being able to save and load almost everything. It is strongly recommended to use ``dill`` to ensure proper work of PLAMS data preservation logic. However, if ``dill`` is not installed for the Python interpreter you're using to run PLAMS, the regular ``pickle`` package will be used instead (which can work if your |Job| objects are not too fancy, but in most cases it will probably fail). Please use ``dill``, it's free, easy to get and awesome.
+    The default Python pickling package :mod:`pickle<pickle>` is not powerful enough to handle some of common PLAMS objects.
+    Fortunately, the `dill <https://pypi.python.org/pypi/dill>`_ package provides an excellent replacement for ``pickle``, following the same interface and being able to save and load almost everything.
+    It is strongly recommended to use ``dill`` to ensure proper work of PLAMS data preservation logic.
+    However, if ``dill`` is not installed for the Python interpreter you're using to run PLAMS, the regular ``pickle`` package will be used instead (which can work if your |Job| objects are not too fancy, but in most cases it will probably fail).
+    Please use ``dill``, it's free, easy to get and awesome.
 
 
 The pickling mechanism follows references in pickled object.
@@ -95,14 +104,17 @@ During loading, all the removed data is replaced with "proper" values (current j
 
 .. note::
 
-    There is a way of expanding the mechanism explained above. If your |Job| object has an attribute with reference to an object you don't want to save together with the job, you may add this object's name to job's ``_dont_pickle`` list::
+    There is a way of expanding the mechanism explained above.
+    If your |Job| object has an attribute with reference to an object you don't want to save together with the job, you may add this object's name to job's ``_dont_pickle`` list::
 
         myjob.something = some_big_and_clumsy_object_you_dont_want_to_pickle
         myjob._dont_pickle.append('something')
 
-    That way big clumsy object will not be stored in the ``.dill`` file. After loading such a ``.dill`` file the value of ``myjob.something`` will simply be ``None``.
+    That way big clumsy object will not be stored in the ``.dill`` file.
+    After loading such a ``.dill`` file the value of ``myjob.something`` will simply be ``None``.
 
-    The ``_dont_pickle`` list is an attribute of every |Job| instance, initially an empty list. It does not contain names of attributes that are always removed (like ``jobmanager``), it's meant only for additional ones defined by the user (see :meth:`Job.__getstate__<scm.plams.core.basejob.Job.__getstate__>`)
+    The ``_dont_pickle`` list is an attribute of every |Job| instance, initially an empty list.
+    It does not contain names of attributes that are always removed (like ``jobmanager``), it's meant only for additional ones defined by the user (see :meth:`Job.__getstate__<scm.plams.core.basejob.Job.__getstate__>`)
 
 
 As mentioned above, pickling a job happens at the very end of |run|.
@@ -150,7 +162,8 @@ Fortunately, one can use |load_all| function which takes a path to the main work
 So when you edit your crashed script to remove mistakes you can add just one |load_all| call at the beginning.
 Then you run your corrected script and no unnecessary work is done: all the finished jobs are loaded from the previous run, the current run tries to run the same jobs again, but |RPM| detects that and copies/links old jobs' folders into the current main working folder.
 
-If you're executing your PLAMS scripts using the |master-script| restarting is even easier. It can be done in two ways:
+If you're executing your PLAMS scripts using the |master-script| restarting is even easier.
+It can be done in two ways:
 
 1.  If you wish to perform the restart run in a fresh, empty working folder, all you need to do is to import the contents of the previous working folder (from the crashed run) using ``-l`` flag:
 
@@ -182,7 +195,8 @@ If you're executing your PLAMS scripts using the |master-script| restarting is e
 
 
 .. note::
-    Please remember that rerun prevention checks the hash of the job after the |prerun| method is executed. So when you attempt to run a job identical to the one previously run (in the same script, or imported from a previous run), its |prerun| method is executed anyway, even if the rest of :ref:`job-life-cycle` is skipped.
+    Please remember that rerun prevention checks the hash of the job after the |prerun| method is executed.
+    So when you attempt to run a job identical to the one previously run (in the same script, or imported from a previous run), its |prerun| method is executed anyway, even if the rest of :ref:`job-life-cycle` is skipped.
 
 
 API

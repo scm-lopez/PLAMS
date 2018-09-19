@@ -3,7 +3,7 @@ Charge transfer integrals with ADF
 
 Calculating charge transfer integrals with ADF requires running a standard two-fragment analysis: two calculations for fragments and one for the full system.
 The additional ``TRANSFERINTEGRALS`` key should be used in the full system calculation.
-Please refer to the `ADF manual  <../../ADF/Input/Charge_transfer_integrals.html>`__ for more information about charge transfer integrals.
+Please refer to the `ADF manual  <../../ADF/Input/Charge_transfer_integrals.html>`_ for more information about charge transfer integrals.
 
 Performing such a 3 step calculation with PLAMS is a straightforward application of :ref:`adf-fragment-recipe` recipe::
 

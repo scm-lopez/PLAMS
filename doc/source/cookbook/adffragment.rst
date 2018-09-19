@@ -12,7 +12,8 @@ The constructor (``__init__``) of this new job takes 2 more arguments (``fragmen
 In the |prerun| method two fragment jobs and the full system job are created with the proper settings and molecules.
 They are then added to the ``children`` list.
 
-The dedicated |Results| subclass for ``ADFFragmentJob`` does not provide too much additional functionality. It simply redirects the usual |ADFResults| methods to the results of the full system calculation.
+The dedicated |Results| subclass for ``ADFFragmentJob`` does not provide too much additional functionality.
+It simply redirects the usual |ADFResults| methods to the results of the full system calculation.
 
 The source code of the whole module with both abovementioned classes:
 

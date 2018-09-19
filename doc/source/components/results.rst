@@ -18,7 +18,8 @@ Entries in this list correspond to paths to files relative to the job folder, so
 
 .. note::
 
-    Files produced by |pickling| are excluded from the ``files`` list. Every file with ``.dill`` extension is simply ignored by |Results|.
+    Files produced by |pickling| are excluded from the ``files`` list.
+    Every file with ``.dill`` extension is simply ignored by |Results|.
 
 If you need an absolute path to some file, the bracket notation known from dictionaries is defined for |Results| objects.
 When supplied with an entry from ``files`` list, it returns the absolute path to that file.
@@ -243,7 +244,9 @@ Resolving all such dependencies in job's thread rather than in the main thread g
 
 .. note::
 
-    In some cases dependencies between job are not easily expressed via methods of |Results| (for example, one job sets up some environment that is later used by another job). In such cases one can use job's ``depend`` attribute to explicitly tell the job about other jobs it has to wait for. Adding ``job2`` to ``job1.depend`` is roughly equivalent to putting ``job2.results.wait()`` in ``job1`` |prerun|.
+    In some cases dependencies between job are not easily expressed via methods of |Results| (for example, one job sets up some environment that is later used by another job).
+    In such cases one can use job's ``depend`` attribute to explicitly tell the job about other jobs it has to wait for.
+    Adding ``job2`` to ``job1.depend`` is roughly equivalent to putting ``job2.results.wait()`` in ``job1`` |prerun|.
 
 
 To sum up all the above considerations, here is the rule of thumb on how to write properly working parallel PLAMS scripts:
@@ -277,8 +280,11 @@ The argument passed to :meth:`~Results._clean` (in other words the value that is
 
 *   ``'all'`` -- nothing is removed, cleaning is skipped.
 *   ``'none'`` or ``[]`` or ``None`` -- everything is removed from the job folder.
-*   list of strings -- list of filenames to be kept. Shortcut ``$JN`` can be used here, as well as \*-wildcards. For example ``['geo.*', '$JN.out', 'logfile']`` will keep ``[jobname].out``, ``logfile`` and all files whose names start with ``geo.`` and remove everything else from the job folder.
-*   list of strings with the first element ``'-'`` -- reversed behavior to the above, listed files will be removed. For example ``['-', 't21.*', '$JN.err']`` will remove ``[jobname].err`` and all files whose names start with ``t21.``
+*   list of strings -- list of filenames to be kept.
+    Shortcut ``$JN`` can be used here, as well as \*-wildcards.
+    For example ``['geo.*', '$JN.out', 'logfile']`` will keep ``[jobname].out``, ``logfile`` and all files whose names start with ``geo.`` and remove everything else from the job folder.
+*   list of strings with the first element ``'-'`` -- reversed behavior to the above, listed files will be removed.
+    For example ``['-', 't21.*', '$JN.err']`` will remove ``[jobname].err`` and all files whose names start with ``t21.``
 
 
 
@@ -309,7 +315,8 @@ API
 
 .. technical::
 
-    Other parts of ``results`` module described below are responsible for giving |Results| class its unique behavior described in |parallel|. They are presented here for the sake of completeness, from a user's perspective this information is not too relevant.
+    Other parts of ``results`` module described below are responsible for giving |Results| class its unique behavior described in |parallel|.
+    They are presented here for the sake of completeness, from a user's perspective this information is not too relevant.
 
     .. autoclass:: _MetaResults
     .. autofunction:: _restrict
