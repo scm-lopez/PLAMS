@@ -1,11 +1,11 @@
-Transfer Integrals with ADF
----------------------------
+Charge transfer integrals with ADF
+----------------------------------
 
 Calculating charge transfer integrals with ADF requires running a standard two-fragment analysis: two calculations for fragments and one for the full system.
 The additional ``TRANSFERINTEGRALS`` key should be used in the full system calculation.
 Please refer to the `ADF manual  <../../ADF/Input/Charge_transfer_integrals.html>`__ for more information about charge transfer integrals.
 
-Performing such a 3 step calculation with PLAMS is straightforward application of :ref:`adf-fragment-recipe` recipe::
+Performing such a 3 step calculation with PLAMS is a straightforward application of :ref:`adf-fragment-recipe` recipe::
 
     # Add new results extraction method
     @add_to_class(ADFFragmentResults)
@@ -25,6 +25,7 @@ Performing such a 3 step calculation with PLAMS is straightforward application o
     full = Settings()
     full.input.transferintegrals = True
 
+    #Load coordinates from XYZ file and separate into 2 fragments
     mol = Molecule('full_system.xyz')
     mol.guess_bonds()
     fragments = mol.separate()
@@ -46,5 +47,5 @@ Performing such a 3 step calculation with PLAMS is straightforward application o
     for key in TI:
         print(key, TI[key])
 
-In the code above you can see the usage of |binding_decorators| to enrich ``ADFFragmentResults`` with the method extracting transfer integrals.
-Another interesting feature is an automatic separation of the molecular system into two fragments.
+In the code above you can see the usage of |binding_decorators| to enrich ``ADFFragmentResults`` with a method extracting transfer integrals.
+Another feature worth noting is automatic separation of a molecular system into two fragments.
