@@ -25,7 +25,7 @@ Performing such a 3 step calculation with PLAMS is a straightforward application
     full = Settings()
     full.input.transferintegrals = True
 
-    #Load coordinates from XYZ file and separate into 2 fragments
+    # Load XYZ file and separate it into 2 fragments
     mol = Molecule('full_system.xyz')
     mol.guess_bonds()
     fragments = mol.separate()
@@ -42,7 +42,7 @@ Performing such a 3 step calculation with PLAMS is a straightforward application
     job = ADFFragmentJob(name='ADFTI',fragment1=mol1,fragment2=mol2,settings=common,full_settings=full)
     results = job.run()
 
-    #TI is a dictionary with the whole TransferIntegrals section from TAPE21
+    # TI is a dictionary with the whole TransferIntegrals section from TAPE21
     TI = results.get_transfer_integrals()
     for key in TI:
         print(key, TI[key])

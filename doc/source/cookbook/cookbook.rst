@@ -9,6 +9,7 @@ In other words, the code presented there is already included in PLAMS and (unlik
 The source code of ``recipes`` modules is presented here to demonstrate how easy it is to build on top of existing PLAMS elements and create your own fully customized job types.
 
 
+
 Simple examples
 -------------------------
 
@@ -16,6 +17,7 @@ Simple examples
 
     transfer_integrals
     multijob
+
 
 
 
@@ -29,11 +31,10 @@ Advanced examples
 Recipes
 -------------------------
 
-
-
 .. toctree::
 
     adffragment
     adfnbo
     numgrad
+    numhess
     molecule_gun
