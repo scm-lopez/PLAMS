@@ -95,6 +95,10 @@ class KFReader(object):
         with open(self.path, 'rb') as f:
             b = f.read(128)
 
+        blocksize = struct.unpack(b'i',b[28:32])[0]
+        self._blocksize = 4096 if blocksize == 538976288 else blocksize
+        log('Block size of {} detected as {}'.format(self.path, self._blocksize), 7)
+
         one = b[80:84]
 
         if struct.unpack(b'32s',b[48:80])[0] == b'SUPERINDEX                      ':
