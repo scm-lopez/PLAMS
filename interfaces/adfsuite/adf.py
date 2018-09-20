@@ -69,9 +69,9 @@ class ADFResults(SCMResults):
 
     def get_gradients(self, eUnit='au', lUnit='bohr'):
         """get_gradients(eUnit='au', lUnit='bohr')
-        Returns the cartesian gradients from the 'Gradients_CART' field of the 'GeoOpt' Section in the kf-file, expressed in given units. Returned value is a numpy array with shape (nAtoms,3).
+        Returns the cartesian gradients from the 'Gradients_InputOrder' field of the 'GeoOpt' Section in the kf-file, expressed in given units. Returned value is a numpy array with shape (nAtoms,3).
         """
-        gradients = np.array(self.readkf('GeoOpt','Gradients_CART'))
+        gradients = np.array(self.readkf('GeoOpt','Gradients_InputOrder'))
         gradients.shape = (-1,3)
         gradients *= (Units.conversion_ratio('au',eUnit) / Units.conversion_ratio('bohr',lUnit))
         return gradients
