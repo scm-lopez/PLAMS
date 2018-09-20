@@ -41,5 +41,5 @@ A simple example on using a MultiJob to easily organize multiple similar calcula
                 ref_energy = job.children[(name,reference_basis)].results.get_energy()
                 energy = job.children[(name,bas)].results.get_energy()
                 errors.append(abs(energy - ref_energy)/mol.properties.total_bond_order)
-            avg_error = sum(errors)/len(errors)
-            print ('Results. Basis set: {} Average Absolute Error per bond [kcal/mol]: {}'.format(bas, Units.convert(avg_error, 'au', 'kcal/mol')))
+            avg_error = Units.convert(sum(errors)/len(errors), 'au', 'kcal/mol')
+            print('Basis set: {} Average Absolute Error per bond [kcal/mol]: {}'.format(bas, avg_error))
