@@ -53,4 +53,5 @@ class NumHessJob(MultiJob):
             newmol = self.molecule.copy()
             newmol[atom].translate(vec)
             newname = self.name + '_{}_{}_{}'.format(atom,axis,step)
-            self.children[(atom, axis, step)] = self.jobtype(name=newname, molecule=newmol, settings=self.settings)
+            self.children[(atom,axis,step)] = self.jobtype(name=newname, molecule=newmol,
+                                                           settings=self.settings)
