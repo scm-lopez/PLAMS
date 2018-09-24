@@ -24,6 +24,11 @@ Simple examples
 Advanced examples
 -------------------------
 
+.. toctree::
+
+    gammascan
+
+
 
 
 .. _recipes:
