@@ -21,4 +21,4 @@ The source code of the whole module with both abovementioned classes:
 
 An example usage:
 
-.. literalinclude:: ../../../../../examples/scripting/plams_adffrag/adffrag_test.py
+.. literalinclude:: ../../../../../../examples/scripting/plams_adffrag/adffrag_test.py

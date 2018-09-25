@@ -19,4 +19,4 @@ The source code of the whole module:
 
 An example usage:
 
-.. literalinclude:: ../../../../../examples/scripting/plams_adfnbo/adfnbo_test.py
+.. literalinclude:: ../../../../../../examples/scripting/plams_adfnbo/adfnbo_test.py

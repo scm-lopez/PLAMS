@@ -19,5 +19,5 @@ The source code of the whole module with both abovementioned classes:
 
 An example usage:
 
-.. literalinclude:: ../../../../../examples/scripting/plams_numgrad/numgrad_test.py
+.. literalinclude:: ../../../../../../examples/scripting/plams_numgrad/numgrad_test.py
 
