@@ -591,8 +591,6 @@ def readpdb(pdb_file, removeHs=False, return_rdmol=False):
     if isinstance(pdb_file, str):
         pdb_file = open(pdb_file, 'r')
     pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), removeHs=removeHs)
-    print(pdb_mol)
-    print(type(pdb_mol))
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
 
