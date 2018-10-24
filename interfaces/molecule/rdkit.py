@@ -43,20 +43,61 @@ def global_minimum(plams_mol, n_scans=1, no_h=True):
         plams_mol.guess_bonds()
 
     # Create a list of bond indices [0], bond orders [1] and dihedral indices [2, 3, 4 and 5]
-    dihedral_list = [global_minimum_index(plams_mol, bond, no_h) for bond in plams_mol.bonds]
+    dihedral_list = find_dihedrals(plams_mol, no_h)
 
     # Find the global minimum by systematically varying dihedral angles
     # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
     rdmol = to_rdmol(plams_mol)
     for i in range(n_scans):
         for item in dihedral_list:
-            if item[1] == 1.0 and item[2]:
+            if item[1] == 1.0:
                 InRing_at1 = rdmol.GetAtomWithIdx(item[2]).IsInRing()
                 InRing_at2 = rdmol.GetAtomWithIdx(item[5]).IsInRing()
                 if not InRing_at1 and not InRing_at2:
                     rdmol = global_minimum_scan(rdmol, item)
     AllChem.UFFGetMoleculeForceField(rdmol).Minimize()
     return from_rdmol(rdmol)
+
+
+def find_dihedrals(plams_mol, no_h=True):
+    """
+    Create a list of dihedrals. Each entry is a tuple with bond index [0], bond order [1] and dihedral indices [2, 3, 4 and 5].
+
+    :parameter plams_mol: PLAMS molecule
+    :type plams_mol: plams.Molecule
+    :parameter bool no_h: If hydrogen-containing bonds should ignored (True) or included (False)
+    :return: a list of tuples
+    :rtype: list
+    """
+    plams_mol.set_atoms_id()
+
+    #Mark atoms that can form an "axis" of a diherdal, i.e atoms with more than one (non-hydrogen) neighbor
+    for atom in plams_mol:
+        if no_h:
+            neighbors = [at for at in plams_mol.neighbors(atom) if at.atnum != 1]
+        else:
+            neighbors = plams_mol.neighbors(atom)
+        atom.mark = (len(neighbors) > 1)
+
+    #For each bond with both ends marked add one dihedral to the list
+    ret = []
+    for i,bond in enumerate(plams_mol.bonds):
+        if bond.atom1.mark and bond.atom2.mark and bond.order == 1.0:
+            at1, at2 = bond.atom1, bond.atom2
+            at0 = at1.bonds[0].other_end(at1)
+            if at0 == at2:
+                at0 = at1.bonds[1].other_end(at1)
+            at3 = at2.bonds[0].other_end(at2)
+            if at3 == at1:
+                at3 = at2.bonds[1].other_end(at2)
+            ret.append((i, bond.order, at0.id-1, at1.id-1, at2.id-1, at3.id-1))
+
+    #Clean up the molecule
+    plams_mol.unset_atoms_id()
+    for atom in plams_mol:
+        del atom.mark
+
+    return ret
 
 
 def global_minimum_index(plams_mol, bond, no_h=True):
