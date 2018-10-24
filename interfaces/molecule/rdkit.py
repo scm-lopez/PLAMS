@@ -3,7 +3,7 @@ __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles',
            'from_smarts', 'partition_protein', 'readpdb', 'writepdb',
-           'global_minimum', 'global_minimum_index', 'global_minimum_scan']
+           'global_minimum']
 
 """
 @author: Lars Ridder
@@ -97,44 +97,6 @@ def find_dihedrals(plams_mol, no_h=True):
         del atom.mark
 
     return ret
-
-
-def global_minimum_index(plams_mol, bond, no_h=True):
-    """
-    Create a list with sublists of bond indices [0], bond orders [1] and
-        dihedral indices [2, 3, 4 and 5].
-
-    :parameter plams_mol: PLAMS molecule
-    :type plams_mol: plams.Molecule
-    :parameter bond: PLAMS bond
-    :type plams_mol: plams.Bond
-    :parameter bool no_h: If hydrogen-containing bonds should ignored (True) or included (False)
-    """
-    # The two atoms associated with a given bond
-    at1 = bond.atom1
-    at2 = bond.atom2
-
-    # The atoms bonded to at1 and at2
-    at1_bonds = plams_mol.neighbors(at1)
-    at1_bonds = [atom for atom in at1_bonds if atom != at2]
-    at2_bonds = plams_mol.neighbors(at2)
-    at2_bonds = [atom for atom in at2_bonds if atom != at1]
-
-    # Ignore hydrogens if no_h=True
-    if no_h:
-        at1_bonds = [atom for atom in at1_bonds if atom.atnum != 1]
-        at2_bonds = [atom for atom in at2_bonds if atom.atnum != 1]
-
-    # A list with sublists of bond indices [0], bond orders [1] and dihedral indices [2, 3, 4 and 5]
-    # Dihedral indices are set to False if the bond is terminal
-    if len(at1_bonds) >= 1 and len(at2_bonds) >= 1:
-        bond_idx = plams_mol.bonds.index
-        atom_idx = plams_mol.atoms.index
-        dihedral_list = [bond_idx(bond), bond.order, atom_idx(at1_bonds[0]),
-                         atom_idx(at1), atom_idx(at2), atom_idx(at2_bonds[0])]
-    else:
-        dihedral_list = [plams_mol.bonds.index(bond), bond.order, False]
-    return dihedral_list
 
 
 def global_minimum_scan(rdmol, dihed):
