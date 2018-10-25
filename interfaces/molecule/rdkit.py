@@ -2,7 +2,8 @@
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles',
-           'from_smarts', 'partition_protein', 'readpdb', 'writepdb']
+           'from_smarts', 'partition_protein', 'readpdb', 'writepdb',
+           'global_minimum']
 
 """
 @author: Lars Ridder
@@ -13,15 +14,121 @@ This is a series of functions that apply RDKit functionality on PLAMS molecules
 
 import sys
 import random
+import copy
 from warnings import warn
 
 try:
     from rdkit import Chem, Geometry
-    from rdkit.Chem import AllChem
+    from rdkit.Chem import AllChem, rdMolTransforms
 except:
     __all__ = []
 
 from ...core.basemol import Molecule, Atom, Bond
+
+
+def global_minimum(plams_mol, n_scans=1, no_h=True):
+    """
+    Find the global minimum of the ligand (RDKit UFF) by systematically varying dihedral angles.
+
+    :parameter plams_mol: PLAMS molecule
+    :type plams_mol: plams.Molecule
+    :parameter int n_scans: How many times the global minimum search should be repeated
+    :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True)
+    or included (False)
+    :return: a PLAMS molecule
+    :rtype: plams.Molecule
+    """
+    # Creates bonds if no bonds are present
+    if len(plams_mol.bonds) == 0:
+        plams_mol.guess_bonds()
+
+    # Create a list of bond indices [0], bond orders [1] and dihedral indices [2, 3, 4 and 5]
+    dihedral_list = find_dihedrals(plams_mol, no_h)
+
+    # Find the global minimum by systematically varying dihedral angles
+    # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
+    rdmol = to_rdmol(plams_mol)
+    for i in range(n_scans):
+        for item in dihedral_list:
+            InRing_at1 = rdmol.GetAtomWithIdx(item[0]).IsInRing()
+            InRing_at2 = rdmol.GetAtomWithIdx(item[3]).IsInRing()
+            if not InRing_at1 and not InRing_at2:
+                rdmol = global_minimum_scan(rdmol, item)
+    AllChem.UFFGetMoleculeForceField(rdmol).Minimize()
+    return from_rdmol(rdmol)
+
+
+def find_dihedrals(plams_mol, no_h=True):
+    """
+    Create a list of dihedrals. Each entry is a tuple with indices of atoms forming a dihedral. Consider only diherdals with axis being a single bond, so that rotation is possible.
+
+    :parameter plams_mol: PLAMS molecule
+    :type plams_mol: plams.Molecule
+    :parameter bool no_h: If hydrogen-containing bonds should ignored (True) or included (False)
+    :return: a list of 4-tuples
+    :rtype: list
+    """
+    plams_mol.set_atoms_id()
+
+    #Mark atoms that can form an "axis" of a diherdal, i.e atoms with more than one (non-hydrogen) neighbor
+    for atom in plams_mol:
+        if no_h:
+            neighbors = [at for at in plams_mol.neighbors(atom) if at.atnum != 1]
+        else:
+            neighbors = plams_mol.neighbors(atom)
+        atom.mark = (len(neighbors) > 1)
+
+    #For each bond with both ends marked add one dihedral to the list
+    ret = []
+    for i,bond in enumerate(plams_mol.bonds):
+        if bond.atom1.mark and bond.atom2.mark and bond.order == 1.0:
+            at1, at2 = bond.atom1, bond.atom2
+            at0 = at1.bonds[0].other_end(at1)
+            if at0 == at2:
+                at0 = at1.bonds[1].other_end(at1)
+            at3 = at2.bonds[0].other_end(at2)
+            if at3 == at1:
+                at3 = at2.bonds[1].other_end(at2)
+            ret.append((at0.id-1, at1.id-1, at2.id-1, at3.id-1))
+
+    #Clean up the molecule
+    plams_mol.unset_atoms_id()
+    for atom in plams_mol:
+        del atom.mark
+
+    return ret
+
+
+def global_minimum_scan(rdmol, dihed):
+    """
+    Optimize the molecule with 3 different values for the given dihedral angle and find the lowest energy conformer.
+
+    :parameter rdkit_mol: RDKit molecule
+    :type rdkit_mol: rdkit.Chem.Mol
+    :parameter tuple dihed: indices of atoms within rdmol defining a dihedral angle
+    :return: RDKit molecule
+    :rtype: rdkit.Chem.Mol
+    """
+    # Define a number of variables and create 3 copies of the ligand
+    uff = AllChem.UFFGetMoleculeForceField
+    set_dihed = rdMolTransforms.SetDihedralDeg
+    get_dihed = rdMolTransforms.GetDihedralDeg
+    rdmol_list = [copy.deepcopy(rdmol) for i in range(3)]
+
+    # Create a list of all to be optimized dihedral angles
+    angle = get_dihed(rdmol.GetConformer(), dihed[0], dihed[1], dihed[2], dihed[3])
+    angle_list = [angle, angle + 120, angle - 120]
+
+    # Optimize the geometry for all dihedral angles in angle_list
+    # The geometry that yields the minimum energy is returned
+    for mol, angle in zip(rdmol_list, angle_list):
+        set_dihed(mol.GetConformer(), dihed[0], dihed[1], dihed[2], dihed[3], angle)
+    for rdmol in rdmol_list:
+        uff(rdmol).Minimize()
+    energy_list = [uff(rdmol).CalcEnergy() for rdmol in rdmol_list]
+    minimum = energy_list.index(min(energy_list))
+    return rdmol_list[minimum]
+
 
 def from_rdmol(rdkit_mol, confid=-1):
     """
@@ -482,8 +589,6 @@ def readpdb(pdb_file, removeHs=False, return_rdmol=False):
     if isinstance(pdb_file, str):
         pdb_file = open(pdb_file, 'r')
     pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), removeHs=removeHs)
-    print(pdb_mol)
-    print(type(pdb_mol))
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
 
