@@ -10,7 +10,7 @@ Classes defined in this module are |Molecule|, |Atom| and |Bond|.
 
 .. note::
 
-    For importing coordinates in other formats and performing more advanced operations you can use |Molecule| interfaces to :ref:`ASEAtoms` and :ref:`RDKit`.
+    For importing coordinates in other formats and performing more advanced operations you can use |Molecule| interfaces to :ref:`ASEAtoms` and :ref:`RDKitmol`.
 
 
 

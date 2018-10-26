@@ -13,12 +13,7 @@ except ImportError:
 
 
 def toASE(molecule):
-    """
-    Converts a PLAMS molecule to an ASE molecule. The following attributes are converted, conserving the order of atoms:
-    -Coordinates
-    -Atomic Number (Symbol is derived automaticaly)
-    -Periodicity and Cell Vectors
-    """
+    """Convert a PLAMS |Molecule| to an ASE molecule (``ase.Atoms`` instance). Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved."""
     aseMol = aseAtoms()
 
     #iterate over PLAMS atoms
@@ -54,12 +49,7 @@ def toASE(molecule):
 
 
 def fromASE(molecule):
-    """
-    Converts an ASE molecule to a PLAMS molecule. The following attributes are converted, conserving the order of atoms:
-    -Coordinates
-    -Atomic Number (Symbol is derived automaticaly)
-    -Periodicity and Cell Vectors
-    """
+    """Convert an ASE molecule to a PLAMS |Molecule|. Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved."""
     plamsMol = Molecule()
 
     #iterate over ASE atoms

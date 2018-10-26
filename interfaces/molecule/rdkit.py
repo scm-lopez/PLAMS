@@ -1,9 +1,8 @@
 
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
-           'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
-           'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles',
-           'from_smarts', 'partition_protein', 'readpdb', 'writepdb',
-           'global_minimum']
+           'gen_coords_rdmol', 'get_backbone_atoms', 'global_minimum', 'modify_atom',
+           'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
+           'partition_protein', 'readpdb', 'writepdb',]
 
 """
 @author: Lars Ridder
@@ -31,12 +30,11 @@ def global_minimum(plams_mol, n_scans=1, no_h=True):
     Find the global minimum of the ligand (RDKit UFF) by systematically varying dihedral angles.
 
     :parameter plams_mol: PLAMS molecule
-    :type plams_mol: plams.Molecule
+    :type plams_mol: |Molecule|
     :parameter int n_scans: How many times the global minimum search should be repeated
-    :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True)
-    or included (False)
+    :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True) or included (False)
     :return: a PLAMS molecule
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
     """
     # Creates bonds if no bonds are present
     if len(plams_mol.bonds) == 0:
@@ -63,7 +61,7 @@ def find_dihedrals(plams_mol, no_h=True):
     Create a list of dihedrals. Each entry is a tuple with indices of atoms forming a dihedral. Consider only diherdals with axis being a single bond, so that rotation is possible.
 
     :parameter plams_mol: PLAMS molecule
-    :type plams_mol: plams.Molecule
+    :type plams_mol: |Molecule|
     :parameter bool no_h: If hydrogen-containing bonds should ignored (True) or included (False)
     :return: a list of 4-tuples
     :rtype: list
@@ -138,12 +136,12 @@ def from_rdmol(rdkit_mol, confid=-1):
     :parameter int confid: conformer identifier from which to take coordinates
     :type rdkit_mol: rdkit.Chem.Mol
     :return: a PLAMS molecule
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
 
     """
     if isinstance(rdkit_mol, Molecule):
         return rdkit_mol
-    # Create plams molecule
+    # Create PLAMS molecule
     plams_mol = Molecule()
     total_charge = 0
     try:
@@ -175,7 +173,7 @@ def to_rdmol(plams_mol, sanitize=True):
     Translate a PLAMS molecule into an RDKit molecule type.
 
     :parameter plams_mol: PLAMS molecule
-    :type plams_mol: plams.Molecule
+    :type plams_mol: |Molecule|
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
 
@@ -232,7 +230,7 @@ def set_PDBresidueInfo(rdkit_atom, pdb_info):
 
 def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
     """
-    Generates plams molecule(s) from a smiles strings.
+    Generates PLAMS molecule(s) from a smiles strings.
 
     :parameter str smiles: A smiles string
     :parameter int nconfs: Number of conformers to be generated
@@ -243,7 +241,7 @@ def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
     :parameter float rms: Root Mean Square deviation threshold for
         removing similar/equivalent conformations
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
-    :rtype: plams.Molecule or list of plams Molecules
+    :rtype: |Molecule| or list of PLAMS Molecules
     """
     smiles = str(smiles.split()[0])
     rdkit_mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
@@ -253,7 +251,7 @@ def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
 
 def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     """
-    Generates plams molecule(s) from a smarts strings.
+    Generates PLAMS molecule(s) from a smarts strings.
     This allows for example to define hydrogens explicitly.
     However it is less suitable for aromatic molecules (use from_smiles in that case).
 
@@ -266,7 +264,7 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     :parameter float rms: Root Mean Square deviation threshold for removing
         similar/equivalent conformations.
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
-    :rtype: plams.Molecule or list of plams Molecules
+    :rtype: |Molecule| or list of PLAMS Molecules
     """
     smiles = str(smarts.split()[0])
     mol = Chem.MolFromSmarts(smiles)
@@ -290,7 +288,7 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
     :parameter float rms: Root Mean Square deviation threshold for removing
     similar/equivalent conformations.
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
-    :rtype: plams.Molecule or list of plams Molecules
+    :rtype: |Molecule| or list of PLAMS Molecules
     """
     def MMFFenergy(cid):
         ff = AllChem.MMFFGetMoleculeForceField(
@@ -351,7 +349,7 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
 
 def from_sequence(sequence, nconfs=1, name=None, forcefield=None, rms=0.1):
     """
-    Generates plams molecule from a peptide sequence.
+    Generates PLAMS molecule from a peptide sequence.
     Includes explicit hydrogens and 3D coordinates.
 
     :parameter str sequence: A peptide sequence, e.g. 'HAG'
@@ -364,7 +362,7 @@ def from_sequence(sequence, nconfs=1, name=None, forcefield=None, rms=0.1):
         similar/equivalent conformations.
     :return: A peptide molecule with hydrogens and 3D coordinates
         or a list of molecules if nconfs > 1
-    :rtype: plams.Molecule or list of plams Molecules
+    :rtype: |Molecule| or list of PLAMS Molecules
     """
     rdkit_mol = Chem.AddHs(Chem.MolFromSequence(sequence))
     rdkit_mol.SetProp('sequence', sequence)
@@ -395,11 +393,11 @@ def modify_atom(mol, idx, element):
     Change atom "idx" in molecule "mol" to "element" and add or remove hydrogens accordingly
 
     :parameter mol: molecule to be modified
-    :type mol: plams.Molecule or rdkit.Chem.Mol
+    :type mol: |Molecule| or rdkit.Chem.Mol
     :parameter int idx: index of the atom to be modified
     :parameter str element:
     :return: Molecule with new element and possibly added or removed hydrogens
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
     """
     rdmol = to_rdmol(mol)
     if rdmol.GetAtomWithIdx(idx).GetSymbol() == element:
@@ -418,13 +416,13 @@ def modify_atom(mol, idx, element):
 
 def apply_template(mol, template):
     """
-    Modifies bond orders in plams molecule according template smiles structure.
+    Modifies bond orders in PLAMS molecule according template smiles structure.
 
     :parameter mol: molecule to be modified
-    :type mol: plams.Molecule or rdkit.Chem.Mol
+    :type mol: |Molecule| or rdkit.Chem.Mol
     :parameter str template: smiles string defining the correct chemical structure
     :return: Molecule with correct chemical structure and provided 3D coordinates
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
     """
     rdmol = to_rdmol(mol, sanitize=False)
     template_mol = Chem.AddHs(Chem.MolFromSmiles(template))
@@ -436,12 +434,12 @@ def apply_reaction_smarts(
         mol, reaction_smarts, complete=False, forcefield=None, return_rdmol=False):
     """
     Applies reaction smirks and returns product.
-    If returned as a plams molecule, plams.Molecule.properties.orig_atoms
+    If returned as a PLAMS molecule, thismolecule.properties.orig_atoms
     is a list of indices of atoms that have not been changed
     (which can for example be used partially optimize new atoms only with the freeze keyword)
 
     :parameter mol: molecule to be modified
-    :type mol: plams.Molecule or rdkit.Chem.Mol
+    :type mol: |Molecule| or rdkit.Chem.Mol
     :parameter str reactions_smarts: Reactions smarts to be applied to molecule
     :parameter complete: Apply reaction until no further changes occur or given
         fraction of reaction centers have been modified
@@ -451,7 +449,7 @@ def apply_reaction_smarts(
     :type forcefield: str
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: (product molecule, list of unchanged atoms)
-    :rtype: (plams.Molecule, list of int)
+    :rtype: (|Molecule|, list of int)
     """
     def react(reactant, reaction):
         """ Apply reaction to reactant and return products """
@@ -584,7 +582,7 @@ def readpdb(pdb_file, removeHs=False, return_rdmol=False):
     :param bool removeHs: Hydrogens are removed if Trur
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: The molecule
-    :rtype: plams.Molecule or rdkit.Chem.Mol
+    :rtype: |Molecule| or rdkit.Chem.Mol
     """
     if isinstance(pdb_file, str):
         pdb_file = open(pdb_file, 'r')
@@ -597,7 +595,7 @@ def writepdb(mol, pdb_file=sys.stdout):
     Write a PDB file from a molecule
 
     :parameter mol: molecule to be exported to PDB
-    :type mol: plams.Molecule or rdkit.Chem.Mol
+    :type mol: |Molecule| or rdkit.Chem.Mol
     :param pdb_file: The PDB file to write to, or a filename
     :type pdb_file: str or file
     """
@@ -613,12 +611,12 @@ def add_Hs(mol, forcefield=None, return_rdmol=False):
     Makes sure that the hydrogens get the correct PDBResidue info.
 
     :param mol: Molecule to be protonated
-    :type mol: plams.Molecule or rdkit.Chem.Mol
+    :type mol: |Molecule| or rdkit.Chem.Mol
     :param str forcefield: Specify 'uff' or 'mmff' to apply forcefield based
         geometry optimization on new atoms.
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: A molecule with explicit hydrogens added
-    :rtype: plams.Molecule or rdkit.Chem.Mol
+    :rtype: |Molecule| or rdkit.Chem.Mol
     """
     mol = to_rdmol(mol)
     retmol = Chem.AddHs(mol)
@@ -708,7 +706,7 @@ def partition_protein(mol, residue_bonds=None, split_heteroatoms=True, return_rd
     Splits a protein molecule into capped amino acid fragments and caps.
 
     :param mol: A protein molecule
-    :type mol: plams.Molecule or rdkit.Chem.Mol
+    :type mol: |Molecule| or rdkit.Chem.Mol
     :param tuple residue_bonds: a tuple of pairs of residue number indicating which
         peptide bonds to split. If none, split all peptide bonds.
     :param bool split_heteroatoms: if True, all bonds between a heteroatom and
@@ -787,7 +785,7 @@ def get_backbone_atoms(mol):
     if the molecule is generated with the "readpdb" or "from_sequence" functions.
 
     :parameter mol: a peptide molecule
-    :type mol: plams.Molecule or rdkit.Chem.Mol
+    :type mol: |Molecule| or rdkit.Chem.Mol
     :return: a list of atom indices
     :rtype: list
     """
