@@ -317,7 +317,6 @@ class SCMJob(SingleJob):
         for item in self.settings.input:
             if item.lower() not in self._top:
                 inp += serialize(item, self.settings.input[item], 0) + '\n'
-        inp += 'end input\n'
 
         if use_molecule:
             self._remove_mol()
