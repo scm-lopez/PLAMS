@@ -236,6 +236,29 @@ class Atom(object):
         self.coords = tuple(np.dot(matrix, np.array(self.coords)))
 
 
+    def get_index(self):
+        """
+        Return the index of an |Atom|.
+        """
+        return self.mol.atoms.index(self) + 1
+
+
+    def in_ring(self):
+        """
+        Check if this |Atom| is part of a ring. Returns a boolean.
+        """
+        mol = self.mol
+        before = len(mol.separate())
+        neighbors = len(self.bonds)
+        bonds = [bond for bond in self.bonds]
+        for bond in bonds:
+            mol.delete_bond(bond)
+        after = len(mol.separate())
+        if before != after - neighbors:
+            return True
+        return False
+
+
 
 #===========================================================================
 #===========================================================================
@@ -307,6 +330,27 @@ class Bond (object):
         ratio = 1.0 - Units.convert(length, unit, 'angstrom')/self.length()
         moving = self.other_end(atom)
         moving.translate(tuple(i*ratio for i in moving.vector_to(atom)))
+
+
+    def get_index(self):
+        """
+        Return a tuple of two atomic indices defining a |Bond|.
+        """
+        return self.atom1.get_index(), self.atom2.get_index()
+
+
+    def in_ring(self):
+        """
+        Check if this |Bond| is part of a ring. Returns a boolean.
+        """
+        mol = self.mol
+        before = len(mol.separate())
+        neighbors = 1
+        self.mol.delete_bond(self)
+        after = len(mol.separate())
+        if before != after - neighbors:
+            return True
+        return False
 
 
 
