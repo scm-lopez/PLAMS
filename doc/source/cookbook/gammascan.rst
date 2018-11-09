@@ -1,7 +1,7 @@
 Tuning the range separation
 ---------------------------
 
-In this example we optimize the value of *gamma* parameter for long-range corrected XC functional (in our case: LC-PBE) in ADF.
+In this example we optimize the value of *gamma* parameter for long-range corrected XC functional (in our case: LCY-PBE) in ADF.
 Long-range corrected XC functionals can be used in ADF with XCfun (see `ADF manual  <../../ADF/Input/Density_Functional.html#range-separated-hybrids>`_).
 
 The optimal range separation parameter *gamma* yields the HOMO energy equal to the ionization potential (IP).
@@ -105,7 +105,7 @@ An example usage of our newly defined function::
     s = Settings()
     s.input.basis.type = 'TZP'
     s.input.basis.core = 'None'
-    s.input.xc.gga = 'LC-PBE'
+    s.input.xc.gga = 'PBE'
     s.input.xc.xcfun = True
     s.runscript.nproc = 1
 
