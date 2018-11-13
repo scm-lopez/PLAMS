@@ -14,12 +14,11 @@ This is a series of functions that apply RDKit functionality on PLAMS molecules
 
 import sys
 import random
-import copy
 from warnings import warn
 
 try:
     from rdkit import Chem, Geometry
-    from rdkit.Chem import AllChem, rdMolTransforms
+    from rdkit.Chem import AllChem, rdForceFieldHelpers
 except:
     __all__ = []
 
@@ -39,7 +38,7 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
         or included (False)
     :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS Job. The matching
         PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
-    :type plams_job: plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
+    :type plams_job or bool(False): plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
     :return: a PLAMS molecule
     :rtype: plams.Molecule
     """
@@ -47,20 +46,26 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
     if len(plams_mol.bonds) == 0:
         plams_mol.guess_bonds()
 
-    # Create a list of 4-tuples (atomic indices) defining dihedral angles within the molecule
-    dihedral_list = find_dihedrals(plams_mol, no_h)
+    # Create a list of 2-tuples (atomic indices) defining dihedral angles within the molecule
+    bond_list = find_bond(plams_mol, no_h)
+
+    # Raise an error if RDKit UFF are unavailable for an atom
+    if not plams_job:
+        params = rdForceFieldHelpers.UFFHasAllMoleculeParams(to_rdmol(plams_mol))
+        if not params:
+            raise ValueError('No UFF parameters found for one or more atoms')
 
     # Find the global minimum by systematically varying dihedral angles
     # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
     for i in range(n_scans):
-        for item in dihedral_list:
-            if not plams_mol[item[1]].in_ring() or not plams_mol[item[2]].in_ring():
-                plams_mol = global_minimum_scan(plams_mol, item, plams=plams)
+        for bond in bond_list:
+            if not plams_mol[bond].in_ring():
+                plams_mol = global_minimum_scan(plams_mol, bond_list, plams_job=plams_job)
     rdmol = AllChem.UFFGetMoleculeForceField(to_rdmol(plams_mol)).Minimize()
     return from_rdmol(rdmol)
 
 
-def find_dihedrals(plams_mol, no_h=True):
+def find_bond(plams_mol, no_h=True):
     """
     Create a list of dihedrals. Each entry is a tuple with indices of atoms forming a dihedral.
     Consider only diherdals with axis being a single bond, so that rotation is possible.
@@ -68,7 +73,7 @@ def find_dihedrals(plams_mol, no_h=True):
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: plams.Molecule
     :parameter bool no_h: If hydrogen-containing bonds should ignored (True) or included (False)
-    :return: a list of 4-tuples
+    :return: a list of 2-tuples
     :rtype: list
     """
     plams_mol.set_atoms_id()
@@ -81,18 +86,12 @@ def find_dihedrals(plams_mol, no_h=True):
             neighbors = plams_mol.neighbors(atom)
         atom.mark = (len(neighbors) > 1)
 
-    # For each bond with both ends marked add one dihedral to the list
+    # For each bond with both ends marked add one bond to the list
     ret = []
     for i, bond in enumerate(plams_mol.bonds):
         if bond.atom1.mark and bond.atom2.mark and bond.order == 1.0:
             at1, at2 = bond.atom1, bond.atom2
-            at0 = at1.bonds[0].other_end(at1)
-            if at0 == at2:
-                at0 = at1.bonds[1].other_end(at1)
-            at3 = at2.bonds[0].other_end(at2)
-            if at3 == at1:
-                at3 = at2.bonds[1].other_end(at2)
-            ret.append((at0.id-1 + 1, at1.id-1 + 1, at2.id-1 + 1, at3.id-1 + 1))
+            ret.append((at1.id-1 + 1, at2.id-1 + 1))
 
     # Clean up the molecule
     plams_mol.unset_atoms_id()
@@ -102,13 +101,16 @@ def find_dihedrals(plams_mol, no_h=True):
     return ret
 
 
-def global_minimum_scan(plams_mol, dihed, plams_job=False):
+def global_minimum_scan(plams_mol, indices, plams_job=False):
     """
     Optimize the molecule with 3 different values for the given dihedral angle and find the lowest energy conformer.
 
     :parameter plams_mol: PLAMS molecule
     :type rdkit_mol: rdkit.Chem.Mol
-    :parameter tuple dihed: indices of atoms within rdmol defining a dihedral angle
+    :parameter tuple indices: indices of two atoms defining a bond
+    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS Job. The matching
+        PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
+    :type plams_job or bool(False): plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
     :return: RDKit molecule
     :rtype: rdkit.Chem.Mol
     """
@@ -116,13 +118,17 @@ def global_minimum_scan(plams_mol, dihed, plams_job=False):
     uff = AllChem.UFFGetMoleculeForceField
     angles = (-120, 0, 120)
     mol_list = [plams_mol.copy() for i in range(3)]
-    mol_list = [mol.rotate_bond(dihed[0], mol[dihed[1], dihed[2]], angle, unit='degree') for
-                angle, mol in zip(angles, mol_list)]
+    for angle, plams_mol in zip(angles, mol_list):
+        bond = plams_mol[indices]
+        atom = plams_mol[indices[0]]
+        plams_mol.rotate_bond(bond, atom, angle, unit='degree')
 
     # Optimize the geometry for all dihedral angles in angle_list
     # The geometry that yields the minimum energy is returned
     if not plams_job:
-        mol_list = [uff(to_rdmol(mol)).Minimize() for mol in mol_list]
+        mol_list = [to_rdmol(plams_mol) for plams_mol in mol_list]
+        for rdmol in mol_list:
+            uff(rdmol).Minimize()
         energy_list = [uff(rdmol).CalcEnergy() for rdmol in mol_list]
         minimum = energy_list.index(min(energy_list))
         return from_rdmol(mol_list[minimum])

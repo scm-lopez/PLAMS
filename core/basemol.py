@@ -247,7 +247,8 @@ class Atom(object):
         """
         Check if this |Atom| is part of a ring. Returns a boolean.
         """
-        mol = self.mol
+        mol = self.mol.copy()
+        self = mol[self.get_index()]
         before = len(mol.separate())
         neighbors = len(self.bonds)
         bonds = [bond for bond in self.bonds]
@@ -343,12 +344,12 @@ class Bond (object):
         """
         Check if this |Bond| is part of a ring. Returns a boolean.
         """
-        mol = self.mol
+        mol = self.mol.copy()
+        self = mol[self.get_index()]
         before = len(mol.separate())
-        neighbors = 1
         self.mol.delete_bond(self)
         after = len(mol.separate())
-        if before != after - neighbors:
+        if before != after - 1:
             return True
         return False
 
