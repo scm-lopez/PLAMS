@@ -14,6 +14,7 @@ This is a series of functions that apply RDKit functionality on PLAMS molecules
 
 import sys
 import random
+import pickle
 from warnings import warn
 
 try:
@@ -149,13 +150,13 @@ def global_minimum_scan(plams_mol, indices, plams_job=False):
 def from_rdmol(rdkit_mol, confid=-1):
     """
     Translate an RDKit molecule into a PLAMS molecule type.
+    RDKit properties will be unpickled if their name ends with '_pickled'.
 
     :parameter rdkit_mol: RDKit molecule
     :parameter int confid: conformer identifier from which to take coordinates
     :type rdkit_mol: rdkit.Chem.Mol
     :return: a PLAMS molecule
     :rtype: plams.Molecule
-
     """
     if isinstance(rdkit_mol, Molecule):
         return rdkit_mol
@@ -181,20 +182,24 @@ def from_rdmol(rdkit_mol, confid=-1):
         at2 = plams_mol.atoms[bond.GetEndAtomIdx()]
         plams_mol.add_bond(Bond(at1, at2, bond.GetBondTypeAsDouble()))
     plams_mol.charge = total_charge
-    for propname in rdkit_mol.GetPropNames():
-        plams_mol.properties[propname] = rdkit_mol.GetProp(propname)
+    prop_from_rdmol(plams_mol, rdkit_mol)
+    for rd_atom, plams_atom in zip(rdkit_mol.GetAtoms(), plams_mol):
+        prop_from_rdmol(plams_atom, rd_atom)
+    for rd_bond, plams_bond in zip(rdkit_mol.GetBonds(), plams_mol.bonds):
+        prop_from_rdmol(plams_bond, rd_bond)
     return plams_mol
 
 
 def to_rdmol(plams_mol, sanitize=True):
     """
     Translate a PLAMS molecule into an RDKit molecule type.
+    PLAMS properties are pickled if they are neither booleans, floats, integers nor strings,
+        the resulting property names are appended with '_pickled'.
 
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: plams.Molecule
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
-
     """
     if isinstance(plams_mol, Chem.Mol):
         return plams_mol
@@ -206,12 +211,20 @@ def to_rdmol(plams_mol, sanitize=True):
             a.SetFormalCharge(atom.properties.charge)
         if 'pdb_info' in atom.properties:
             set_PDBresidueInfo(a, atom.properties.pdb_info)
+        for prop in atom.properties:
+            if prop != 'charge' or prop != 'pdb_info':
+                prop_to_rdmol(atom, a, prop)
         e.AddAtom(a)
     for bond in plams_mol.bonds:
         a1 = plams_mol.atoms.index(bond.atom1)
         a2 = plams_mol.atoms.index(bond.atom2)
         e.AddBond(a1, a2, Chem.BondType(bond.order))
     rdmol = e.GetMol()
+    for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
+        for prop in pl_bond.properties:
+            prop_to_rdmol(pl_bond, rd_bond, prop)
+    for prop in plams_mol.properties:
+        prop_to_rdmol(plams_mol, rdmol, prop)
     if sanitize:
         Chem.SanitizeMol(rdmol)
     conf = Chem.Conformer()
@@ -244,6 +257,50 @@ def set_PDBresidueInfo(rdkit_atom, pdb_info):
         set_function = 'Set' + item
         atom_pdb_residue_info.__getattribute__(set_function)(value)
     rdkit_atom.SetMonomerInfo(atom_pdb_residue_info)
+
+
+def prop_to_rdmol(pl_obj, rd_obj, prop):
+    """
+    Convert a single PLAMS property into an RDKit property.
+
+    :paramter pl_obj: A PLAMS object.
+    :type pl_obj: plams.Molecule, plams.Atom or plams.Bond.
+    :parameter rd_obj: An RDKit object.
+    :type rd_obj: rdkit.Chem.Mol, rdkit.Chem.Atom or rdkit.Chem.Bond
+    :parameter str prop: The key of the PLAMS property.
+    """
+    obj = type(pl_obj.properties.get(prop))
+    obj_dict = {bool: rd_obj.SetBoolProp,
+                float: rd_obj.SetDoubleProp,
+                int: rd_obj.SetIntProp,
+                str: rd_obj.SetProp}
+    if obj_dict.get(obj):
+        obj_dict[obj](prop, pl_obj.properties.get(prop))
+    else:
+        name = prop + '_pickled'
+        try:
+            rd_obj.SetProp(name, pickle.dumps(pl_obj.properties.get(prop), 0).decode())
+        except (Exception, pickle.PicklingError):
+            pass
+
+
+def prop_from_rdmol(pl_obj, rd_obj):
+    """
+    Convert one or more RDKit properties into PLAMS properties.
+
+    :paramter pl_obj: A PLAMS object.
+    :type pl_obj: plams.Molecule, plams.Atom or plams.Bond.
+    :parameter rd_obj: An RDKit object.
+    :type rd_obj: rdkit.Chem.Mol, rdkit.Chem.Atom or rdkit.Chem.Bond
+    """
+    prop_dict = rd_obj.GetPropsAsDict()
+    for propname in prop_dict.keys():
+        if '_pickled' not in propname:
+            pl_obj.properties[propname] = prop_dict[propname]
+        else:
+            prop = prop_dict[propname]
+            propname = propname.rsplit('_pickled', 1)[0]
+            pl_obj.properties[propname] = pickle.loads(prop.encode())
 
 
 def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
