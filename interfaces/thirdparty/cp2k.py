@@ -1,6 +1,6 @@
 import subprocess
 
-from ...core.basejob  import SingleJob
+from ...core.basejob import SingleJob
 from ...core.settings import Settings
 
 
@@ -14,7 +14,7 @@ class Cp2kJob(SingleJob):
         with blocks, subblocks, keys and values.
         """
 
-        _reserved_keywords = ["KIND", "XC", "JOB", "AT_SET", "AT_INCLUDE", "AT_IF"]
+        _reserved_keywords = ["KIND", "AT_SET", "AT_INCLUDE", "AT_IF"]
 
         def parse(key, value, indent=''):
             ret = ''
@@ -26,41 +26,13 @@ class Cp2kJob(SingleJob):
                         ret += parse(el, value[el], indent + '  ')
                     ret += '{}&END\n'.format(indent)
 
-                elif key == "XC":
-                    ret += '{}&{}\n'.format(indent, key)
-                    for el in value:
-                        if el.upper() == "XC_FUNCTIONAL":
-                            x = value[el]
-                            if isinstance(x, Settings):
-                                v = parse(el, x, indent)
-                                ret += '{}{}\n'.format(indent, v)
-                            else:
-                                ret += '  {}&XC_FUNCTIONAL {}\n'.format(indent, x)
-                                ret += '  {}&END\n'.format(indent)
-                        else:
-                            ret += parse(el, value[el], indent + '  ')
-                    ret += '{}&END\n'.format(indent)
-
                 elif "KIND" in key:
                     for el in value:
                         ret += '{}&{}  {}\n'.format(indent, key, el.upper())
                         for v in value[el]:
                             ret += parse(v, value[el][v], indent + '  ')
                         ret += '{}&END\n'.format(indent)
-                elif "JOB" in key:
-                    work_dirs = value['directories']
-                    job_names = value['input_file_names']
-                    job_ids = value['job_ids']
 
-                    for k, (jobID, name, wd) in enumerate(zip(
-                            job_ids, job_names, work_dirs)):
-                        ret += '{}&JOB\n'.format(indent)
-                        if k > 0:
-                            ret += '  {}DEPENDENCIES {}\n'.format(indent, jobID - 1)
-                        ret += '  {}DIRECTORY {}\n'.format(indent, wd)
-                        ret += '  {}INPUT_FILE_NAME {}\n'.format(indent, name)
-                        ret += '  {}JOB_ID {}\n'.format(indent, jobID)
-                        ret += '{}&END JOB\n\n'.format(indent)
                 elif "AT_SET" in key:
                     var, val = tuple(value.items())[0]
                     ret += '@SET {} {}\n'.format(var, val)
