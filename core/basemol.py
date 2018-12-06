@@ -236,30 +236,6 @@ class Atom(object):
         self.coords = tuple(np.dot(matrix, np.array(self.coords)))
 
 
-    def get_index(self):
-        """
-        Return the index of an |Atom|.
-        """
-        return self.mol.atoms.index(self) + 1
-
-
-    def in_ring(self):
-        """
-        Check if this |Atom| is part of a ring. Returns a boolean.
-        """
-        mol = self.mol.copy()
-        self = mol[self.get_index()]
-        before = len(mol.separate())
-        neighbors = len(self.bonds)
-        bonds = [bond for bond in self.bonds]
-        for bond in bonds:
-            mol.delete_bond(bond)
-        after = len(mol.separate())
-        if before != after - neighbors:
-            return True
-        return False
-
-
 
 #===========================================================================
 #===========================================================================
@@ -331,27 +307,6 @@ class Bond (object):
         ratio = 1.0 - Units.convert(length, unit, 'angstrom')/self.length()
         moving = self.other_end(atom)
         moving.translate(tuple(i*ratio for i in moving.vector_to(atom)))
-
-
-    def get_index(self):
-        """
-        Return a tuple of two atomic indices defining a |Bond|.
-        """
-        return self.atom1.get_index(), self.atom2.get_index()
-
-
-    def in_ring(self):
-        """
-        Check if this |Bond| is part of a ring. Returns a boolean.
-        """
-        mol = self.mol.copy()
-        self = mol[self.get_index()]
-        before = len(mol.separate())
-        self.mol.delete_bond(self)
-        after = len(mol.separate())
-        if before != after - 1:
-            return True
-        return False
 
 
 
@@ -838,6 +793,37 @@ class Molecule (object):
         for at in self.atoms:
             del at.cube,at.free,at._id,at.arom
 
+
+    def in_ring(self, arg):
+        """Check if an atom or a bond belonging to this |Molecule| forms a ring. *arg* should be an instance of |Atom| or |Bond| belonging to this |Molecule|.
+        """
+
+        if (not isinstance(arg, (Atom, Bond))) or arg.mol != self:
+            raise MoleculeError('in_ring: Argument should be a Bond or an Atom and it should be a part of the Molecule')
+
+        def dfs(v, depth=0):
+            v._visited = True
+            for bond in v.bonds:
+                if bond is not arg:
+                    u = bond.other_end(v)
+                    if u is arg and depth > 1:
+                        u._visited = 'cycle'
+                    if not u._visited:
+                        dfs(u, depth+1)
+
+        for at in self:
+            at._visited = False
+
+        if isinstance(arg, Atom):
+            dfs(arg)
+            ret = (arg._visited == 'cycle')
+        else:
+            dfs(arg.atom1)
+            ret = arg.atom2._visited
+
+        for at in self:
+            del at._visited
+        return ret
 
 
 

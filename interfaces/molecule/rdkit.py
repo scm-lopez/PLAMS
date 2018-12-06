@@ -60,16 +60,16 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
     # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
     for i in range(n_scans):
         for bond in bond_list:
-            if not plams_mol[bond].in_ring():
+            if not plams_mol.in_ring(plams_mol[bond]):
                 plams_mol = global_minimum_scan(plams_mol, bond, plams_job=plams_job)
-    
+
     # Optimize the molecule even if no dihedral angles are found
     if not plams_job and not bond_list:
         rdmol = to_rdmol(plams_mol)
         uff = AllChem.UFFGetMoleculeForceField
         uff(rdmol).Minimize()
         plams_mol = from_rdmol(rdmol)
-           
+
     return plams_mol
 
 
