@@ -48,8 +48,7 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, job_type=False, settings=Fal
     :type plams_mol: |Molecule|
     :parameter int n_scans: How many times the global minimum search should be repeated
     :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True) or included (False)
-    :parameter job_object: Substitute RDKit UFF for a user-defined PLAMS |Job|. The matching
-        PLAMS |Results| object must have access to the get_energy() and get_main_molecule() functions
+    :parameter job_type: An optional PLAMS |Job| whose matching |Results| class has access to the get_energy() and get_main_molecule() functions.
     :type job_object: A type object of a class derived from |Job| (e.g. |AMSJob| or |ADFJob|)
     :parameter settings: The |Settings| object for the (optional) PLAMS |Job|
     :type settings: |Settings|
@@ -137,7 +136,7 @@ def global_minimum_scan(plams_mol, indices):
     Optimize the molecule (RDKit UFF) with 3 different values for the given dihedral angle and find the lowest energy conformer.
 
     :parameter plams_mol: PLAMS molecule
-    :type rdkit_mol: rdkit.Chem.Mol
+    :type plams_mol: |Molecule|
     :parameter tuple indices: indices of two atoms defining a bond
     :return: A PLAMS molecule
     :rtype: |Molecule|
@@ -168,10 +167,9 @@ def global_minimum_scan_plams(plams_mol, indices, job_type, settings):
     If required, functions can be added manually to a class with the add_to_class() function (see https://www.scm.com/doc/plams/components/functions.html).
 
     :parameter plams_mol: PLAMS molecule
-    :type rdkit_mol: rdkit.Chem.Mol
+    :type plams_mol: |Molecule|
     :parameter tuple indices: indices of two atoms defining a bond
-    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS |Job|. The matching
-        PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
+    :parameter job_type: A PLAMS |Job| whose matching |Results| class has access to the get_energy() and get_main_molecule() functions.
     :type job_object: A type object of a class derived from |Job| (e.g. |AMSJob| or |ADFJob|)
     :parameter settings: The |Settings| object for the (optional) PLAMS |Job|
     :type job_object: |Settings|
