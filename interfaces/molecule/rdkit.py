@@ -34,8 +34,7 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: plams.Molecule
     :parameter int n_scans: How many times the global minimum search should be repeated
-    :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True)
-        or included (False)
+    :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True) or included (False)
     :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS Job. The matching
         PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
     :type plams_job or bool(False): plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
@@ -189,6 +188,7 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
         RDKit to PLAMS format.
     :return: a PLAMS molecule
     :rtype: |Molecule|
+
     """
     if isinstance(rdkit_mol, Molecule):
         return rdkit_mol
@@ -231,9 +231,6 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
 
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: |Molecule|
-    :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization
-    :parameter bool properties: If all Molecule, Atom and Bond properties should be converted from
-        PLAMS to RDKit format.
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
     """
