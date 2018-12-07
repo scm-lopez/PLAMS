@@ -29,8 +29,7 @@ from ...core.basemol import Molecule, Atom, Bond
 
 def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
     """
-    Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS job) by
-        systematically varying dihedral angles.
+    Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS job) by systematically varying dihedral angles.
 
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: plams.Molecule
@@ -51,17 +50,23 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
     bond_list = find_bond(plams_mol, no_h)
 
     # Raise an error if RDKit UFF are unavailable for an atom
+    # Find the global minimum by systematically varying dihedral angles
+    # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
     if not plams_job:
         params = rdForceFieldHelpers.UFFHasAllMoleculeParams(to_rdmol(plams_mol))
         if not params:
             raise ValueError('No UFF parameters found for one or more atoms')
-
-    # Find the global minimum by systematically varying dihedral angles
-    # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
-    for i in range(n_scans):
-        for bond in bond_list:
-            if not plams_mol.in_ring(plams_mol[bond]):
-                plams_mol = global_minimum_scan(plams_mol, bond, plams_job=plams_job)
+        for i in range(n_scans):
+            for bond in bond_list:
+                if not plams_mol.in_ring(plams_mol[bond]):
+                    plams_mol = global_minimum_scan(plams_mol, bond)
+    else:
+        init()
+        for i in range(n_scans):
+            for bond in bond_list:
+                if not plams_mol.in_ring(plams_mol[bond]):
+                    plams_mol = global_minimum_scan_plams(plams_mol, bond, plams_job)
+        finish()
 
     # Optimize the molecule even if no dihedral angles are found
     if not plams_job and not bond_list:
@@ -109,18 +114,15 @@ def find_bond(plams_mol, no_h=True):
     return ret
 
 
-def global_minimum_scan(plams_mol, indices, plams_job=False):
+def global_minimum_scan(plams_mol, indices):
     """
-    Optimize the molecule with 3 different values for the given dihedral angle and find the lowest energy conformer.
+    Optimize the molecule (RDKit UFF) with 3 different values for the given dihedral angle and find the lowest energy conformer.
 
     :parameter plams_mol: PLAMS molecule
     :type rdkit_mol: rdkit.Chem.Mol
     :parameter tuple indices: indices of two atoms defining a bond
-    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS Job. The matching
-        PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
-    :type plams_job or bool(False): plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
-    :return: RDKit molecule
-    :rtype: rdkit.Chem.Mol
+    :return: A PLAMS molecule
+    :rtype: plams.Molecule
     """
     # Define a number of variables and create 3 copies of the ligand
     uff = AllChem.UFFGetMoleculeForceField
@@ -133,35 +135,58 @@ def global_minimum_scan(plams_mol, indices, plams_job=False):
 
     # Optimize the geometry for all dihedral angles in angle_list
     # The geometry that yields the minimum energy is returned
-    if not plams_job:
-        mol_list = [to_rdmol(plams_mol) for plams_mol in mol_list]
-        for rdmol in mol_list:
-            uff(rdmol).Minimize()
-        energy_list = [uff(rdmol).CalcEnergy() for rdmol in mol_list]
-        minimum = energy_list.index(min(energy_list))
-        return from_rdmol(mol_list[minimum])
-    else:
-        init()
-        job_list = [plams_job for i in range(3)]
-        for mol, job in zip(mol_list, job_list):
-            job.molecule = mol
-        results_list = [job.run() for job in job_list]
-        finish()
-
-        mol_list = [results.get_main_molecule() for results in results_list]
-        energy_list = [results.get_energy() for results in results_list]
-        minimum = energy_list.index(min(energy_list))
-        return mol_list[minimum]
+    mol_list = [to_rdmol(plams_mol, properties=False) for plams_mol in mol_list]
+    for rdmol in mol_list:
+        uff(rdmol).Minimize()
+    energy_list = [uff(rdmol).CalcEnergy() for rdmol in mol_list]
+    minimum = energy_list.index(min(energy_list))
+    return from_rdmol(mol_list[minimum])
 
 
-def from_rdmol(rdkit_mol, confid=-1):
+def global_minimum_scan_plams(plams_mol, indices, plams_job):
+    """
+    Optimize the molecule (A PLAMS Job) with 3 different values for the given dihedral angle and find the lowest energy conformer.
+    The matching PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
+    If required, functions can be added manually to a class with the add_to_class() function (see https://www.scm.com/doc/plams/components/functions.html).
+
+    :parameter plams_mol: PLAMS molecule
+    :type rdkit_mol: rdkit.Chem.Mol
+    :parameter tuple indices: indices of two atoms defining a bond
+    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS Job. The matching
+        PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
+    :type plams_job or bool(False): plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
+    :return: A PLAMS molecule
+    :rtype: plams.Molecule
+    """
+    # Define a number of variables and create 3 copies of the ligand
+    angles = (-120, 0, 120)
+    mol_list = [plams_mol.copy() for i in range(3)]
+    for angle, plams_mol in zip(angles, mol_list):
+        bond = plams_mol[indices]
+        atom = plams_mol[indices[0]]
+        plams_mol.rotate_bond(bond, atom, angle, unit='degree')
+
+    job_list = [plams_job for i in range(3)]
+    for mol, job in zip(mol_list, job_list):
+        job.molecule = mol
+    results_list = [job.run() for job in job_list]
+
+    mol_list = [results.get_main_molecule() for results in results_list]
+    energy_list = [results.get_energy() for results in results_list]
+    minimum = energy_list.index(min(energy_list))
+    return mol_list[minimum]
+
+
+def from_rdmol(rdkit_mol, confid=-1, properties=True):
     """
     Translate an RDKit molecule into a PLAMS molecule type.
     RDKit properties will be unpickled if their name ends with '_pickled'.
 
     :parameter rdkit_mol: RDKit molecule
-    :parameter int confid: conformer identifier from which to take coordinates
     :type rdkit_mol: rdkit.Chem.Mol
+    :parameter int confid: conformer identifier from which to take coordinates
+    :parameter bool properties: If all Mol, Atom and Bond properties should be converted from
+        RDKit to PLAMS format.
     :return: a PLAMS molecule
     :rtype: plams.Molecule
     """
@@ -180,7 +205,7 @@ def from_rdmol(rdkit_mol, confid=-1):
         ch = rd_atom.GetFormalCharge()
         pl_atom = Atom(
             rd_atom.GetAtomicNum(), coords=(pos.x, pos.y, pos.z), charge=ch)
-        if rd_atom.GetPDBResidueInfo():
+        if properties and rd_atom.GetPDBResidueInfo():
             pl_atom.properties.pdb_info = get_PDBResidueInfo(rd_atom)
         plams_mol.add_atom(pl_atom)
         total_charge += ch
@@ -189,22 +214,26 @@ def from_rdmol(rdkit_mol, confid=-1):
         at2 = plams_mol.atoms[bond.GetEndAtomIdx()]
         plams_mol.add_bond(Bond(at1, at2, bond.GetBondTypeAsDouble()))
     plams_mol.charge = total_charge
-    prop_from_rdmol(plams_mol, rdkit_mol)
-    for rd_atom, plams_atom in zip(rdkit_mol.GetAtoms(), plams_mol):
-        prop_from_rdmol(plams_atom, rd_atom)
-    for rd_bond, plams_bond in zip(rdkit_mol.GetBonds(), plams_mol.bonds):
-        prop_from_rdmol(plams_bond, rd_bond)
+    if properties:
+        prop_from_rdmol(plams_mol, rdkit_mol)
+        for rd_atom, plams_atom in zip(rdkit_mol.GetAtoms(), plams_mol):
+            prop_from_rdmol(plams_atom, rd_atom)
+        for rd_bond, plams_bond in zip(rdkit_mol.GetBonds(), plams_mol.bonds):
+            prop_from_rdmol(plams_bond, rd_bond)
     return plams_mol
 
 
-def to_rdmol(plams_mol, sanitize=True):
+def to_rdmol(plams_mol, sanitize=True, properties=True):
     """
     Translate a PLAMS molecule into an RDKit molecule type.
-    PLAMS properties are pickled if they are neither booleans, floats, integers nor strings,
-        the resulting property names are appended with '_pickled'.
+    PLAMS Molecule, Atom or Bond properties are pickled if they are neither booleans, floats,
+        integers nor strings, the resulting property names are appended with '_pickled'.
 
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: plams.Molecule
+    parameter bool sanitize:
+    :parameter bool properties: If all Molecule, Atom and Bond properties should be converted from
+        PLAMS to RDKit format.
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
     """
@@ -216,22 +245,24 @@ def to_rdmol(plams_mol, sanitize=True):
         a = Chem.Atom(atom.atnum)
         if 'charge' in atom.properties:
             a.SetFormalCharge(atom.properties.charge)
-        if 'pdb_info' in atom.properties:
-            set_PDBresidueInfo(a, atom.properties.pdb_info)
-        for prop in atom.properties:
-            if prop != 'charge' or prop != 'pdb_info':
-                prop_to_rdmol(atom, a, prop)
+        if properties:
+            if 'pdb_info' in atom.properties:
+                set_PDBresidueInfo(a, atom.properties.pdb_info)
+            for prop in atom.properties:
+                if prop != 'charge' or prop != 'pdb_info':
+                    prop_to_rdmol(atom, a, prop)
         e.AddAtom(a)
     for bond in plams_mol.bonds:
         a1 = plams_mol.atoms.index(bond.atom1)
         a2 = plams_mol.atoms.index(bond.atom2)
         e.AddBond(a1, a2, Chem.BondType(bond.order))
     rdmol = e.GetMol()
-    for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
-        for prop in pl_bond.properties:
-            prop_to_rdmol(pl_bond, rd_bond, prop)
-    for prop in plams_mol.properties:
-        prop_to_rdmol(plams_mol, rdmol, prop)
+    if properties:
+        for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
+            for prop in pl_bond.properties:
+                prop_to_rdmol(pl_bond, rd_bond, prop)
+        for prop in plams_mol.properties:
+            prop_to_rdmol(plams_mol, rdmol, prop)
     if sanitize:
         Chem.SanitizeMol(rdmol)
     conf = Chem.Conformer()
@@ -661,7 +692,8 @@ def readpdb(pdb_file, removeHs=False, proximityBonding=True, return_rdmol=False)
 
     :param pdb_file: The PDB file to read
     :type pdb_file: str or file
-    :param bool removeHs: Hydrogens are removed if Trur
+    :param bool removeHs: Hydrogens are removed if True
+    :param bool proximityBonding: Enables automatic proximity bonding
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: The molecule
     :rtype: plams.Molecule or rdkit.Chem.Mol
