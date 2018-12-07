@@ -19,24 +19,40 @@ from warnings import warn
 try:
     from rdkit import Chem, Geometry
     from rdkit.Chem import AllChem, rdForceFieldHelpers
-except:
+except ModuleNotFoundError:
     __all__ = []
 
 from ...core.functions import init, finish
 from ...core.basemol import Molecule, Atom, Bond
 
 
-def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
+def global_minimum(plams_mol, n_scans=1, no_h=True, job_type=False, settings=False):
     """
     Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS |Job|) by systematically varying dihedral angles.
+
+    Example input:
+        s = Settings()
+        s.input.ams.Task = 'GeometryOptimization'
+        s.input.uff.Library = 'UFF'
+
+        @add_to_class(AMSResults)
+        def get_energy(self, unit='au'):
+            energy = self.readrkf('AMSResults', 'Energy', file='uff')
+            return Units.convert(energy, 'Hartree', unit)
+
+        mol_in = from_smiles('FCCCC(Br)CCCCl')
+        mol_out = global_minimum(mol_in, job_type=AMSJob, settings=s)
+
 
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: |Molecule|
     :parameter int n_scans: How many times the global minimum search should be repeated
     :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True) or included (False)
-    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS |Job|. The matching
-        PLAMS |Results| object must have access to the get_energy() and get_main_molecule() functions.
-    :type: False, |Job| or any derivative objects (e.g. |AMSJob| or |ADFJob|).
+    :parameter job_object: Substitute RDKit UFF for a user-defined PLAMS |Job|. The matching
+        PLAMS |Results| object must have access to the get_energy() and get_main_molecule() functions
+    :type job_object: A type object of a class derived from |Job| (e.g. |AMSJob| or |ADFJob|)
+    :parameter settings: The |Settings| object for the (optional) PLAMS |Job|
+    :type settings: |Settings|
     :return: a PLAMS molecule
     :rtype: |Molecule|
     """
@@ -50,7 +66,7 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
     # Raise an error if RDKit UFF are unavailable for an atom
     # Find the global minimum by systematically varying dihedral angles
     # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
-    if not plams_job:
+    if not job_type:
         params = rdForceFieldHelpers.UFFHasAllMoleculeParams(to_rdmol(plams_mol))
         if not params:
             raise ValueError('No UFF parameters found for one or more atoms')
@@ -58,20 +74,24 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
             for bond in bond_list:
                 if not plams_mol.in_ring(plams_mol[bond]):
                     plams_mol = global_minimum_scan(plams_mol, bond)
+        # Optimize the molecule even if no valid dihedral angles are found
+        if not bond_list:
+            rdmol = to_rdmol(plams_mol)
+            uff = AllChem.UFFGetMoleculeForceField
+            uff(rdmol).Minimize()
+            plams_mol = from_rdmol(rdmol)
     else:
         init()
         for i in range(n_scans):
             for bond in bond_list:
                 if not plams_mol.in_ring(plams_mol[bond]):
-                    plams_mol = global_minimum_scan_plams(plams_mol, bond, plams_job)
+                    plams_mol = global_minimum_scan_plams(plams_mol, bond, job_type, settings)
+        # Optimize the molecule even if no valid dihedral angles are found
+        if not bond_list:
+            job = job_type(molecule=plams_mol, settings=settings)
+            results = job.run()
+            plams_mol = results.get_main_molecule()
         finish()
-
-    # Optimize the molecule even if no dihedral angles are found
-    if not plams_job and not bond_list:
-        rdmol = to_rdmol(plams_mol)
-        uff = AllChem.UFFGetMoleculeForceField
-        uff(rdmol).Minimize()
-        plams_mol = from_rdmol(rdmol)
 
     return plams_mol
 
@@ -141,7 +161,7 @@ def global_minimum_scan(plams_mol, indices):
     return from_rdmol(mol_list[minimum])
 
 
-def global_minimum_scan_plams(plams_mol, indices, plams_job):
+def global_minimum_scan_plams(plams_mol, indices, job_type, settings):
     """
     Optimize the molecule (A PLAMS |Job|) with 3 different values for the given dihedral angle and find the lowest energy conformer.
     The matching PLAMS |Results| object must have access to the get_energy() and get_main_molecule() functions.
@@ -152,7 +172,9 @@ def global_minimum_scan_plams(plams_mol, indices, plams_job):
     :parameter tuple indices: indices of two atoms defining a bond
     :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS |Job|. The matching
         PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
-    :type: False, |Job| or any derivative objects (e.g. |AMSJob| or |ADFJob|).
+    :type job_object: A type object of a class derived from |Job| (e.g. |AMSJob| or |ADFJob|)
+    :parameter settings: The |Settings| object for the (optional) PLAMS |Job|
+    :type job_object: |Settings|
     :return: A PLAMS molecule
     :rtype: |Molecule|
     """
@@ -164,13 +186,13 @@ def global_minimum_scan_plams(plams_mol, indices, plams_job):
         atom = plams_mol[indices[0]]
         plams_mol.rotate_bond(bond, atom, angle, unit='degree')
 
-    job_list = [plams_job for i in range(3)]
-    for mol, job in zip(mol_list, job_list):
-        job.molecule = mol
-    results_list = [job.run() for job in job_list]
-
-    mol_list = [results.get_main_molecule() for results in results_list]
-    energy_list = [results.get_energy() for results in results_list]
+    main_mol_list = []
+    energy_list = []
+    for mol in mol_list:
+        job = job_type(molecule=mol, settings=settings)
+        results = job.run()
+        main_mol_list.append(results.get_main_molecule())
+        energy_list.append(results.get_energy())
     minimum = energy_list.index(min(energy_list))
     return mol_list[minimum]
 
