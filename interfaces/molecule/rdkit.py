@@ -28,12 +28,15 @@ from ...core.basemol import Molecule, Atom, Bond
 
 def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
     """
-    Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS job) by systematically varying dihedral angles.
+    Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS |Job|) by systematically varying dihedral angles.
 
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: |Molecule|
     :parameter int n_scans: How many times the global minimum search should be repeated
     :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True) or included (False)
+    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS |Job|. The matching
+        PLAMS |Results| object must have access to the get_energy() and get_main_molecule() functions.
+    :type: False, |Job| or any derivative objects (e.g. |AMSJob| or |ADFJob|).
     :return: a PLAMS molecule
     :rtype: |Molecule|
     """
@@ -81,7 +84,7 @@ def find_bond(plams_mol, no_h=True):
     :parameter plams_mol: PLAMS molecule
     :type plams_mol: |Molecule|
     :parameter bool no_h: If hydrogen-containing bonds should ignored (True) or included (False)
-    :return: a list of 2-tuples
+    :return: a list of 2-tuples containg integers
     :rtype: list
     """
     plams_mol.set_atoms_id()
@@ -117,7 +120,7 @@ def global_minimum_scan(plams_mol, indices):
     :type rdkit_mol: rdkit.Chem.Mol
     :parameter tuple indices: indices of two atoms defining a bond
     :return: A PLAMS molecule
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
     """
     # Define a number of variables and create 3 copies of the ligand
     uff = AllChem.UFFGetMoleculeForceField
@@ -140,18 +143,18 @@ def global_minimum_scan(plams_mol, indices):
 
 def global_minimum_scan_plams(plams_mol, indices, plams_job):
     """
-    Optimize the molecule (A PLAMS Job) with 3 different values for the given dihedral angle and find the lowest energy conformer.
-    The matching PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
+    Optimize the molecule (A PLAMS |Job|) with 3 different values for the given dihedral angle and find the lowest energy conformer.
+    The matching PLAMS |Results| object must have access to the get_energy() and get_main_molecule() functions.
     If required, functions can be added manually to a class with the add_to_class() function (see https://www.scm.com/doc/plams/components/functions.html).
 
     :parameter plams_mol: PLAMS molecule
     :type rdkit_mol: rdkit.Chem.Mol
     :parameter tuple indices: indices of two atoms defining a bond
-    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS Job. The matching
+    :parameter plams_job: Substitute RDKit UFF for a user-defined PLAMS |Job|. The matching
         PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
-    :type plams_job or bool(False): plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
+    :type: False, |Job| or any derivative objects (e.g. |AMSJob| or |ADFJob|).
     :return: A PLAMS molecule
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
     """
     # Define a number of variables and create 3 copies of the ligand
     angles = (-120, 0, 120)
@@ -180,11 +183,9 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     :parameter rdkit_mol: RDKit molecule
     :type rdkit_mol: rdkit.Chem.Mol
     :parameter int confid: conformer identifier from which to take coordinates
-    :parameter bool properties: If all Mol, Atom and Bond properties should be converted from
-        RDKit to PLAMS format.
+    :parameter bool properties: If all Chem.Mol, Chem.Atom and Chem.Bond properties should be converted from RDKit to PLAMS format.
     :return: a PLAMS molecule
     :rtype: |Molecule|
-
     """
     if isinstance(rdkit_mol, Molecule):
         return rdkit_mol
@@ -222,10 +223,12 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
 def to_rdmol(plams_mol, sanitize=True, properties=True):
     """
     Translate a PLAMS molecule into an RDKit molecule type.
-    PLAMS Molecule, Atom or Bond properties are pickled if they are neither booleans, floats,
-        integers nor strings, the resulting property names are appended with '_pickled'.
+    PLAMS |Molecule|, |Atom| or |Bond| properties are pickled if they are neither booleans, floats,
+        integers, floats nor strings, the resulting property names are appended with '_pickled'.
 
-    :parameter plams_mol: PLAMS molecule
+    :parameter plams_mol: A PLAMS molecule
+    :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization
+    :parameter bool properties: If all |Molecule|, |Atom| and |Bond| properties should be converted from PLAMS to RDKit format.
     :type plams_mol: |Molecule|
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
@@ -295,10 +298,10 @@ def prop_to_rdmol(pl_obj, rd_obj, prop):
     Convert a single PLAMS property into an RDKit property.
 
     :paramter pl_obj: A PLAMS object.
-    :type pl_obj: plams.Molecule, plams.Atom or plams.Bond.
+    :type pl_obj: |Molecule|, |Atom| or |Bond|.
     :parameter rd_obj: An RDKit object.
     :type rd_obj: rdkit.Chem.Mol, rdkit.Chem.Atom or rdkit.Chem.Bond
-    :parameter str prop: The key of the PLAMS property.
+    :parameter str prop: The |Settings| key of the PLAMS property.
     """
     obj = type(pl_obj.properties.get(prop))
     obj_dict = {bool: rd_obj.SetBoolProp,
@@ -320,7 +323,7 @@ def prop_from_rdmol(pl_obj, rd_obj):
     Convert one or more RDKit properties into PLAMS properties.
 
     :paramter pl_obj: A PLAMS object.
-    :type pl_obj: plams.Molecule, plams.Atom or plams.Bond.
+    :type pl_obj: |Molecule|, |Atom| or |Bond|.
     :parameter rd_obj: An RDKit object.
     :type rd_obj: rdkit.Chem.Mol, rdkit.Chem.Atom or rdkit.Chem.Bond
     """
