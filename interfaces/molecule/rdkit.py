@@ -40,7 +40,7 @@ def global_minimum(plams_mol, n_scans=1, no_h=True, plams_job=False):
         PLAMS Results object must have access to the get_energy() and get_main_molecule() functions.
     :type plams_job or bool(False): plams.Job or any derivative objects (e.g. AMSJob or ADFJob).
     :return: a PLAMS molecule
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
     """
     # Creates bonds if no bonds are present
     if len(plams_mol.bonds) == 0:
@@ -188,7 +188,7 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     :parameter bool properties: If all Mol, Atom and Bond properties should be converted from
         RDKit to PLAMS format.
     :return: a PLAMS molecule
-    :rtype: plams.Molecule
+    :rtype: |Molecule|
     """
     if isinstance(rdkit_mol, Molecule):
         return rdkit_mol
@@ -230,8 +230,8 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
         integers nor strings, the resulting property names are appended with '_pickled'.
 
     :parameter plams_mol: PLAMS molecule
-    :type plams_mol: plams.Molecule
-    parameter bool sanitize:
+    :type plams_mol: |Molecule|
+    :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization
     :parameter bool properties: If all Molecule, Atom and Bond properties should be converted from
         PLAMS to RDKit format.
     :return: an RDKit molecule
