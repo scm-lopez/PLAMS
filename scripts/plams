@@ -4,7 +4,7 @@ from scm.plams import *
 
 plams_namespace = globals().copy()
 
-VERSION = 1.2
+VERSION = 1.3
 
 import argparse
 import os
@@ -13,7 +13,7 @@ import sys
 import traceback
 from os.path import join as opj
 
-parser = argparse.ArgumentParser(description='PLAMS environment execution tool ("master script")')
+parser = argparse.ArgumentParser(description='PLAMS launch script')
 parser.add_argument('--version', action='version', version='PLAMS '+str(VERSION), help='show version number and exit')
 parser.add_argument('-p', '--path', type=str, default=None, help='place where the main working folder is created', metavar='path', dest='path')
 parser.add_argument('-f', '--folder', type=str, default=None, help='name of the main working folder', metavar='name', dest='folder')
@@ -39,35 +39,44 @@ for input_file in args.file:
         with open(input_file, 'r', encoding='utf-8') as f:
             inputscript += f.read()
     else:
-        print('Error: File %s not found' % input_file)
+        print('Error: File {} not found'.format(input_file))
         sys.exit(1)
 
 
 #handle restart
-restart_backup = None
 if args.restart:
     if args.folder:
         restartdir = opj(args.path, args.folder) if args.path else args.folder
-        if os.path.isdir(restartdir):
-            if os.listdir(restartdir):
-                restart_backup = restartdir + '.res'
-                n = 1
-                while os.path.exists(restart_backup):
-                    n += 1
-                    restart_backup = restartdir + '.res' + str(n)
-                os.rename(restartdir, restart_backup)
-                args.load.append(restart_backup)
-        else:
-            print('WARNING: The folder specified for restart does not exist. Ignoring -r flag.')
     else:
-        print('WARNING: To perform a restart run you need to specify the folder with -f flag. Ignoring -r flag.')
+        basename = opj(args.path, 'plams_workdir') if args.path else 'plams_workdir'
+        restartdir = basename
+        n = 2
+        nextname = basename + '.' + str(n).zfill(3)
+        while os.path.exists(nextname):
+            n += 1
+            restartdir = nextname
+            nextname = basename + '.' + str(n).zfill(3)
+
+    if os.path.isdir(restartdir):
+        if os.listdir(restartdir):
+            restart_backup = restartdir + '.res'
+            n = 1
+            while os.path.exists(restart_backup):
+                n += 1
+                restart_backup = restartdir + '.res' + str(n)
+            os.rename(restartdir, restart_backup)
+            print('RESTART: Moving {} to {} and restarting from it'.format(restartdir, restart_backup))
+            args.load.append(restart_backup)
+    else:
+        print('RESTART: The folder specified for restart does not exist. Ignoring -r flag.')
+
 
 
 #initialize PLAMS
 init(path=args.path, folder=args.folder)
 
 #write down input script
-with open(config.jm.input, 'w', encoding='utf-8') as f:
+with open(config.default_jobmanager.input, 'w', encoding='utf-8') as f:
     f.write(inputscript)
 
 #load jobs from -l folders
@@ -76,7 +85,7 @@ for path in args.load:
 
 #execute input script
 try:
-    exec(compile(open(config.jm.input, encoding='utf-8').read(), config.jm.input, 'exec'), plams_namespace)
+    exec(compile(open(config.default_jobmanager.input, encoding='utf-8').read(), config.default_jobmanager.input, 'exec'), plams_namespace)
 except KeyboardInterrupt:
     sys.exit(0)
 except Exception as e:

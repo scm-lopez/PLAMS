@@ -1,18 +1,3 @@
-"""
-What follows is a somewhat hacky way to set up an automatic plug'n'play import mechanism. If you experience any problems with importing, remove this and bring back good old explicit imports:
-
-        from .core.basejob import *
-        from .core.basemol import *
-        ...
-        from .tools.geometry import *
-        from .tools.kftools import *
-        ...
-        from .interfaces.adfsuite import *
-        from .interfaces.cp2k import *
-        from .interfaces.crystal import *
-        from .interfaces.dftbplus import *
-"""
-
 def __autoimport(path, folders):
     import os
     from os.path import join as opj

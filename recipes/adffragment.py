@@ -1,6 +1,7 @@
 from ..core.basejob import MultiJob
 from ..core.basemol import Molecule
 from ..core.results import Results
+from ..core.settings import Settings
 
 from ..interfaces.adfsuite.adf import ADFJob
 
@@ -32,26 +33,26 @@ class ADFFragmentResults(Results):
 class ADFFragmentJob(MultiJob):
     _result_type = ADFFragmentResults
 
-    def __init__(self, fragment1=None, fragment2=None, name1='frag1', name2='frag2', **kwargs):
+    def __init__(self, fragment1=None, fragment2=None, full_settings=None, **kwargs):
         MultiJob.__init__(self, **kwargs)
         self.fragment1 = fragment1.copy() if isinstance(fragment1, Molecule) else fragment1
         self.fragment2 = fragment2.copy() if isinstance(fragment2, Molecule) else fragment2
-        self.name1 = name1
-        self.name2 = name2
-
+        self.full_settings = full_settings or Settings()
 
     def prerun(self):
         self.f1 = ADFJob(name=self.name+'_f1', molecule=self.fragment1, settings=self.settings)
         self.f2 = ADFJob(name=self.name+'_f2', molecule=self.fragment2, settings=self.settings)
 
         for at in self.fragment1:
-            at.properties.adf.fragment = self.name1
+            at.properties.adf.fragment = 'subsystem1'
         for at in self.fragment2:
-            at.properties.adf.fragment = self.name2
+            at.properties.adf.fragment = 'subsystem2'
 
-        self.full = ADFJob(name=self.name+'_all', molecule=self.fragment1+self.fragment2, settings=self.settings)
-        self.full.settings.input.fragments[self.name1] = self.f1
-        self.full.settings.input.fragments[self.name2] = self.f2
+        self.full = ADFJob(name = self.name + '_full',
+            molecule = self.fragment1 + self.fragment2,
+            settings = self.settings + self.full_settings)
+        self.full.settings.input.fragments.subsystem1 = self.f1
+        self.full.settings.input.fragments.subsystem2 = self.f2
 
         self.children = [self.f1, self.f2, self.full]
 

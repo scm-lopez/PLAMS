@@ -15,7 +15,7 @@ from ..tools.pdbtools import PDBHandler, PDBRecord
 from ..tools.periodic_table import PT
 from ..tools.units import Units
 
-__all__ = ['Atom', 'Bond', 'Molecule', 'read_molecules']
+__all__ = ['Atom', 'Bond', 'Molecule']
 
 
 
@@ -27,13 +27,13 @@ class Atom(object):
     *   ``atnum`` -- atomic number (zero for "dummy atoms")
     *   ``coords`` -- tuple of length 3 storing spatial coordinates
     *   ``bonds`` -- list of bonds (see |Bond|) this atom is a part of
-    *   ``mol`` -- a |Molecule| this atom belongs to
-    *   ``properties`` -- a |Settings| instance storing all other information about this atom (initially it is populated with *\*\*other* keyword arguments passed to the constructor)
+    *   ``mol`` -- |Molecule| this atom belongs to
+    *   ``properties`` -- |Settings| instance storing all other information about this atom (initially it is populated with *\*\*other*)
 
-    All the above attributes can be accessed either directly or using one of the following properties:
+    The above attributes can be accessed either directly or using one of the following properties:
 
     *   ``x``, ``y``, ``z`` -- allow to read or modify each coordinate separately
-    *   ``symbol`` -- allows to read or write atomic symbol directly. Atomic symbol is not stored as an attribute, instead of that atomic number (``atnum``) indicates the type of atom. In fact, ``symbol`` this is just a wrapper around ``atnum`` that uses |PeriodicTable| as a translator::
+    *   ``symbol`` -- allows to read or write the atomic symbol directly. Atomic symbol is not stored as an attribute, instead of that the atomic number (``atnum``) indicates the type of atom. In fact, ``symbol`` this is just a wrapper around ``atnum`` that uses |PeriodicTable| as a translator::
 
             >>> a = Atom(atnum=8)
             >>> print(a.symbol)
@@ -48,8 +48,7 @@ class Atom(object):
 
     .. note::
 
-        When creating a new atom, its type can be chosen either by setting an atomic number or a symbol (``atnum`` and ``symbol`` constructor arguments). Symbol takes precedence -- if it is supplied, ``atnum`` argument is ignored.
-
+        When creating a new atom, its type can be chosen either by setting an atomic number or a symbol (``atnum`` and ``symbol`` constructor arguments). The ``symbol`` argument takes precedence -- if it is supplied, the ``atnum`` argument is ignored.
 
     Values stored in ``coords`` tuple do not necessarily have to be numeric, you can also store any string there. This might come handy for programs that allow parametrization of coordinates in the input file (to enforce some geometry constraints for example)::
 
@@ -60,9 +59,9 @@ class Atom(object):
             >>> print(a)
                      C       1.00000        param1       3.00000
 
-    However, non-numerical coordinates cannot be used together with some methods (for example :meth:`distance_to` or :meth:`translate`). Trying to do this will raise an exception.
+    However, non-numerical coordinates cannot be used together with some methods (for example :meth:`distance_to` or :meth:`translate`). An attempt to do this raises an exception.
 
-    Internally, atomic coordinates are always expressed in angstroms. Most of methods that read or modify atomic coordinates accept keyword argument ``unit`` allowing to choose unit in which results and/or arguments are expressed (see |Units| for details). Throughout the entire code angstrom is the default length unit. If you don't specify ``unit`` parameter in any place of your script, all automatic unit handling described above boils down to occasional multiplication/division by 1.0.
+    Internally, atomic coordinates are always expressed in angstroms. Most of methods that read or modify atomic coordinates accept a keyword argument ``unit`` allowing to choose unit in which results and/or arguments are expressed (see |Units| for details). Throughout the entire code angstrom is the default length unit. If you don't specify ``unit`` parameter in any place of your script, all the automatic unit handling described above boils down to occasional multiplication/division by 1.0.
     """
     def __init__(self, atnum=0, symbol=None, coords=None, unit='angstrom', bonds=None, mol=None, **other):
         if symbol is not None:
@@ -130,7 +129,7 @@ class Atom(object):
 
 
     def __iter__(self):
-        """Iteration through atom yields coordinates. Thanks to that instances of |Atom| can be passed to any method requiring point or vector as an argument."""
+        """Iteration through atom yields coordinates. Thanks to that instances of |Atom| can be passed to any method requiring as an argument a point or a vector in 3D space."""
         return iter(self.coords)
 
 
@@ -169,7 +168,7 @@ class Atom(object):
 
         *vector* should be an iterable container of length 3 (usually tuple, list or numpy array). *unit* describes unit of values stored in *vector*.
 
-        This method requires all coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
+        This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
         ratio = Units.conversion_ratio(unit, 'angstrom')
         self.coords = tuple(i + j*ratio for i,j in zip(self, vector))
@@ -180,7 +179,7 @@ class Atom(object):
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*.
 
-        This method requires all coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
+        This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
         ratio = Units.conversion_ratio(unit, 'angstrom')
         self.coords = tuple(i*ratio for i in point)
@@ -191,7 +190,7 @@ class Atom(object):
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
 
-        This method requires all coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
+        This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
         ratio = Units.conversion_ratio(unit, 'angstrom')
         res = 0.0
@@ -205,7 +204,7 @@ class Atom(object):
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
 
-        This method requires all coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
+        This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
         ratio = Units.conversion_ratio(unit, 'angstrom')
         resultratio = Units.conversion_ratio('angstrom', result_unit)
@@ -217,7 +216,7 @@ class Atom(object):
 
         *point1* and *point2* should be iterable containers of length 3 (for example: tuple, |Atom|, list, numpy array). Values stored in them are expressed in, respectively, *point1unit* and *point2unit*. Returned value is expressed in *result_unit*.
 
-        This method requires all coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
+        This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
         num = np.dot(self.vector_to(point1, point1unit), self.vector_to(point2, point2unit))
         den = self.distance_to(point1, point1unit) * self.distance_to(point2, point2unit)
@@ -225,13 +224,13 @@ class Atom(object):
 
 
     def rotate(self, matrix):
-        """Rotate this atom according to rotation *matrix*.
+        """Rotate this atom according to a rotation *matrix*.
 
         *matrix* should be a container with 9 numerical values. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
 
         .. note::
 
-            This method does not check if supplied matrix is a proper rotation matrix.
+            This method does not check if *matrix* is a proper rotation matrix.
         """
         matrix = np.array(matrix).reshape(3,3)
         self.coords = tuple(np.dot(matrix, np.array(self.coords)))
@@ -250,9 +249,9 @@ class Bond (object):
     An instance of this class has the following attributes:
 
     *   ``atom1`` and ``atom2`` -- two instances of |Atom| that form this bond
-    *   ``order`` -- order of the bond. It is either an integer number or the floating point value stored in ``Bond.AR``, indicating aromatic bond
-    *   ``mol`` -- a |Molecule| this bond belongs to
-    *   ``properties`` -- a |Settings| instance storing all other  information about this bond (initially it is populated with *\*\*other* keyword arguments passed to the constructor)
+    *   ``order`` -- order of the bond. It is either an integer number or the floating point value stored in ``Bond.AR``, indicating an aromatic bond
+    *   ``mol`` -- |Molecule| this bond belongs to
+    *   ``properties`` -- |Settings| instance storing all other  information about this bond (initially it is populated with *\*\*other*)
 
     .. note::
 
@@ -269,8 +268,8 @@ class Bond (object):
 
 
     def __str__(self):
-        """Return string representation of this bond."""
-        return '(%s)--%1.1f--(%s)'%(str(self.atom1), self.order, str(self.atom2))
+        """Return a string representation of this bond."""
+        return '({})--{:1.1f}--({})'.format(str(self.atom1).strip(), self.order, str(self.atom2).strip())
 
 
     def __iter__(self):
@@ -285,14 +284,12 @@ class Bond (object):
 
 
     def length(self, unit='angstrom'):
-        """Return bond's length, expressed in *unit*."""
+        """Return bond length, expressed in *unit*."""
         return self.atom1.distance_to(self.atom2, result_unit=unit)
 
 
     def other_end(self, atom):
-        """Return the atom on the other end of this bond with respect to *atom*.
-
-        *atom* has to be either ``atom1`` or ``atom2``, otherwise an exception is raised.
+        """Return the atom on the other end of this bond with respect to *atom*. *atom* has to be one of the atoms forming this bond, otherwise an exception is raised.
         """
         if atom is self.atom1:
             return self.atom2
@@ -305,7 +302,7 @@ class Bond (object):
     def resize(self, atom, length, unit='angstrom'):
         """Change the length of the bond to *length*.
 
-        This method works in the following way: one of two atoms forming this bond is moved along the bond in such a way that new length is *length*, in *unit* (direction of the bond in space does not change). Atom indicated by *atom* has to be one of bond's atoms and it is the atom that is **not** moved.
+        One of two atoms forming this bond is moved along the bond in such a way that the new length is *length*, in *unit* (direction of the bond in space does not change). Atom indicated by *atom* has to be one of bond's atoms and it is the atom that is **not** moved.
         """
         ratio = 1.0 - Units.convert(length, unit, 'angstrom')/self.length()
         moving = self.other_end(atom)
@@ -320,14 +317,14 @@ class Bond (object):
 
 
 class Molecule (object):
-    """A class representing basic molecule object.
+    """A class representing the molecule object.
 
     An instance of this class has the following attributes:
 
-    *   ``atoms`` -- a list of |Atom| objects that belong to this molecule
-    *   ``bonds`` -- a list of |Bond| objects between atoms listed in ``atoms``
-    *   ``lattice`` -- a list of lattice vectors, in case of periodic structures
-    *   ``properties`` -- a |Settings| instance storing all other information about this molecule
+    *   ``atoms`` -- list of |Atom| objects that belong to the molecule
+    *   ``bonds`` -- list of |Bond| objects between atoms listed in ``atoms``
+    *   ``lattice`` -- list of lattice vectors in case of periodic structures
+    *   ``properties`` -- |Settings| instance storing all other information about the molecule (initially it is populated with *\*\*other*)
 
     .. note::
 
@@ -335,23 +332,25 @@ class Molecule (object):
 
     Creating a |Molecule| object for your calculation can be done in two ways. You can start with an empty molecule and manually add all atoms (and bonds, if needed)::
 
-        >>> mol = Molecule()
-        >>> mol.add_atom(Atom(atnum=1, coords=(0,0,0)))
-        >>> mol.add_atom(Atom(atnum=1, coords=(d,0,0)))
+        mol = Molecule()
+        mol.add_atom(Atom(atnum=1, coords=(0,0,0)))
+        mol.add_atom(Atom(atnum=1, coords=(d,0,0)))
 
     This approach can be useful for building small molecules, especially if you wish to parametrize some of atomic coordinates (like in :ref:`simple_example`), but in general it's not very practical. Usually one wants to import atomic coordinates from some external file::
 
-        >>> mol = Molecule('xyz/Benzene.xyz')
+        mol = Molecule('xyz/Benzene.xyz')
 
     The constructor of a |Molecule| object accepts four arguments that can be used to supply this information from a file in your filesystem. *filename* should be a string with a path (absolute or relative) to such a file. *inputformat* describes the format of the file. Currently, the following formats are supported: ``xyz``, ``mol``, ``mol2`` and ``pdb``. If *inputformat* argument is not supplied, PLAMS will try to deduce it by examining the extension of the provided file, so in most of cases it is not needed to use *inputformat*, if only the file has the proper extension. Some formats (``xyz`` and ``pdb``) allow to store more than one geometry of a particular molecule within a single file. In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import. The *ase* keyword allows to switch the file reader engine to the ASE.io module, enabling you to read all input formats supported by ASE. See :meth:`read` for further details. All *other* keyword arguments passed to the constructor are used to populate ``properties`` |Settings|.
 
-    If a |Molecule| is initialized from an external file, the path to this file (*filename* argument) is stored in ``properties.source``. The base name of the file without extension is kept in ``properties.name``.
+    If a |Molecule| is initialized from an external file, the path to this file (*filename* argument) is stored in ``properties.source``. The base name of the file (filename without the extension) is kept in ``properties.name``.
 
     It is also possible to write a molecule to a file in one of the formats mentioned above or using the ASE.io engine. See :meth:`write` for details.
 
-    ``lattice`` attribute is used to store information about lattice vectors in case of periodic structures. Some job types (|BANDJob|, |DFTBJob|) will automatically use that data while constructing input files. ``lattice`` should be a list of up to 3 vectors (for different types of periodicity: chain, slab or bulk), each of which needs to be a list or a tuple of 3 numbers.
+    The ``lattice`` attribute is used to store information about lattice vectors in case of periodic structures. Some job types will automatically use that data while constructing input files. ``lattice`` should be a list of up to 3 vectors (for different types of periodicity: chain, slab or bulk), each of which needs to be a list or a tuple of 3 numbers.
 
-    Lattice vectors can be directly read and written to ``xyz`` files using the following convention (please mind the fact that this is an unofficial extension to the XYZ format)::
+    Lattice vectors can be directly read from and written to ``xyz`` files using the following convention (please mind the fact that this is an unofficial extension to the XYZ format):
+
+    .. code-block:: none
 
         3
 
@@ -364,10 +363,10 @@ class Molecule (object):
 
     For 1D (2D) periodicity please supply only ``VEC1`` (``VEC1`` and ``VEC2``). Writing lattice vectors to ``xyz`` files can be disabled by simply reseting the ``lattice`` attribute::
 
-        >>> mol.lattice = []
+        mol.lattice = []
 
 
-    The detailed description of available methods is presented below. Many of these methods require passing atoms belonging to the molecule as arguments. It can by done by using a reference to an |Atom| object present it ``atoms`` list, but not by passing a number of an atom (its position within ``atoms`` list). Unlike some other tools, PLAMS does not use integer numbers as primary identifiers of atoms. It is done to prevent problems when atoms within a molecule are reordered or some atoms are deleted. References to |Atom| or |Bond| objects can be obtained directly from ``atoms`` or ``bonds`` lists, or with dictionary-like bracket notation::
+    The detailed description of all available methods is presented below. Many of these methods require arguments that are atoms belonging to the current molecule. It can by done by using a reference to an |Atom| object present it the ``atoms`` list, but not by passing a number of an atom (its position within ``atoms`` list). Unlike some other tools, PLAMS does not use integer numbers as primary identifiers of atoms. It is done to prevent problems when atoms within a molecule are reordered or some atoms are deleted. References to |Atom| or |Bond| objects can be obtained directly from ``atoms`` or ``bonds`` lists, or with dictionary-like bracket notation::
 
         >>> mol = Molecule('xyz/Ammonia.xyz')
         >>> mol.guess_bonds()
@@ -393,8 +392,7 @@ class Molecule (object):
 
     .. note::
 
-        Numbering of atoms within a molecule starts with 1.
-
+        For the purpose of ``mol[i]`` notation, the numbering of atoms within a molecule starts with 1. Negative integers can be used to access atoms enumerated in the reversed order (``mol[-1]`` for the last atom etc.)
 
     However, if you feel more familiar with identifying atoms by natural numbers, you can use :meth:`set_atoms_id` to equip each atom of the molecule with ``id`` attribute equal to atom's position within ``atoms`` list. This method can also be helpful to track changes in your molecule during tasks that can reorder atoms.
     """
@@ -418,9 +416,9 @@ class Molecule (object):
 
 
     def copy(self, atoms=None):
-        """Return a copy of this molecule. New molecule has atoms, bonds and all other components distinct from original molecule (it is so called "deep copy").
+        """Return a copy of the molecule. The copy has atoms, bonds and all other components distinct from the original molecule (it is so called "deep copy").
 
-        By default the entire molecule is copied. It is also possible to copy only some part of the molecule, indicated by *atoms* argument. It should be a list of atoms that **belong to this molecule**. Only these atoms, together with any bonds between them, are copied and included in the returned molecule.
+        By default the entire molecule is copied. It is also possible to copy only some part of the molecule, indicated by *atoms* argument. It should be a list of atoms that belong to the molecule. If used, only these atoms, together with any bonds between them, are copied and included in the returned molecule.
         """
 
         if atoms is None:
@@ -448,20 +446,20 @@ class Molecule (object):
 
 
     def add_atom(self, atom, adjacent=None):
-        """Add new *atom* to this molecule.
+        """Add a new *atom* to the molecule.
 
-        *atom* should be an |Atom| instance that does not belong to the molecule. Bonds between the new atom and other atoms of the molecule can be automatically added based on *adjacent* argument. It should be a list describing atoms of the molecule that the new atom is connected to. Each element of *adjacent* list can either be a pair ``(Atom, order)`` to indicate new bond's order (use ``Bond.AR`` for aromatic bonds) or an |Atom| instance (a single bond is inserted in this case).
+        *atom* should be an |Atom| instance that does not belong to any molecule. Bonds between the new atom and other atoms of the molecule can be automatically added based on *adjacent* argument. It should be a list describing atoms of the molecule that the new atom is connected to. Each element of *adjacent* list can either be a pair ``(Atom, order)`` to indicate new bond's order (use ``Bond.AR`` for aromatic bonds) or an |Atom| instance (a single bond is created in this case).
 
         Example::
 
-            >>> mol = Molecule() #create an empty molecule
-            >>> h1 = Atom(symbol='H', coords=(1.0, 0.0, 0.0))
-            >>> h2 = Atom(symbol='H', coords=(-1.0, 0.0, 0.0))
-            >>> o = Atom(symbol='O', coords=(0.0, 1.0, 0.0))
-            >>> mol.add_atom(h1)
-            >>> mol.add_atom(h2)
-            >>> mol.add_atom(o)
-            >>> mol.add_atom(Atom(symbol='C', coords=(0.0, 0.0, 0.0)), adjacent=[h1, h2, (o,2)])
+            mol = Molecule() #create an empty molecule
+            h1 = Atom(symbol='H', coords=(1.0, 0.0, 0.0))
+            h2 = Atom(symbol='H', coords=(-1.0, 0.0, 0.0))
+            o = Atom(symbol='O', coords=(0.0, 1.0, 0.0))
+            mol.add_atom(h1)
+            mol.add_atom(h2)
+            mol.add_atom(o)
+            mol.add_atom(Atom(symbol='C', coords=(0.0, 0.0, 0.0)), adjacent=[h1, h2, (o,2)])
 
         """
         self.atoms.append(atom)
@@ -475,23 +473,23 @@ class Molecule (object):
 
 
     def delete_atom(self, atom):
-        """Delete *atom* from this molecule.
+        """Delete an *atom* from the molecule.
 
         *atom* should be an |Atom| instance that belongs to the molecule. All bonds containing this atom are removed too.
 
         Examples::
 
-            >>> #delete all hydrogens
-            >>> mol = Molecule('protein.pdb')
-            >>> hydrogens = [atom for atom in mol if atom.atnum == 1]
-            >>> for i in hydrogens: mol.delete_atom(i)
+            #delete all hydrogens
+            mol = Molecule('protein.pdb')
+            hydrogens = [atom for atom in mol if atom.atnum == 1]
+            for i in hydrogens: mol.delete_atom(i)
 
         ::
 
-            >>> #delete first two atoms
-            >>> mol = Molecule('geom.xyz')
-            >>> mol.delete_atom(mol[1])
-            >>> mol.delete_atom(mol[1]) #since the second atom of original molecule is now the first
+            #delete first two atoms
+            mol = Molecule('geom.xyz')
+            mol.delete_atom(mol[1])
+            mol.delete_atom(mol[1]) #since the second atom of original molecule is now the first
 
         """
         if atom.mol != self:
@@ -506,18 +504,18 @@ class Molecule (object):
 
 
     def add_bond(self, arg1, arg2=None, order=1):
-        """Add new bond to this molecule.
+        """Add a new bond to the molecule.
 
         This method can be used in two different ways. You can call it with just one argument being a |Bond| instance (other arguments are then ignored)::
 
             >>> b = Bond(mol[2], mol[4], order=Bond.AR) #create aromatic bond between 2nd and 4th atom
             >>> mol.add_bond(b)
 
-        Other way is to pass two atoms (and possibly bond order) and new |Bond| object will be created automatically::
+        The other way is to pass two atoms (and possibly bond order) and new |Bond| object will be created automatically::
 
             >>> mol.add_bond(mol[2], mol[4], order=Bond.AR)
 
-        In both cases atoms that are to be bond have to belong to the molecule, otherwise an exception is raised.
+        In both cases both atoms that are bonded have to belong to the molecule, otherwise an exception is raised.
         """
         if isinstance(arg1, Atom) and isinstance(arg2, Atom):
             newbond = Bond(arg1, arg2, order=order)
@@ -536,7 +534,7 @@ class Molecule (object):
 
 
     def delete_bond(self, arg1, arg2=None):
-        """Delete bond from this molecule
+        """Delete a bond from the molecule.
 
         Just like :meth:`add_bond`, this method accepts either a single argument that is a |Bond| instance, or two arguments being instances of |Atom|. In both cases objects used as arguments have to belong to the molecule.
         """
@@ -560,7 +558,7 @@ class Molecule (object):
 
 
     def find_bond(self, atom1, atom2):
-        """Find and return a bond between *atom1* and *atom2*. Both atoms have to belong to the molecule. If a bond between chosen atoms does not exist, ``None`` is returned."""
+        """Find and return a bond between *atom1* and *atom2*. Both atoms have to belong to the molecule. If no bond between chosen atoms exists, the retured value is ``None``."""
         if atom1.mol != self or atom2.mol != self:
             raise MoleculeError('find_bond: atoms passed as arguments have to belong to the molecule')
         for b in atom1.bonds:
@@ -570,9 +568,10 @@ class Molecule (object):
 
 
     def set_atoms_id(self):
-        """Equip each atom of this molecule with ``id`` attribute equal to its position within ``atoms`` list."""
+        """Equip each atom of the molecule with the ``id`` attribute equal to its position within ``atoms`` list (numbering starts with 1)."""
         for i,at in enumerate(self.atoms):
             at.id = i+1
+
 
     def unset_atoms_id(self):
         """Delete ``id`` attributes of all atoms."""
@@ -584,9 +583,9 @@ class Molecule (object):
 
 
     def neighbors(self, atom):
-        """Return a list of neighbors of *atom* within this molecule.
+        """Return a list of neighbors of *atom* within the molecule.
 
-        *atom* has to belong to the molecule. Returned list follows the same order as ``bonds`` list of *atom*.
+        *atom* has to belong to the molecule. Returned list follows the same order as the ``bonds`` attribute of *atom*.
         """
         if atom.mol != self:
             raise MoleculeError('neighbors: passed atom should belong to the molecule')
@@ -594,13 +593,13 @@ class Molecule (object):
 
 
     def separate(self):
-        """Separate this molecule into connected components.
+        """Separate the molecule into connected components.
 
-        Returned is a list of new |Molecule| objects (all atoms and bonds are disjoint with original molecule). Each element of this list is identical to one connected component of the base molecule. A connected component is a subset of atoms such that there exists a path (along one or more bonds) between any two atoms.
+        Returned is a list of new |Molecule| objects (all atoms and bonds are disjoint with the original molecule). Each element of this list is identical to one connected component of the base molecule. A connected component is a subset of atoms such that there exists a path (along one or more bonds) between any two atoms.
 
         Example::
 
-            >>> mol = Molecule('/xyz_dimers/NH3-H2O.xyz')
+            >>> mol = Molecule('xyz_dimers/NH3-H2O.xyz')
             >>> mol.guess_bonds()
             >>> print(mol)
               Atoms:
@@ -672,7 +671,7 @@ class Molecule (object):
 
         All previously existing bonds are removed. New bonds are generated based on interatomic distances and information about maximal number of bonds for each atom type (``connectors`` property, taken from |PeriodicTable|).
 
-        The problem of finding molecular bonds for a given set of atoms in space does not have a general solution, especially considering the fact the chemical bond is itself not a precisely defined concept. For every method, no matter how sophisticated, there will always be corner cases for which the method produces disputable results. Moreover, depending on the context (area of application) the desired solution for a particular geometry may vary. Please do not treat this method as an oracle always providing proper solution. Algorithm used here gives very good results for geometries that are not very far from optimal geometry, especially consisting of lighter atoms. All kinds of organic molecules, including aromatic ones, usually work very well. Problematic results can emerge for transition metal complexes, transition states, incomplete molecules etc.
+        The problem of finding molecular bonds for a given set of atoms in space does not have a general solution, especially considering the fact the chemical bond in itself is not a precisely defined concept. For every method, no matter how sophisticated, there will always be corner cases for which the method produces disputable results. Moreover, depending on the context (area of application) the desired solution for a particular geometry may vary. Please do not treat this method as an oracle always providing a proper solution. The algorithm used here gives very good results for geometries that are not very far from the optimal geometry, especially consisting of lighter atoms. All kinds of organic molecules, including aromatic ones, usually work very well. Problematic results can emerge for transition metal complexes, transition states, incomplete molecules etc.
 
         The algorithm used scales as *n log n* where *n* is the number of atoms.
 
@@ -804,7 +803,7 @@ class Molecule (object):
 
 
     def translate(self, vector, unit='angstrom'):
-        """Move this molecule in space by *vector*, expressed in *unit*.
+        """Move the molecule in space by *vector*, expressed in *unit*.
 
         *vector* should be an iterable container of length 3 (usually tuple, list or numpy array). *unit* describes unit of values stored in *vector*.
         """
@@ -813,25 +812,25 @@ class Molecule (object):
 
 
     def rotate_lattice(self, matrix):
-        """Rotate **only** lattice vectors of this molecule with given rotation *matrix*.
+        """Rotate **only** lattice vectors of the molecule with given rotation *matrix*.
 
         *matrix* should be a container with 9 numerical values. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
 
         .. note::
 
-            This method does not check if supplied matrix is a proper rotation matrix.
+            This method does not check if *matrix* is a proper rotation matrix.
         """
         self.lattice = [tuple(np.dot(matrix,i)) for i in self.lattice]
 
 
     def rotate(self, matrix, lattice=False):
-        """Rotate this molecule with given rotation *matrix*. If *lattice* is ``True``, rotate also the lattice vectors.
+        """Rotate the molecule with given rotation *matrix*. If *lattice* is ``True``, rotate lattice vectors too.
 
         *matrix* should be a container with 9 numerical values. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
 
         .. note::
 
-            This method does not check if supplied matrix is a proper rotation matrix.
+            This method does not check if *matrix* is a proper rotation matrix.
         """
         for at in self.atoms:
             at.rotate(matrix)
@@ -840,18 +839,18 @@ class Molecule (object):
 
 
     def align_lattice(self, convention='x', zero=1e-10):
-        """Rotate this molecule in such a way that lattice vectors are aligned with coordinate system.
+        """Rotate the molecule in such a way that lattice vectors are aligned with the coordinate system.
 
-        This method is meant to be used with periodic systems only. Using it on a |Molecule| instance with empty ``lattice`` attribute has no effect.
+        This method is meant to be used with periodic systems only. Using it on a |Molecule| instance with an empty ``lattice`` attribute has no effect.
 
-        Possible values of *convention* argument are:
+        Possible values of the *convention* argument are:
 
         *   ``x`` (default) -- first lattice vector aligned with X axis. Second vector (if present) aligned with XY plane.
         *   ``z`` (convention used by `ReaxFF <https://www.scm.com/product/reaxff>`_) -- second lattice vector (if present) aligned with YZ plane. Third vector (if present) aligned with Z axis.
 
         *zero* argument can be used to specify the numerical tolerance for zero (used to determine if some vector is already aligned with a particular axis or plane).
 
-        The returned value is ``True`` if any rotation happened, ``False`` otherwise.
+        The returned boolean value indicates if any rotation happened.
         """
         dim = len(self.lattice)
 
@@ -890,7 +889,7 @@ class Molecule (object):
     def rotate_bond(self, bond, atom, angle, unit='radian'):
         """Rotate given *bond* by an *angle* expressed in *unit*.
 
-        *bond* should be chosen in such a way, that it divides the molecule into two parts (using a bond being part of a ring results in an error). *atom* has to belong to *bond* and is used to pick which "half" of the molecule is rotated. Positive angle denotes counterclockwise rotation (looking along the bond, from the stationary part of the molecule).
+        *bond* should be chosen in such a way, that it divides the molecule into two parts (using a bond being part of a ring results in an error). *atom* has to belong to *bond* and is used to pick which "half" of the molecule is rotated. A positive angle denotes counterclockwise rotation (when looking along the bond, from the stationary part of the molecule).
         """
         if atom not in bond:
             raise MoleculeError('rotate_bond: atom has to belong to the bond')
@@ -915,8 +914,8 @@ class Molecule (object):
         v /= np.linalg.norm(v)
 
         W = np.array([[0, -v[2], v[1]],
-                         [v[2], 0, -v[0]],
-                         [-v[1], v[0], 0]])
+                     [v[2], 0, -v[0]],
+                     [-v[1], v[0], 0]])
 
         angle = Units.convert(angle, unit, 'radian')
         a1 = math.sin(angle)
@@ -932,7 +931,7 @@ class Molecule (object):
 
 
     def closest_atom(self, point, unit='angstrom'):
-        """Return the atom of this molecule that is the closest one to some *point* in space.
+        """Return the atom of the molecule that is the closest one to some *point* in space.
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*.
         """
@@ -946,7 +945,7 @@ class Molecule (object):
 
 
     def distance_to_point(self, point, unit='angstrom', result_unit='angstrom'):
-        """Calculate the distance between this molecule and some *point* in space (distance between *point* and :meth:`closest_atom`).
+        """Calculate the distance between the molecule and some *point* in space (distance between *point* and :meth:`closest_atom`).
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
         """
@@ -955,11 +954,11 @@ class Molecule (object):
 
 
     def distance_to_mol(self, other, result_unit='angstrom', return_atoms=False):
-        """Calculate the distance between this molecule and some *other* molecule.
+        """Calculate the distance between the molecule and some *other* molecule.
 
-        The distance is measured as the smallest distance between a pair of atoms, one belonging to each of the molecules. Returned distance is expressed in *result_unit*.
+        The distance is measured as the smallest distance between any atom of this molecule and any atom of *other* molecule. Returned distance is expressed in *result_unit*.
 
-        If *return_atoms* is ``False``, only a single number is returned.  If *return_atoms* is ``True``, this method returns a tuple ``(distance, atom1, atom2)`` where ``atom1`` and ``atom2`` are atoms fulfilling the minimal distance, with atom1 belonging to this molecule and atom2 to *other*.
+        If *return_atoms* is ``False``, only a single number is returned.  If *return_atoms* is ``True``, the method returns a tuple ``(distance, atom1, atom2)`` where ``atom1`` and ``atom2`` are atoms fulfilling the minimal distance, with atom1 belonging to this molecule and atom2 to *other*.
         """
         dist = float('inf')
         for at1 in self.atoms:
@@ -991,11 +990,11 @@ class Molecule (object):
 
         Before:
 
-        .. image:: _static/wrap.*
+        .. image:: ../_static/wrap.*
 
         After:
 
-        .. image:: _static/wrap2.*
+        .. image:: ../_static/wrap2.*
 
         """
         length = Units.convert(length, length_unit, 'angstrom')
@@ -1018,7 +1017,7 @@ class Molecule (object):
 
 
     def get_center_of_mass(self, unit='angstrom'):
-        """Return the center of mass of this molecule (as a tuple). Returned coordinates are expressed in *unit*."""
+        """Return the center of mass of the molecule (as a tuple). Returned coordinates are expressed in *unit*."""
         center = [0.0,0.0,0.0]
         total_mass = 0.0
         for at in self.atoms:
@@ -1031,26 +1030,39 @@ class Molecule (object):
 
 
     def get_mass(self):
-        """Return mass of the molecule, expressed in atomic units."""
+        """Return the mass of the molecule, expressed in atomic units."""
         return sum([at.mass for at in self.atoms])
 
 
-    def get_formula(self):
-        """Calculate the molecular formula for this molecule.
+    def get_formula(self, as_dict=False):
+        """Calculate the molecular formula of the molecule.
 
-        Returned value is a single string. It contains simple molecular formula (it only includes atom types and total number of atoms of each type)."""
-        atnums = [at.atnum for at in self.atoms]
-        s = set(atnums)
-        formula = ''
-        for i in s:
-            formula += PT.get_symbol(i) + str(atnums.count(i))
-        return formula
+        Here molecular formula is a dictionary with keys being atomic symbols. The value for each key is the number of atoms of that type. If *as_dict* is ``True``, that dictionary is returned. Otherwise, it is converted into a string::
+
+            >>> mol = Molecule('Ubiquitin.xyz')
+            >>> print(m.get_formula(True))
+            {'N': 105, 'C': 378, 'O': 118, 'S': 1, 'H': 629}
+            >>> print(m.get_formula(False))
+            C378H629N105O118S1
+
+        """
+        ret = {}
+        for atom in self:
+            if atom.symbol not in ret:
+                ret[atom.symbol] = 0
+            ret[atom.symbol] +=1
+        if as_dict:
+            return ret
+        s = ''
+        for key in sorted(ret):
+            s += '{}{}'.format(key,ret[key])
+        return s
 
 
     def apply_strain(self, strain):
         """Apply a strain deformation to a periodic system.
 
-        This method can be used only for periodic systems (the ones with non-empty ``lattice`` attribute). *strain* should be a container with n*n numerical values, where n is the size of the ``lattice``. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
+        This method can be used only for periodic systems (the ones with a non-empty ``lattice`` attribute). *strain* should be a container with n*n numerical values, where n is the size of the ``lattice``. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
         """
 
         n = len(self.lattice)
@@ -1084,13 +1096,15 @@ class Molecule (object):
 
 
     def __len__(self):
-        """Length of a molecule is the number of atoms."""
+        """The length of the molecule is the number of atoms."""
         return len(self.atoms)
 
     def __str__(self):
-        """Return string representation of this molecule.
+        """Return a string representation of the molecule.
 
-        Information about atoms are printed in ``xyz`` format fashion -- each atom in a separate, enumerated line. Then, if the molecule contains any bonds, they are printed. Each bond is printed in a separate line, with information about both atoms and bond order. Example::
+        Information about atoms is printed in ``xyz`` format fashion -- each atom in a separate, enumerated line. Then, if the molecule contains any bonds, they are printed. Each bond is printed in a separate line, with information about both atoms and bond order. Example:
+
+        .. code-block:: none
 
                   Atoms:
                     1         N       0.00000       0.00000       0.38321
@@ -1126,12 +1140,13 @@ class Molecule (object):
 
 
     def __getitem__(self, key):
-        """Bracket notation can be used to access atoms or bonds directly.
+        """The bracket notation can be used to access atoms or bonds directly.
 
-        If *key* is a single int (``mymol[i]``), return i-th atom of this molecule. If *key* is a pair of ints (``mymol[(i,j)]``), return bond between i-th and j-th atom (``None`` if such a bond does not exist).
+        If *key* is a single int (``mymol[i]``), return i-th atom of the molecule. If *key* is a pair of ints (``mymol[(i,j)]``), return the bond between i-th and j-th atom (``None`` if such a bond does not exist). Negative integers can be used to access atoms enumerated in the reversed order.
 
-        This method is read only (things like ``mymol[3] = Atom(...)`` are forbidden). Numbering of atoms withing a molecule starts with 1.
+        This notation is read only: things like ``mymol[3] = Atom(...)`` are forbidden.
 
+        Numbering of atoms within a molecule starts with 1.
         """
         if isinstance(key, int):
             if key == 0:
@@ -1140,16 +1155,16 @@ class Molecule (object):
                 return self.atoms[key]
             return self.atoms[key-1]
         if isinstance(key, tuple) and len(key) == 2:
-            if key[0] == 0 or key[1] == 0:
-                raise MoleculeError('Numbering of atoms starts with 1')
-            return self.find_bond(self.atoms[key[0]-1], self.atoms[key[1]-1])
+            return self.find_bond(self[key[0]], self[key[1]])
+        raise MoleculeError('Molecule: invalid argument {} inside []'.format(key))
+
 
     def __add__(self, other):
-        """Create a new molecule that is a sum of this molecule and *other*::
+        """Create a new molecule that is a sum of this molecule and some *other* molecule::
 
-        >>> newmol = mol1 + mol2
+            newmol = mol1 + mol2
 
-        The new molecule has atoms, bonds and all other elements distinct from both components. ``properties`` of ``newmol`` are ``properties`` of ``mol1`` :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with ``properties`` of ``mol2``.
+        The new molecule has atoms, bonds and all other elements distinct from both components. The ``properties`` of ``newmol`` are a copy of the ``properties`` of ``mol1`` :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the ``properties`` of ``mol2``.
         """
         m = self.copy()
         m += other
@@ -1157,11 +1172,11 @@ class Molecule (object):
 
 
     def __iadd__(self, other):
-        """Add *other* molecule to this one::
+        """Add some *other* molecule to this one::
 
-        >>> protein += water
+            protein += water
 
-        All atoms and bonds present in *other* are copied and copies are added to this molecule. ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with ``properties`` of *other*.
+        All atoms and bonds present in *other* are copied and copies are added to this molecule. The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
         """
         othercopy = other.copy()
         self.atoms += othercopy.atoms
@@ -1484,14 +1499,16 @@ class Molecule (object):
         pdb.write(f)
 
 
-    def read(self, filename, inputformat=None, frame=1, ase=False):
-        """Read molecular coordinates from file.
+
+
+    def read(self, filename, inputformat=None, geometry=1, ase=False):
+        """Read molecular coordinates from a file.
 
         If *ase* is set to ``True``, the ASE.io module is used to read the input file. The ASE Atoms object then gets converted to a PLAMS Molecule. See https://wiki.fysik.dtu.dk/ase/ase/io/io.html on how to use it. So far the options *filename*, *inputformat*, and *frame* are passed to their respective ASE.io pendants.
 
-        *filename* should be a string with a path to the file. If *inputformat* is not ``None``, it should be one of supported formats (keys occurring in class attribute ``_readformat``). Otherwise, format of the file is deduced from file's extension (for files without extension `xyz` format is assumed).
+        *filename* should be a string with a path to a file. If *inputformat* is not ``None``, it should be one of supported formats (keys occurring in the class attribute ``_readformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
 
-        If chosen format allows multiple geometries in a single file, *frame* can be used to pick one of them.
+        If the chosen format allows multiple geometries in a single file, *geometry* can be used to pick one of them.
         """
         if ase:
             try:
@@ -1516,7 +1533,7 @@ class Molecule (object):
                 inputformat = 'xyz'
         if inputformat in self.__class__._readformat:
             with open(filename, 'r') as f:
-                ret = self._readformat[inputformat](self, f, frame)
+                ret = self._readformat[inputformat](self, f, geometry)
             return ret
         else:
             raise MoleculeError('read: Unsupported file format')
@@ -1528,7 +1545,7 @@ class Molecule (object):
 
         If *ase* is ``True``, the ASE.io module will be used for writing. In this case the |Molecule| will be converted to an ``ase.atoms`` (see :meth:`tools.ase.toASE<scm.plams.tools.ase.toASE>`) object and then all options will be passed to ``atoms.write`` (*outputformat* is forwarded to *format*, *filename* and all *other* are passed through).
 
-        *filename* should be a string with a path to the file. If *outputformat* is not ``None``, it should be one of supported formats (keys occurring in class attribute ``_writeformat``). Otherwise, format of the file is deduced from file's extension (for files without extension `xyz` format is assumed).
+        *filename* should be a string with a path to a file. If *outputformat* is not ``None``, it should be one of supported formats (keys occurring in the class attribute ``_writeformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
         """
 
         if ase:
@@ -1559,13 +1576,11 @@ class Molecule (object):
 
 
     def as_dict(self):
-        """
-        Store all the information about this |Molecule| in a dictionary.
+        """Store all information about the molecule in a dictionary.
 
-        Returned dictionary is, in principle, identical to ``self.__dict__`` of the current instance, apart from the fact that all |Atom| and |Bond| instances in ``atoms`` and ``bonds`` lists are replaced with dictionaries storing corresponing information.
+        The returned dictionary is, in principle, identical to ``self.__dict__`` of the current instance, apart from the fact that all |Atom| and |Bond| instances in ``atoms`` and ``bonds`` lists are replaced with dictionaries storing corresponing information.
 
-        This method is a counterpart of :meth:`~scm.plams.core.basemol.Molecule.from_dict`.
-
+        This method is a counterpart of :meth:`from_dict`.
         """
         mol_dict = copy.copy(self.__dict__)
         atom_indices = {id(a): i for i, a in enumerate(mol_dict['atoms'])}
@@ -1587,10 +1602,9 @@ class Molecule (object):
 
     @classmethod
     def from_dict(cls, dictionary):
-        """
-        Generate a new |Molecule| instance based on the information stored in *dictionary*.
+        """Generate a new |Molecule| instance based on the information stored in a *dictionary*.
 
-        This method is a counterpart of :meth:`~scm.plams.core.basemol.Molecule.as_dict`.
+        This method is a counterpart of :meth:`as_dict`.
         """
         mol = cls()
         mol.__dict__ = copy.copy(dictionary)
@@ -1612,33 +1626,3 @@ class Molecule (object):
             b.mol = mol
             mol.add_bond(b)
         return mol
-
-
-#===========================================================================
-
-
-def read_molecules(folder, formats=None, **other):
-    """Read all molecules from *folder*.
-
-    Read all the files present in *folder* with extensions compatible with :meth:`Molecule.read<scm.plams.core.basemol.Molecule.read>`. Returned value is a dictionary with keys being molecule names (filename without extension) and values being |Molecule| instances.
-
-    The optional argument *formats* can be used to narrow down the search to files with specified extensions::
-
-        molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
-
-
-    All *other* arguments will be passed to every |Molecule| initialization.
-    """
-
-    extensions = formats or list(Molecule._readformat.keys())
-    is_valid = lambda x: os.path.isfile(opj(folder,x)) and any([x.endswith('.'+ext) for ext in extensions])
-    filenames = filter(is_valid, os.listdir(folder))
-    ret = {}
-    for f in filenames:
-        m = Molecule(opj(folder,f),**other)
-        ret[m.properties.name] = m
-    return ret
-
-
-
-

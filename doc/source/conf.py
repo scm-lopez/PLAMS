@@ -11,7 +11,6 @@ from docutils.parsers.rst.directives.admonitions import Important,Danger,Attenti
 from sphinx.locale import admonitionlabels
 
 admonitionlabels['important'] = 'Technical'
-admonitionlabels['attention'] = 'ADF Suite'
 admonitionlabels['danger'] = 'Warning'
 
 def modify_signature(app, what, name, obj, options, signature,
@@ -25,7 +24,6 @@ def setup(app):
         app.add_stylesheet('boxes.css')
     app.add_directive('warning', Danger)
     app.add_directive('technical', Important)
-    app.add_directive('adfsuite', Attention)
     app.connect('autodoc-process-signature', modify_signature)
 
 
@@ -61,7 +59,7 @@ else:
     # built documents.
     #
     # The short X.Y version.
-    version = '1.2'
+    version = '1.3'
     # The full version, including alpha/beta/rc tags.
     #release = ''
 
@@ -198,7 +196,7 @@ add_module_names = False
 pygments_style = 'sphinx'
 
 # configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'python3': ('http://docs.python.org/3.5', None)}
+intersphinx_mapping = {'python3': ('http://docs.python.org/3.6', None)}
 
 autodoc_default_flags = ['members', 'private-members', 'special-members']
 autodoc_member_order = 'bysource'
@@ -223,8 +221,11 @@ rst_epilog = """
 .. |SingleJob| replace:: :class:`~scm.plams.core.basejob.SingleJob`
 .. |MultiJob| replace:: :class:`~scm.plams.core.basejob.MultiJob`
 .. |run| replace:: :meth:`~scm.plams.core.basejob.Job.run`
+.. |get_input| replace:: :meth:`~scm.plams.core.basejob.SingleJob.get_input`
+.. |get_runscript| replace:: :meth:`~scm.plams.core.basejob.SingleJob.get_runscript`
 .. |prerun| replace:: :meth:`~scm.plams.core.basejob.Job.prerun`
 .. |postrun| replace:: :meth:`~scm.plams.core.basejob.Job.postrun`
+.. |load_external| replace:: :meth:`~scm.plams.core.basejob.SingleJob.load_external`
 
 .. |Atom| replace:: :class:`~scm.plams.core.basemol.Atom`
 .. |Bond| replace:: :class:`~scm.plams.core.basemol.Bond`
@@ -244,34 +245,58 @@ rst_epilog = """
 .. |KFReader| replace:: :class:`~scm.plams.tools.kftools.KFReader`
 .. |KFFile| replace:: :class:`~scm.plams.tools.kftools.KFFile`
 
-.. |SCMJob| replace:: :class:`~scm.plams.interfaces.adfsuite.SCMJob`
-.. |SCMResults| replace:: :class:`~scm.plams.interfaces.adfsuite.SCMResults`
-.. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.SCMJob>`
-.. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.SCMResults>`
-.. |BANDJob| replace:: :class:`BANDJob<scm.plams.interfaces.adfsuite.SCMJob>`
-.. |BANDResults| replace:: :class:`BANDResults<scm.plams.interfaces.adfsuite.SCMResults>`
-.. |DFTBJob| replace:: :class:`DFTBJob<scm.plams.interfaces.adfsuite.SCMJob>`
-.. |DFTBResults| replace:: :class:`DFTBResults<scm.plams.interfaces.adfsuite.SCMResults>`
+.. |AMSJob| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSJob`
+.. |AMSResults| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSResults`
+
+.. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
+.. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`
+
+.. |SCMJob| replace:: :class:`~scm.plams.interfaces.adfsuite.scmjob.SCMJob`
+.. |SCMResults| replace:: :class:`~scm.plams.interfaces.adfsuite.scmjob.SCMResults`
+
+.. |BANDJob| replace:: :class:`BANDJob<scm.plams.interfaces.adfsuite.band.BANDJob>`
+.. |BANDResults| replace:: :class:`BANDResults<scm.plams.interfaces.adfsuite.band.BANDResults>`
+
+.. |DFTBJob| replace:: :class:`DFTBJob<scm.plams.interfaces.adfsuite.dftb.DFTBJob>`
+.. |DFTBResults| replace:: :class:`DFTBResults<scm.plams.interfaces.adfsuite.dftb.DFTBesults>`
+
+.. |MOPACJob| replace:: :class:`~scm.plams.interfaces.adfsuite.mopac.MOPACJob`
+.. |MOPACResults| replace:: :class:`~scm.plams.interfaces.adfsuite.mopac.MOPACResults`
+
+.. |ReaxFFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.reaxff.ReaxFFJob`
+.. |ReaxFFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.reaxff.ReaxFFResults`
+
+.. |UFFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.uff.UFFJob`
+.. |UFFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.uff.UFFResults`
+
+.. |DensfJob| replace:: :class:`~scm.plams.interfaces.adfsuite.densf.DensfJob`
+.. |DensfResults| replace:: :class:`~scm.plams.interfaces.adfsuite.densf.DensfResults`
+
+.. |FCFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.fcf.FCFJob`
+.. |FCFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.fcf.FCFResults`
 
 .. |DiracJob| replace:: :class:`~scm.plams.interfaces.dirac.DiracJob`
 .. |DiracResults| replace:: :class:`~scm.plams.interfaces.dirac.DiracResults`
 
-.. |MOPACJob| replace:: :class:`~scm.plams.interfaces.mopac.MOPACJob`
-.. |MOPACResults| replace:: :class:`~scm.plams.interfaces.mopac.MOPACResults`
+.. |CrystalJob| replace:: :class:`CrystalJob<scm.plams.interfaces.thirdparty.crystal.CrystalJob>`
+.. |mol2CrystalConf| replace:: :func:`mol2CrystalConf<scm.plams.interfaces.thirdparty.crystal.mol2CrystalConf>`
 
-.. |CrystalJob| replace:: :class:`CrystalJob<scm.plams.interfaces.crystal.CrystalJob>`
-.. |CrystalResults| replace:: :class:`CrystalResults<scm.plams.interfaces.crystal.CrystalResults>`
-.. |mol2CrystalConf| replace:: :meth:`mol2CrystalConf<scm.plams.interfaces.crystal.mol2CrystalConf>`
+.. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
+.. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`
 
-.. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusJob`
-.. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.dftbplus.DFTBPlusResults`
+.. |VibrationsJob| replace:: :class:`~scm.plams.recipes.vibration.VibrationsJob`
+.. |IRJob| replace:: :class:`~scm.plams.recipes.vibration.IRJob`
+.. |VibrationsResults| replace:: :class:`~scm.plams.recipes.vibration.VibrationsResults`
 
 .. |RPM| replace:: :ref:`rerun-prevention`
 .. |cleaning| replace:: :ref:`cleaning`
 .. |pickling| replace:: :ref:`pickling`
 .. |restarting| replace:: :ref:`restarting`
-.. |master_script| replace:: :ref:`master-script`
+.. |master-script| replace:: :ref:`master-script`
 .. |binding_decorators| replace:: :ref:`binding-decorators`
 .. |parallel| replace:: :ref:`parallel`
+
+.. |nbsp| unicode:: 0xA0
+   :trim:
 """
 

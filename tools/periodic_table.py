@@ -3,13 +3,13 @@ from ..core.errors import PTError
 __all__ = ['PeriodicTable', 'PT']
 
 class PeriodicTable(object):
-    """Singleton class for periodic table of elements.
+    """A singleton class for the periodic table of elements.
 
     For each element the following properties are stores: atomic symbol, atomic mass, atomic radius and number of connectors.
 
     Atomic mass is, strictly speaking, atomic weight, as present in Mathematica's ElementData function.
 
-    Atomic radius and number of connectors are used by :meth:`~scm.plams.core.basemol.Molecule.guess_bonds`. Note that values or radii are neither atomic radii nor covalent radii. They are someway "emprically optimized" for bond guessing algorithm.
+    Atomic radius and number of connectors are used by :meth:`~scm.plams.core.basemol.Molecule.guess_bonds`. Note that values of radii are neither atomic radii nor covalent radii. They are somewhat "emprically optimized" for the bond guessing algorithm.
 
     .. note::
 
@@ -185,7 +185,7 @@ class PeriodicTable(object):
 
     @classmethod
     def _get_property(cls, arg, prop):
-        """Get property of element described by either symbol or atomic number. Skeleton method for :meth`get_radius`, :meth`get_mass` and  :meth`get_connectors`."""
+        """Get property of element described by either symbol or atomic number. Skeleton method for :meth:`get_radius`, :meth:`get_mass` and  :meth:`get_connectors`."""
         if isinstance(arg, str):
             pr = cls.data[cls.get_atomic_number(arg)][prop]
         elif isinstance(arg, int):

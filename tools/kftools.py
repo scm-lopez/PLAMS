@@ -22,7 +22,7 @@ class KFReader(object):
 
     The constructor argument *path* should be a string with a path (relative or absolute) to an existing KF file.
 
-    *blocksize* indicates the length of basic KF file block. So far, all KF files produced by any of ADFSuite programs have the same block size of 4096 bytes. Unless you're doing something *very* special, you should not touch this value.
+    *blocksize* indicates the length of basic KF file block. So far, all KF files produced by any of Amsterdam Modeling Suite programs have the same block size of 4096 bytes. Unless you're doing something *very* special, you should not touch this value.
 
     Organization of data inside KF file can depend on a machine on which this file was produced. Two parameters can vary: the length of integer (32 or 64 bit) and endian (little or big). These parameters have to be determined before any reading can take place, otherwise the results will have no sense. If the constructor argument *autodetect* is ``True``, the constructor attempts to automatically detect the format of a given KF file, allowing to read files created on a machine with different endian or integer length. This automatic detection is enabled by default and it is advised to leave it that way. If you wish to disable it, you should set ``endian`` and ``word`` attributes manually before reading anything (see the code for details).
 
@@ -94,6 +94,10 @@ class KFReader(object):
         """Try to automatically detect the format (int size and endian) of this KF file."""
         with open(self.path, 'rb') as f:
             b = f.read(128)
+
+        blocksize = struct.unpack(b'i',b[28:32])[0]
+        self._blocksize = 4096 if blocksize == 538976288 else blocksize
+        log('Block size of {} detected as {}'.format(self.path, self._blocksize), 7)
 
         one = b[80:84]
 
@@ -192,10 +196,10 @@ class KFReader(object):
                         indexblock = self._read_block(f, pb+i)
                         header = self._parse(indexblock[:hlen],[(32,'s'),(7,self.word)])[0]
                         body = self._parse(indexblock[hlen:],[(32,'s'),(6,self.word)])
-                        for var, vlb, vstart, vlen, _xx1, _xx2, vtype in body:
+                        for var, vlb, vstart, vlen, _xx1, vused, vtype in body:
                             var = var.rstrip(' ')
                             if var == 'EMPTY': continue
-                            self._sections[key][var] = (vtype, vlb, vstart, vlen)
+                            self._sections[key][var] = (vtype, vlb, vstart, vused)
 
             for k,v in self._data.items():
                 self._data[k] = sorted(v)
@@ -353,6 +357,16 @@ class KFFile(object):
                 ret[var] = self.read(sec, var)
         if len(ret) == 0:
             log("WARNING: Section '{}' not present in {} or present, but empty. Returning empty dictionary".format(section, self.path), 1)
+        return ret
+
+
+    def get_skeleton(self):
+        """Return a dictionary reflecting the structure of this KF file. Each key in that dictionary corresponds to a section name of the KF file with the value being a set of variable names."""
+        ret = {}
+        for sec,var in self:
+            if sec not in ret:
+                ret[sec] = set()
+            ret[sec].add(var)
         return ret
 
 

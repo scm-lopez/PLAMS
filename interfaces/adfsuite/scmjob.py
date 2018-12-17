@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 from os.path import join as opj
 
@@ -162,6 +163,17 @@ class SCMResults(Results):
         raise PlamsError('Trying to run an abstract method SCMResults._int2inp()')
 
 
+    def to_input_order(self, data):
+        """to_input_order(self, data)
+        Reorder any iterable *data* from the internal atom order to the input atom order. The length of *data* must be equal to the number of atoms, otherwise an exception is raised. Returned value is a container of the same type as *data*.
+        """
+        mapping = self._int2inp()
+        if len(mapping) != len(data):
+            raise PlamsError('to_input_order() got an argument with incorrect length. Length must be equal to the number of atoms')
+        t = np.array if type(data) == np.ndarray else type(data)
+        return t([data[mapping[i]-1] for i in range(len(mapping))])
+
+
 
 class SCMJob(SingleJob):
     """Abstract class gathering common mechanisms for jobs with ADF Suite programs."""
@@ -169,9 +181,20 @@ class SCMJob(SingleJob):
     _top = ['title','units','define']
     _command = ''
     _subblock_end = 'subend'
+    _legacy = ['band', 'dftb', 'uff']
+
+
+    def __init__(self, **kwargs):
+        SingleJob.__init__(self, **kwargs)
+        if self.__class__._command in self.__class__._legacy:
+            log("LEGACY WARNING: Job {} uses executable '{}' which is not present in AMS2018. Please use AMSJob (unless you're running an older version of ADFSuite)".format(self.name, self.__class__._command), 1)
 
 
     def get_input(self):
+        """Generate the input file. This method is just a wrapper around :meth:`_serialize_input`.
+
+        Each instance of |SCMJob| or |SCMResults| present as a value in ``settings.input`` branch is replaced with an absolute path to the main KF file of that job.
+        """
         special = {
             SCMJob: lambda x: x.results._kfpath(),
             SCMResults: lambda x: x._kfpath(),
@@ -294,7 +317,6 @@ class SCMJob(SingleJob):
         for item in self.settings.input:
             if item.lower() not in self._top:
                 inp += serialize(item, self.settings.input[item], 0) + '\n'
-        inp += 'end input\n'
 
         if use_molecule:
             self._remove_mol()
