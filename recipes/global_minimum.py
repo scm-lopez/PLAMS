@@ -12,7 +12,7 @@ except ModuleNotFoundError or ImportError:
 from ..core.functions import init, finish
 
 
-def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=(1.0), job_type=False, path='.', **kwarg):
+def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=[1.0], job_type=False, path='.', **kwarg):
     """
     Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS |Job|) by systematically varying dihedral angles within the molecule.
 
@@ -20,7 +20,7 @@ def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=(1.0), j
     ''n_scans'' int: The number of times the global minimum search should be repeated
     ''no_h'' bool: If hydrogen-containing bonds should ignored
     ''no_ring'' bool: If bonds in ring systems should ignored
-    ''bond_orders'' tuple: A tuple of accepted bond orders (floats); a bond will be ignored if its bond order is not in *bond_orders*
+    ''bond_orders'' list: A list of accepted bond orders (floats); a bond will be ignored if its bond order is not in *bond_orders*
     ''job_type'' ''False'' or type: A type object of a class derived from |Job|. Set to ''False'' to use RDKit UFF
     ''path'' str: The path where the PLAMS working directory will be stored
     ''kwarg'' dict: Keyword arguments for *job_type*
@@ -31,7 +31,7 @@ def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=(1.0), j
         mol.guess_bonds()
 
     # Create a list of 2-tuples (i.e. atomic indices) representing (valid) bonds within the molecule
-    bond_list = find_bond(mol, no_h)
+    bond_list = find_bond(mol, no_h=no_h, no_ring=no_ring, bond_orders=bond_orders)
 
     # Search for the global minimum with RDKit UFF or with PLAMS at an user-defined level of theory
     if not job_type:
@@ -68,7 +68,7 @@ def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=(1.0), j
     return mol
 
 
-def find_bond(mol, no_h=True, no_ring=True, bond_orders=(1.0)):
+def find_bond(mol, no_h=True, no_ring=True, bond_orders=[1.0]):
     """
     Create a list of bonds. Each entry is a tuple with indices of atoms forming a dihedral.
     Consider only diherdals with axis being a single bond, so that rotation is possible.
@@ -76,7 +76,7 @@ def find_bond(mol, no_h=True, no_ring=True, bond_orders=(1.0)):
     ''mol'' |Molecule|: The input molecule
     ''no_h'' bool: If hydrogen-containing bonds should ignored
     ''no_ring'' bool: If bonds in ring systems should ignored
-    ''bond_orders'' tuple: A tuple of accepted bond orders (floats); A bond will be ignored if its bond order is not in *bond_orders*
+    ''bond_orders'' list: A list of accepted bond orders (floats); A bond will be ignored if its bond order is not in *bond_orders*
     ''return'' list: A list of 2-tuples containing the atomic indices of valid bonds
     """
     mol.set_atoms_id()
