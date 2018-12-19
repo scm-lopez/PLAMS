@@ -340,7 +340,7 @@ class Molecule (object):
 
         mol = Molecule('xyz/Benzene.xyz')
 
-    The constructor of a |Molecule| object accepts four arguments that can be used to supply this information from a file in your filesystem. *filename* should be a string with a path (absolute or relative) to such a file. *inputformat* describes the format of the file. Currently, the following formats are supported: ``xyz``, ``mol``, ``mol2`` and ``pdb``. If *inputformat* is ``ase`` the file reader engine of the ASE.io module is used, enabling you to read all input formats supported by ASE. See :meth:`read` for further details. If *inputformat* argument is not supplied, PLAMS will try to deduce it by examining the extension of the provided file, so in most of cases it is not needed to use *inputformat*, if only the file has the proper extension. Some formats (``xyz`` and ``pdb``) allow to store more than one geometry of a particular molecule within a single file. In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import. All *other* keyword arguments passed to the constructor are used to populate ``properties`` |Settings|.
+    The constructor of a |Molecule| object accepts four arguments that can be used to supply this information from a file in your filesystem. *filename* should be a string with a path (absolute or relative) to such a file. *inputformat* describes the format of the file. Currently, the following formats are supported: ``xyz``, ``mol``, ``mol2`` and ``pdb``. If *inputformat* is ``ase`` the file reader engine of the ASE.io module is used, enabling you to read all input formats supported by :ref:`ASEInterface`. See :meth:`read` for further details. If the *inputformat* argument is not supplied, PLAMS will try to deduce it by examining the extension of the provided file, so in most of cases it is not needed to use *inputformat*, if only the file has the proper extension. Some formats (``xyz`` and ``pdb``) allow to store more than one geometry of a particular molecule within a single file. In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import. A dictionary can be given via *read_options* and will be passed to the appropriate read function for the selected or determined file format. All *other* keyword arguments passed to the constructor are used to populate ``properties`` |Settings|.
 
     If a |Molecule| is initialized from an external file, the path to this file (*filename* argument) is stored in ``properties.source``. The base name of the file (filename without the extension) is kept in ``properties.name``.
 
@@ -398,14 +398,17 @@ class Molecule (object):
     """
 
 
-    def __init__(self, filename=None, inputformat=None, geometry=1, **other):
+    def __init__(self, filename=None, inputformat=None, geometry=1, read_options=None, **other):
         self.atoms = []
         self.bonds = []
         self.lattice = []
         self.properties = Settings(other)
 
         if filename is not None :
-            self.read(filename, inputformat, geometry)
+            if read_options is None:
+                self.read(filename, inputformat, geometry)
+            else:
+                self.read(filename, inputformat, geometry, **read_options)
             self.properties.source = filename
             self.properties.name = os.path.splitext(os.path.basename(filename))[0]
 
@@ -1544,6 +1547,7 @@ class Molecule (object):
         else:
             raise MoleculeError('write: Unsupported file format')
 
+    #Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
 

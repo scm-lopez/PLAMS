@@ -1,8 +1,6 @@
-import os
+from os.path import join as opj
 import subprocess
 import numpy as np
-
-from os.path import join as opj
 
 from ...core.basejob  import SingleJob
 from ...core.results import Results
@@ -179,7 +177,6 @@ class CrystalJob(SingleJob):
     def _parsemol(self):
         if 'ase' in Molecule._writeformat:
             #ASE has a write function for Crystal coordinate files, use that if possible
-            from os.path import join as opj
             filename = opj(self.path, 'fort.34')
             #The Crystal IO of ASE only supports filenames, not descirptors right now
             self.molecule.writease(filename)

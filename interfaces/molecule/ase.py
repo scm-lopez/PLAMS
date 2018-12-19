@@ -17,17 +17,6 @@ except ImportError:
 if ase_present:
     @add_to_class(Molecule)
     def readase(self, f, geometry, **other):
-        """Read Molecule using ASE engine
-
-        The ``read`` function of the |Molecule| class passes a file descriptor into here, so in this case you must specify the *format* to be read by ASE.
-        Otherwise use ``|Molecule|.readase()`` to avoid specifying the *format* manually.
-        The ASE Atoms object then gets converted to a PLAMS Molecule and returned.
-        All *other* options are passed to ``ASE.io.read()``.
-        See https://wiki.fysik.dtu.dk/ase/ase/io/io.html on how to use it.
-
-        NOTE: The *geometry* option is neglected. Use the corresponding ASE keyword to pick a certain geometry/image.
-        The nomenclature of PLAMS and ASE is incompatible for reading multiple geometries, make sure that you only read single geometries with ASE! Reading multiple geometries is not supported, each frame needs to be read individually.
-        """
         try:
             from ase import io as aseIO
         except ImportError:
@@ -44,10 +33,36 @@ if ase_present:
 
     @add_to_class(Molecule)
     def writease(self, f, **other):
+        aseMol = toASE(self)
+        aseMol.write(f, **other)
+        return
+
+
+    Molecule._readformat['ase'] = Molecule.readase
+    Molecule._writeformat['ase'] = Molecule.writease
+
+
+    #Hack to get documentation at the right place
+    def readase(self, f, geometry, **other):
+        """Read Molecule using ASE engine
+
+        The ``read`` function of the |Molecule| class passes a file descriptor into here, so in this case you must specify the *format* to be read by ASE.
+        Otherwise use ``Molecule.readase()`` to avoid specifying the *format* manually.
+        The ASE Atoms object then gets converted to a PLAMS Molecule and returned.
+        All *other* options are passed to ``ASE.io.read()``.
+        See https://wiki.fysik.dtu.dk/ase/ase/io/io.html on how to use it.
+
+        NOTE: The *geometry* option is neglected. Use the corresponding ASE keyword to pick a certain geometry/image.
+        The nomenclature of PLAMS and ASE is incompatible for reading multiple geometries, make sure that you only read single geometries with ASE! Reading multiple geometries is not supported, each frame needs to be read individually.
+        """
+        Molecule.readase(self, f, geometry, **other)
+
+
+    def writease(self, f, **other):
         """Write molecular coordinates using ASE engine.
 
         The ``write`` function of the |Molecule| class passes a file descriptor into here, so in this case you must specify the *format* to be written by ASE.
-        Otherwise use ``|Molecule|.writease()`` to avoid specifying the *format* manually.
+        Otherwise use ``Molecule.writease()`` to avoid specifying the *format* manually.
         All *other* options are passed to ``ASE.io.write()``.
         See https://wiki.fysik.dtu.dk/ase/ase/io/io.html on how to use it.
 
@@ -58,15 +73,11 @@ if ase_present:
         >>> molecule.writease('filename.gen')
 
         But this one will write a JSON dump because ASE does not know the filetype from a file descriptor passed by PLAMS:
+
         >>> molecule.writease('filename.gen', outputformat='ase')
         """
+        Molecule.writease(self, f, **other)
 
-        aseMol = toASE(self)
-        aseMol.write(f, **other)
-        return
-
-    Molecule._readformat['ase'] = Molecule.readase
-    Molecule._writeformat['ase'] = Molecule.writease
 
 
 def toASE(molecule):
