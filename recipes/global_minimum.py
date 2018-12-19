@@ -1,9 +1,11 @@
 
 __all__ = ['global_minimum']
 
+import sys
+
 try:
     from rdkit.Chem import AllChem, rdForceFieldHelpers
-    from ..interface.molecule.rdkit import to_rdmol, from_rdmol
+    from ..interfaces.molecule.rdkit import to_rdmol, from_rdmol
 except ModuleNotFoundError or ImportError:
     pass
 
@@ -33,6 +35,8 @@ def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=(1.0), j
 
     # Search for the global minimum with RDKit UFF or with PLAMS at an user-defined level of theory
     if not job_type:
+        if 'rdkit.Chem.AllChem' not in sys.modules or 'rdkit.Chem.rdForceFieldHelpers' not in sys.modules:
+            raise ModuleNotFoundError('rdkit.chem module not found, aborting RDKit UFF optimization')
         if not no_ring:
             raise TypeError('no_ring=False is not supported in combination with RDKit UFF')
         if not rdForceFieldHelpers.UFFHasAllMoleculeParams(to_rdmol(mol)):
