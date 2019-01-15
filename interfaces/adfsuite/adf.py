@@ -3,7 +3,7 @@ import numpy as np
 from .scmjob import SCMJob, SCMResults
 from ...core.errors import ResultsError
 from ...core.settings import Settings
-from ...core.functions import config
+from ...core.functions import config, log
 from ...tools.units import Units
 from ...tools.periodic_table import PT
 
@@ -137,12 +137,17 @@ class ADFResults(SCMResults):
         """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
         """
         if self._kfpresent():
-            user_input = self.readkf('General', 'user input')
+            if ('General', 'Input') in self._kf:
+                tmp = self.readkf('General', 'Input')
+                user_input = '\n'.join([tmp[i:160+i] for i in range(0,len(tmp),160)])
+            else:
+                user_input = self.readkf('General', 'user input')
             try:
                 from scm.input_parser import input_to_settings
                 inp = input_to_settings(user_input, program='adf')
             except:
-                log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path, 5))
+                log('Failed to recreate input settings from {}'.format(self._kf.path, 5))
+                return None
             s = Settings()
             s.input = inp
             del s.input[s.input.find_case('atoms')]
