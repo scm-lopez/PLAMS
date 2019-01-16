@@ -46,7 +46,7 @@ The most important features of PLAMS:
 *   convenient automatic file and folder management
 *   running jobs in parallel without a need to prepare a special parallel script
 *   integration with popular job schedulers (OGE, SLURM, TORQUE)
-*   molecular coordinates manipulation using user-friendly |Molecule| class, supporting various formats (``xyz``, ``mol``, ``mol2``, ``pdb``), as well as interfaces to ASEAtoms and RDKit.
+*   molecular coordinates manipulation using user-friendly |Molecule| class, supporting various formats (``xyz``, ``mol``, ``mol2``, ``pdb``), as well as interfaces to ASE and RDKit.
 *   prevention of multiple runs of the same job
 *   easy data transfer between separate runs
 *   efficient restarting in case of crash

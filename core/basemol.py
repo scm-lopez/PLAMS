@@ -324,7 +324,7 @@ class Molecule (object):
     *   ``atoms`` -- list of |Atom| objects that belong to the molecule
     *   ``bonds`` -- list of |Bond| objects between atoms listed in ``atoms``
     *   ``lattice`` -- list of lattice vectors in case of periodic structures
-    *   ``properties`` -- |Settings| instance storing all other information about the molecule (initially it is populated with *\*\*other*)
+    *   ``properties`` -- |Settings| instance storing all other information about the molecule
 
     .. note::
 
@@ -340,11 +340,11 @@ class Molecule (object):
 
         mol = Molecule('xyz/Benzene.xyz')
 
-    The constructor of a |Molecule| object accepts three arguments that can be used to supply this information from a file in your filesystem. *filename* should be a string with a path (absolute or relative) to such a file. *inputformat* describes the format of the file. Currently, the following formats are supported: ``xyz``, ``mol``, ``mol2`` and ``pdb``. If the *inputformat* argument is not supplied, PLAMS will try to deduce it by examining the extension of the provided file, so in most of cases it is not needed to use *inputformat*, if only the file has a proper extension. Some formats (``xyz`` and ``pdb``) allow to store more than one geometry of a particular molecule within a single file. In such cases *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import. *\*\*other* keyword arguments passed to the constructor are used to populate the ``properties``.
+    The constructor of a |Molecule| object accepts four arguments that can be used to supply this information from a file in your filesystem. *filename* should be a string with a path (absolute or relative) to such a file. *inputformat* describes the format of the file. Currently, the following formats are supported: ``xyz``, ``mol``, ``mol2`` and ``pdb``. If *inputformat* is ``ase`` the file reader engine of the ASE.io module is used, enabling you to read all input formats supported by :ref:`ASEInterface`. See :meth:`read` for further details. If the *inputformat* argument is not supplied, PLAMS will try to deduce it by examining the extension of the provided file, so in most of cases it is not needed to use *inputformat*, if only the file has the proper extension. Some formats (``xyz`` and ``pdb``) allow to store more than one geometry of a particular molecule within a single file. See the respective :meth:`read` function for details how to access them. All *other* keyword arguments will be passed to the appropriate read function for the selected or determined file format.
 
     If a |Molecule| is initialized from an external file, the path to this file (*filename* argument) is stored in ``properties.source``. The base name of the file (filename without the extension) is kept in ``properties.name``.
 
-    It is also possible to write a molecule to a file in one of the formats mentioned above. See :meth:`write` for details.
+    It is also possible to write a molecule to a file in one of the formats mentioned above or using the ASE.io engine. See :meth:`write` for details.
 
     The ``lattice`` attribute is used to store information about lattice vectors in case of periodic structures. Some job types will automatically use that data while constructing input files. ``lattice`` should be a list of up to 3 vectors (for different types of periodicity: chain, slab or bulk), each of which needs to be a list or a tuple of 3 numbers.
 
@@ -398,14 +398,14 @@ class Molecule (object):
     """
 
 
-    def __init__(self, filename=None, inputformat=None, geometry=1, **other):
+    def __init__(self, filename=None, inputformat=None, **other):
         self.atoms = []
         self.bonds = []
         self.lattice = []
-        self.properties = Settings(other)
+        self.properties = Settings()
 
         if filename is not None :
-            self.read(filename, inputformat, geometry)
+            self.read(filename, inputformat, **other)
             self.properties.source = filename
             self.properties.name = os.path.splitext(os.path.basename(filename))[0]
 
@@ -1231,7 +1231,13 @@ class Molecule (object):
 
 
 
-    def readxyz(self, f, frame):
+    def readxyz(self, f, frame=0):
+        """XYZ Reader:
+
+            The xyz format allows to store more than one geometry of a particular molecule within a single file.
+            In such cases the *frame* argument can be used to indicate which (in order of appearance in the file) geometry to import.
+            Default is the first one (frame=0).
+        """
 
         def newatom(line):
             lst = line.split()
@@ -1245,7 +1251,7 @@ class Molecule (object):
             lst = line.split()
             self.lattice.append((float(lst[1]),float(lst[2]),float(lst[3])))
 
-        fr = frame
+        fr = frame + 1
         begin, first, nohead = True, True, False
         for line in f:
             if first:
@@ -1284,7 +1290,7 @@ class Molecule (object):
                     else:
                         break
         if not nohead and fr > 0:
-            raise FileError('readxyz: There are only %i frames in %s' % (frame - fr, f.name))
+            raise FileError('readxyz: There are only %i frames in %s' % (frame + 1 - fr, f.name))
 
 
     def writexyz(self, f):
@@ -1301,9 +1307,7 @@ class Molecule (object):
             f.write('VEC'+str(i+1) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
 
 
-    def readmol(self, f, frame):
-        if frame != 1:
-            raise FileError('readmol: .mol files do not support multiple geometries')
+    def readmol(self, f):
 
         comment = []
         for i in range(4):
@@ -1383,9 +1387,7 @@ class Molecule (object):
 
 
 
-    def readmol2(self, f, frame):
-        if frame != 1:
-            raise MoleculeError('readmol: .mol2 files do not support multiple geometries')
+    def readmol2(self, f):
 
         bondorders = {'1':1, '2':2, '3':3, 'am':1, 'ar':Bond.AR, 'du':0, 'un':1, 'nc':0}
         mode = ('', 0)
@@ -1491,14 +1493,20 @@ class Molecule (object):
 
 
 
-    def readpdb(self, f, frame):
+    def readpdb(self, f, frame=0):
+        """PDB Reader:
+
+            The pdb format allows to store more than one geometry of a particular molecule within a single file.
+            In such cases the *frame* argument can be used to indicate which (in order of appearance in the file) geometry to import.
+            Default is the first one (frame=0).
+        """
         pdb = PDBHandler(f)
         models = pdb.get_models()
-        if frame > len(models):
+        if frame > len(models)-1:
             raise FileError('readpdb: There are only %i frames in %s' % (len(models), f.name))
 
         symbol_columns = [70,6,7,8]
-        for i in models[frame-1]:
+        for i in models[frame]:
             if i.name in ['ATOM  ','HETATM']:
                 x = float(i.value[0][24:32])
                 y = float(i.value[0][32:40])
@@ -1530,13 +1538,14 @@ class Molecule (object):
         pdb.write(f)
 
 
-    def read(self, filename, inputformat=None, geometry=1):
+    def read(self, filename, inputformat=None, **other):
         """Read molecular coordinates from a file.
 
-        *filename* should be a string with a path to a file. If *inputformat* is not ``None``, it should be one of supported formats (keys occurring in the class attribute ``_readformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
+        *filename* should be a string with a path to a file. If *inputformat* is not ``None``, it should be one of supported formats or engines (keys occurring in the class attribute ``_readformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
 
-        If the chosen format allows multiple geometries in a single file, *geometry* can be used to pick one of them.
+        All *other* options are passed to the chosen format reader.
         """
+
         if inputformat is None:
             fsplit = filename.rsplit('.',1)
             if len(fsplit) == 2:
@@ -1545,18 +1554,21 @@ class Molecule (object):
                 inputformat = 'xyz'
         if inputformat in self.__class__._readformat:
             with open(filename, 'r') as f:
-                ret = self._readformat[inputformat](self, f, geometry)
+                ret = self._readformat[inputformat](self, f, **other)
             return ret
         else:
             raise MoleculeError('read: Unsupported file format')
 
 
 
-    def write(self, filename, outputformat=None):
+    def write(self, filename, outputformat=None, **other):
         """Write molecular coordinates to a file.
 
-        *filename* should be a string with a path to a file. If *outputformat* is not ``None``, it should be one of supported formats (keys occurring in the class attribute ``_writeformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
+        *filename* should be a string with a path to a file. If *outputformat* is not ``None``, it should be one of supported formats or engines (keys occurring in the class attribute ``_writeformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
+
+        All *other* options are passed to the chosen format writer.
         """
+
         if outputformat is None:
             fsplit = filename.rsplit('.',1)
             if len(fsplit) == 2:
@@ -1565,10 +1577,11 @@ class Molecule (object):
                 outputformat = 'xyz'
         if outputformat in self.__class__._writeformat:
             with open(filename, 'w') as f:
-                self._writeformat[outputformat](self, f)
+                self._writeformat[outputformat](self, f, **other)
         else:
             raise MoleculeError('write: Unsupported file format')
 
+    #Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
 
@@ -1625,4 +1638,3 @@ class Molecule (object):
             b.mol = mol
             mol.add_bond(b)
         return mol
-

@@ -19,8 +19,11 @@ Preparing a calculation
 Preparing an instance of |DFTBPlusJob| follows the general principles for |SingleJob|.
 Information adjusting the input file is stored in the ``myjob.settings.input`` branch.
 The geometry of your system can be supplied via the class |Molecule|.
-Note that the molecule is transformed into the ``GenFormat`` with the ``C`` (cluster) or ``S`` (supercell) option, meaning the class can handle clusters and supercell systems.
+If the Atomic Simulation Environment (`ASE <https://wiki.fysik.dtu.dk/ase/index.html>`_) is installed, the molecule is written using its engine.
+Otherwise this interface provies a basic routine.
+Note that the molecule is in this case transformed into the ``GenFormat`` with the ``C`` (cluster) or ``S`` (supercell) option, meaning the internal routine can handle clusters and supercell systems.
 The option ``F`` for fractional coordinates is not available! See `the manual <http://www.dftb-plus.info/documentation/>`_ for further information on the different geometry-input types.
+
 
 
 

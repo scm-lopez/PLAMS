@@ -5,14 +5,15 @@ based on code from Michal Handzlik
 
 see documentation for an example
 """
+from os.path import join as opj
+
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
 from ...core.results import Results
 from ...tools.units import Units
 from ...core.basemol import Molecule
-from ...core.errors import PlamsError
-from ..molecule.ase import fromASE
-
+from ...core.errors import PlamsError, MoleculeError
+from ...interfaces.molecule.ase import fromASE
 
 __all__ = ['DFTBPlusJob', 'DFTBPlusResults']
 
@@ -26,14 +27,12 @@ class DFTBPlusResults(Results):
 
     def get_molecule(self):
         """get_molecule()
-        Return the molecule from the 'geo_end.gen' file. If there is no ASE, try to read the 'geo_end.xyz' file.
+        Return the molecule from the 'geo_end.gen' file. If there is an Error, try to read the 'geo_end.xyz' file.
         """
         try:
             #The .gen file contains the cell, ASE can read it
-            from ase import Atoms as aseAtoms
-            from ase import io as aseIO
-            mol = fromASE(aseIO.read(self[self._genout]))
-        except ImportError:
+            mol = Molecule(self[self._genout], inputformat='ase')
+        except MoleculeError:
             #Fallback if no ASE found
             mol = Molecule(filename=self[self._xyzout])
         except:
@@ -75,7 +74,7 @@ class DFTBPlusJob(SingleJob):
     """A class representing a single computational job with DFTB+.
        Only supports molecular coordinates, no support for lattice yet."""
     _result_type = DFTBPlusResults
-    _filenames = {'inp':'dftb_in.hsd', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
+    _filenames = {'inp':'dftb_in.hsd', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err', 'gen': '$JN.gen'}
 
 
     def get_input(self):
@@ -124,40 +123,49 @@ class DFTBPlusJob(SingleJob):
 
 
     def _parsemol(self):
-        atom_types = {}
-        n = 1
-        atoms_line = ''
-        for atom in self.molecule:
-            if atom.symbol not in atom_types:
-                atoms_line += atom.symbol + ' '
-                atom_types[atom.symbol] = n
-                n += 1
+        #use ASE to write molecule if available
+        if 'ase' in Molecule._writeformat:
+            filename = opj(self.path, self._filename('gen'))
+            self.molecule.write(filename, outputformat='ase', format='gen')
+            self.settings.input.geometry._h = 'GenFormat'
+            self.settings.input.geometry._1 = '<<< '+self._filename('gen')
 
-        #check PBC
-        lattice = []
-        geomType = 'C'
-        for vec in self.molecule.lattice:
-            if not all(isinstance(x, (int,float)) for x in vec):
-                raise ValueError("Non-Number in Lattice Vectors, not compatible with DFTBPlus")
+        else:
+            #Old way of handling gen-format ourselves, delete if ASE becomes obligatory
+            atom_types = {}
+            n = 1
+            atoms_line = ''
+            for atom in self.molecule:
+                if atom.symbol not in atom_types:
+                    atoms_line += atom.symbol + ' '
+                    atom_types[atom.symbol] = n
+                    n += 1
 
-            lattice.append(vec)
-            geomType = 'S'
+            #check PBC
+            lattice = []
+            geomType = 'C'
+            for vec in self.molecule.lattice:
+                if not all(isinstance(x, (int,float)) for x in vec):
+                    raise ValueError("Non-Number in Lattice Vectors, not compatible with DFTBPlus")
 
-        self.settings.input.geometry._h = 'GenFormat'
-        self.settings.input.geometry._1 = '%i %s'%(len(self.molecule),geomType)
-        self.settings.input.geometry._2 = atoms_line
-        self.settings.input.geometry._3 = ''
+                lattice.append(vec)
+                geomType = 'S'
 
-        for i,atom in enumerate(self.molecule):
-            self.settings.input.geometry['_'+str(i+4)] = ('%5i'%(i+1)) + atom.str(symbol=str(atom_types[atom.symbol]))
+            self.settings.input.geometry._h = 'GenFormat'
+            self.settings.input.geometry._1 = '%i %s'%(len(self.molecule),geomType)
+            self.settings.input.geometry._2 = atoms_line
+            self.settings.input.geometry._3 = ''
 
-        if len(vec) > 0:
-            j = i + 1
-            #origin
-            self.settings.input.geometry['_'+str(j+4)] = '0.0 0.0 0.0'
-            j += 1
-            for i, vec in enumerate(lattice):
-                self.settings.input.geometry['_'+str(i+j+4)] = '%f %f %f'%(vec)
+            for i,atom in enumerate(self.molecule):
+                self.settings.input.geometry['_'+str(i+4)] = ('%5i'%(i+1)) + atom.str(symbol=str(atom_types[atom.symbol]))
+
+            if len(vec) > 0:
+                j = i + 1
+                #origin
+                self.settings.input.geometry['_'+str(j+4)] = '0.0 0.0 0.0'
+                j += 1
+                for i, vec in enumerate(lattice):
+                    self.settings.input.geometry['_'+str(i+j+4)] = '%f %f %f'%(vec)
 
 
     def _removemol(self):
