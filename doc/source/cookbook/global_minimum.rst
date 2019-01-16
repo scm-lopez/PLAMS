@@ -26,7 +26,7 @@ See below for an exampling using |ADFJob| (DFT level)::
     mol_out = global_minimum(mol_in, job_type=ADFJob, **job_kwarg)
 
 
-Depending on the |Job| class, it may be necessary to manually bind the |get_energy()| and |get_main_molecule()| functions to the jobs matching |Results| class, these two functions being used for reading energies and geometries, respectively. For |ADFJob| this is unnecessary, but |AMSJob| for example does not have the |get_energy()| function assigned by default.
+Depending on the |Job| class, it may be necessary to manually bind the :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_energy` and :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_main_molecule` functions to the jobs matching |Results| class, these two functions being used for reading energies and geometries, respectively. For |ADFJob| this is unnecessary, but |AMSJob| for example does not have the :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_energy` function assigned by default.
 See below for an exampling using |AMSJob| (DFTB level)::
 
     @add_to_class(AMSResults)
@@ -44,7 +44,7 @@ See below for an exampling using |AMSJob| (DFTB level)::
     mol_out = global_minimum(mol_in, job_type=AMSJob, **job_kwarg)
 
 
-Lastly, by tweaking the job settings including but not excluded to: single points, constrained geometry optimizations, linear transits or a transition state search. The only requirement is that the job yields both an energy and a geometry which can be read with the |get_energy()| and |get_main_molecule()| functions, respectively.
+Lastly, by tweaking the job settings including but not excluded to: single points, constrained geometry optimizations, linear transits or a transition state search. The only requirement is that the job yields both an energy and a geometry which can be read with the :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_energy` and :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_main_molecule` functions, respectively.
 See below for an exampling using |ADFJob| (PBE level). In this example the optimizer searches for a transition state along a reaction coordinate defined by atoms 1 & 2, using the TSRC method, while simultaneously varying all dihedral angles::
 
     s = Settings()
