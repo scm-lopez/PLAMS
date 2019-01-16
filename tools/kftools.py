@@ -267,14 +267,18 @@ class KFFile(object):
         self.reader = KFReader(self.path) if os.path.isfile(self.path) else None
 
 
-    def read(self, section, variable):
+    def read(self, section, variable, return_as_list=False):
         """Extract and return data for a *variable* located in a *section*.
 
-        For single-value numerical or boolean variables returned value is a single number or bool. For longer variables this method returns a list of values. For string variables a single string is returned.
+        By default, for single-value numerical or boolean variables returned value is a single number or bool. For longer variables this method returns a list of values. For string variables a single string is returned. This behavior can be changed by setting *return_as_list* parameter to ``True``. In that case the returned value is always a list of numbers (possibly of length 1) or a single string.
         """
         if section in self.tmpdata and variable in self.tmpdata[section]:
-            return self.tmpdata[section][variable]
-        return self.reader.read(section, variable)
+            ret = self.tmpdata[section][variable]
+        else:
+            ret = self.reader.read(section, variable)
+        if return_as_list and isinstance(ret, (int,float,bool)):
+            ret = [ret]
+        return ret
 
 
     def write(self, section, variable, value):
