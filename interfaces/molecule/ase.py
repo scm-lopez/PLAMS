@@ -43,7 +43,7 @@ if ase_present:
 
 
     #Hack to get documentation at the right place
-    def readase(self, f, geometry, **other):
+    def readase(self, f, **other):
         """Read Molecule using ASE engine
 
         The ``read`` function of the |Molecule| class passes a file descriptor into here, so in this case you must specify the *format* to be read by ASE.
@@ -52,7 +52,6 @@ if ase_present:
         All *other* options are passed to ``ASE.io.read()``.
         See https://wiki.fysik.dtu.dk/ase/ase/io/io.html on how to use it.
 
-        NOTE: The *geometry* option is neglected. Use the corresponding ASE keyword to pick a certain geometry/image.
         The nomenclature of PLAMS and ASE is incompatible for reading multiple geometries, make sure that you only read single geometries with ASE! Reading multiple geometries is not supported, each frame needs to be read individually.
         """
         Molecule.readase(self, f, geometry, **other)
