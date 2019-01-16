@@ -16,15 +16,15 @@ def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=[1.0], j
     """
     Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS |Job|) by systematically varying dihedral angles within the molecule.
 
-    ''mol'' |Molecule|: The input molecule
-    ''n_scans'' int: The number of times the global minimum search should be repeated
-    ''no_h'' bool: If hydrogen-containing bonds should ignored
-    ''no_ring'' bool: If bonds in ring systems should ignored
-    ''bond_orders'' list: A list of accepted bond orders (floats); a bond will be ignored if its bond order is not in *bond_orders*
-    ''job_type'' ''False'' or type: A type object of a class derived from |Job|. Set to ''False'' to use RDKit UFF
-    ''path'' str: The path where the PLAMS working directory will be stored
-    ''kwarg'' dict: Keyword arguments for *job_type*
-    ''return'' |Molecule|: A copy of *mol* with a newly optimized geometry
+    :param |Molecule| mol: The input molecule
+    :param int n_scans:: The number of times the global minimum search should be repeated
+    :param bool no_h: If hydrogen-containing bonds should ignored
+    :param bool no_ring: If bonds in ring systems should ignored
+    :param list bond_orders: A list of accepted bond orders (floats); a bond will be ignored if its bond order is not in *bond_orders*
+    :param type or bool job_type: A type object of a class derived from |Job|. Set to ''False'' to use RDKit UFF
+    :param str path: The path where the PLAMS working directory will be stored
+    :param dict kwarg: Keyword arguments for *job_type*
+    :return |Molecule|: A copy of *mol* with a newly optimized geometry
     """
     # Creates guess bonds if no bonds are present
     if len(mol.bonds) == 0:
@@ -73,11 +73,11 @@ def find_bond(mol, no_h=True, no_ring=True, bond_orders=[1.0]):
     Create a list of bonds. Each entry is a tuple with indices of atoms forming a dihedral.
     Consider only diherdals with axis being a single bond, so that rotation is possible.
 
-    ''mol'' |Molecule|: The input molecule
-    ''no_h'' bool: If hydrogen-containing bonds should ignored
-    ''no_ring'' bool: If bonds in ring systems should ignored
-    ''bond_orders'' list: A list of accepted bond orders (floats); A bond will be ignored if its bond order is not in *bond_orders*
-    ''return'' list: A list of 2-tuples containing the atomic indices of valid bonds
+    :param |Molecule| mol: The input molecule
+    :param bool no_h: If hydrogen-containing bonds should ignored
+    :param bool no_ring: If bonds in ring systems should ignored
+    :param list bond_orders: A list of accepted bond orders (floats); A bond will be ignored if its bond order is not in *bond_orders*
+    :return list: A list of 2-tuples containing the atomic indices of valid bonds
     """
     mol.set_atoms_id()
 
@@ -111,11 +111,11 @@ def global_minimum_scan_plams(mol, bond_tuple, job_type, **kwarg):
     The matching PLAMS |Results| object must have access to the |get_energy()| and |get_main_molecule()| functions.
     If required, functions can be added manually to a class with the |add_to_class()| function.
 
-    ''mol'' |Molecule|: The input molecule
-    ''bond_tuple'' tuple: A 2-tuple containing the atomic indices of valid bonds
-    ''job_type'' type: A type object of a class derived from |Job|
-    ''kwarg'' dict: Keyword arguments for *job_type*
-    ''return'' |Molecule|: A copy of *mol* with a newly optimized geometry
+    :param |Molecule| mol: The input molecule
+    :param tuple bond_tuple: A 2-tuple containing the atomic indices of valid bonds
+    :param type job_type: A type object of a class derived from |Job|
+    :param dict kwarg: Keyword arguments for *job_type*
+    :return |Molecule|: A copy of *mol* with a newly optimized geometry
     """
     # Define a number of variables and create 3 copies of the ligand
     angles = (-120, 0, 120)
@@ -144,9 +144,9 @@ def global_minimum_scan_rdkit(mol, bond_tuple):
     """
     Optimize the molecule (RDKit UFF) with 3 different values for the given dihedral angle and find the lowest energy conformer.
 
-    ''mol'' |Molecule|: The input molecule
-    ''bond_tuple'' tuple: A 2-tuples containing the atomic indices of valid bonds
-    ''return'' |Molecule|: A copy of *mol* with a newly optimized geometry
+    :param |Molecule| mol: The input molecule
+    :param tuple bond_tuple: A 2-tuples containing the atomic indices of valid bonds
+    :return |Molecule|: A copy of *mol* with a newly optimized geometry
     """
     # Define a number of variables and create 3 copies of the ligand
     uff = AllChem.UFFGetMoleculeForceField
