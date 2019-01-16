@@ -1,6 +1,6 @@
 
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
-           'gen_coords_rdmol', 'get_backbone_atoms', 'global_minimum', 'modify_atom',
+           'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
            'partition_protein', 'readpdb', 'writepdb',]
 
@@ -13,131 +13,29 @@ This is a series of functions that apply RDKit functionality on PLAMS molecules
 
 import sys
 import random
-import copy
+import pickle
 from warnings import warn
 
 try:
     from rdkit import Chem, Geometry
-    from rdkit.Chem import AllChem, rdMolTransforms
-except:
+    from rdkit.Chem import AllChem
+except ModuleNotFoundError:
     __all__ = []
 
 from ...core.basemol import Molecule, Atom, Bond
 
 
-def global_minimum(plams_mol, n_scans=1, no_h=True):
-    """
-    Find the global minimum of the ligand (RDKit UFF) by systematically varying dihedral angles.
-
-    :parameter plams_mol: PLAMS molecule
-    :type plams_mol: |Molecule|
-    :parameter int n_scans: How many times the global minimum search should be repeated
-    :parameter bool no_h: If dihedral angles of hydrogen-containing bonds should ignored (True) or included (False)
-    :return: a PLAMS molecule
-    :rtype: |Molecule|
-    """
-    # Creates bonds if no bonds are present
-    if len(plams_mol.bonds) == 0:
-        plams_mol.guess_bonds()
-
-    # Create a list of bond indices [0], bond orders [1] and dihedral indices [2, 3, 4 and 5]
-    dihedral_list = find_dihedrals(plams_mol, no_h)
-
-    # Find the global minimum by systematically varying dihedral angles
-    # Bonds are scanned if: they are non-terminal, their order is 1.0 and are not part of a ring
-    rdmol = to_rdmol(plams_mol)
-    for i in range(n_scans):
-        for item in dihedral_list:
-            InRing_at1 = rdmol.GetAtomWithIdx(item[0]).IsInRing()
-            InRing_at2 = rdmol.GetAtomWithIdx(item[3]).IsInRing()
-            if not InRing_at1 and not InRing_at2:
-                rdmol = global_minimum_scan(rdmol, item)
-    AllChem.UFFGetMoleculeForceField(rdmol).Minimize()
-    return from_rdmol(rdmol)
-
-
-def find_dihedrals(plams_mol, no_h=True):
-    """
-    Create a list of dihedrals. Each entry is a tuple with indices of atoms forming a dihedral. Consider only diherdals with axis being a single bond, so that rotation is possible.
-
-    :parameter plams_mol: PLAMS molecule
-    :type plams_mol: |Molecule|
-    :parameter bool no_h: If hydrogen-containing bonds should ignored (True) or included (False)
-    :return: a list of 4-tuples
-    :rtype: list
-    """
-    plams_mol.set_atoms_id()
-
-    #Mark atoms that can form an "axis" of a diherdal, i.e atoms with more than one (non-hydrogen) neighbor
-    for atom in plams_mol:
-        if no_h:
-            neighbors = [at for at in plams_mol.neighbors(atom) if at.atnum != 1]
-        else:
-            neighbors = plams_mol.neighbors(atom)
-        atom.mark = (len(neighbors) > 1)
-
-    #For each bond with both ends marked add one dihedral to the list
-    ret = []
-    for i,bond in enumerate(plams_mol.bonds):
-        if bond.atom1.mark and bond.atom2.mark and bond.order == 1.0:
-            at1, at2 = bond.atom1, bond.atom2
-            at0 = at1.bonds[0].other_end(at1)
-            if at0 == at2:
-                at0 = at1.bonds[1].other_end(at1)
-            at3 = at2.bonds[0].other_end(at2)
-            if at3 == at1:
-                at3 = at2.bonds[1].other_end(at2)
-            ret.append((at0.id-1, at1.id-1, at2.id-1, at3.id-1))
-
-    #Clean up the molecule
-    plams_mol.unset_atoms_id()
-    for atom in plams_mol:
-        del atom.mark
-
-    return ret
-
-
-def global_minimum_scan(rdmol, dihed):
-    """
-    Optimize the molecule with 3 different values for the given dihedral angle and find the lowest energy conformer.
-
-    :parameter rdkit_mol: RDKit molecule
-    :type rdkit_mol: rdkit.Chem.Mol
-    :parameter tuple dihed: indices of atoms within rdmol defining a dihedral angle
-    :return: RDKit molecule
-    :rtype: rdkit.Chem.Mol
-    """
-    # Define a number of variables and create 3 copies of the ligand
-    uff = AllChem.UFFGetMoleculeForceField
-    set_dihed = rdMolTransforms.SetDihedralDeg
-    get_dihed = rdMolTransforms.GetDihedralDeg
-    rdmol_list = [copy.deepcopy(rdmol) for i in range(3)]
-
-    # Create a list of all to be optimized dihedral angles
-    angle = get_dihed(rdmol.GetConformer(), dihed[0], dihed[1], dihed[2], dihed[3])
-    angle_list = [angle, angle + 120, angle - 120]
-
-    # Optimize the geometry for all dihedral angles in angle_list
-    # The geometry that yields the minimum energy is returned
-    for mol, angle in zip(rdmol_list, angle_list):
-        set_dihed(mol.GetConformer(), dihed[0], dihed[1], dihed[2], dihed[3], angle)
-    for rdmol in rdmol_list:
-        uff(rdmol).Minimize()
-    energy_list = [uff(rdmol).CalcEnergy() for rdmol in rdmol_list]
-    minimum = energy_list.index(min(energy_list))
-    return rdmol_list[minimum]
-
-
-def from_rdmol(rdkit_mol, confid=-1):
+def from_rdmol(rdkit_mol, confid=-1, properties=True):
     """
     Translate an RDKit molecule into a PLAMS molecule type.
+    RDKit properties will be unpickled if their name ends with '_pickled'.
 
     :parameter rdkit_mol: RDKit molecule
-    :parameter int confid: conformer identifier from which to take coordinates
     :type rdkit_mol: rdkit.Chem.Mol
+    :parameter int confid: conformer identifier from which to take coordinates
+    :parameter bool properties: If all Chem.Mol, Chem.Atom and Chem.Bond properties should be converted from RDKit to PLAMS format.
     :return: a PLAMS molecule
     :rtype: |Molecule|
-
     """
     if isinstance(rdkit_mol, Molecule):
         return rdkit_mol
@@ -154,7 +52,7 @@ def from_rdmol(rdkit_mol, confid=-1):
         ch = rd_atom.GetFormalCharge()
         pl_atom = Atom(
             rd_atom.GetAtomicNum(), coords=(pos.x, pos.y, pos.z), charge=ch)
-        if rd_atom.GetPDBResidueInfo():
+        if properties and rd_atom.GetPDBResidueInfo():
             pl_atom.properties.pdb_info = get_PDBResidueInfo(rd_atom)
         plams_mol.add_atom(pl_atom)
         total_charge += ch
@@ -163,20 +61,27 @@ def from_rdmol(rdkit_mol, confid=-1):
         at2 = plams_mol.atoms[bond.GetEndAtomIdx()]
         plams_mol.add_bond(Bond(at1, at2, bond.GetBondTypeAsDouble()))
     plams_mol.charge = total_charge
-    for propname in rdkit_mol.GetPropNames():
-        plams_mol.properties[propname] = rdkit_mol.GetProp(propname)
+    if properties:
+        prop_from_rdmol(plams_mol, rdkit_mol)
+        for rd_atom, plams_atom in zip(rdkit_mol.GetAtoms(), plams_mol):
+            prop_from_rdmol(plams_atom, rd_atom)
+        for rd_bond, plams_bond in zip(rdkit_mol.GetBonds(), plams_mol.bonds):
+            prop_from_rdmol(plams_bond, rd_bond)
     return plams_mol
 
 
-def to_rdmol(plams_mol, sanitize=True):
+def to_rdmol(plams_mol, sanitize=True, properties=True):
     """
     Translate a PLAMS molecule into an RDKit molecule type.
+    PLAMS |Molecule|, |Atom| or |Bond| properties are pickled if they are neither booleans, floats,
+        integers, floats nor strings, the resulting property names are appended with '_pickled'.
 
-    :parameter plams_mol: PLAMS molecule
+    :parameter plams_mol: A PLAMS molecule
+    :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization
+    :parameter bool properties: If all |Molecule|, |Atom| and |Bond| properties should be converted from PLAMS to RDKit format.
     :type plams_mol: |Molecule|
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
-
     """
     if isinstance(plams_mol, Chem.Mol):
         return plams_mol
@@ -186,14 +91,24 @@ def to_rdmol(plams_mol, sanitize=True):
         a = Chem.Atom(atom.atnum)
         if 'charge' in atom.properties:
             a.SetFormalCharge(atom.properties.charge)
-        if 'pdb_info' in atom.properties:
-            set_PDBresidueInfo(a, atom.properties.pdb_info)
+        if properties:
+            if 'pdb_info' in atom.properties:
+                set_PDBresidueInfo(a, atom.properties.pdb_info)
+            for prop in atom.properties:
+                if prop != 'charge' or prop != 'pdb_info':
+                    prop_to_rdmol(atom, a, prop)
         e.AddAtom(a)
     for bond in plams_mol.bonds:
         a1 = plams_mol.atoms.index(bond.atom1)
         a2 = plams_mol.atoms.index(bond.atom2)
         e.AddBond(a1, a2, Chem.BondType(bond.order))
     rdmol = e.GetMol()
+    if properties:
+        for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
+            for prop in pl_bond.properties:
+                prop_to_rdmol(pl_bond, rd_bond, prop)
+        for prop in plams_mol.properties:
+            prop_to_rdmol(plams_mol, rdmol, prop)
     if sanitize:
         Chem.SanitizeMol(rdmol)
     conf = Chem.Conformer()
@@ -226,6 +141,50 @@ def set_PDBresidueInfo(rdkit_atom, pdb_info):
         set_function = 'Set' + item
         atom_pdb_residue_info.__getattribute__(set_function)(value)
     rdkit_atom.SetMonomerInfo(atom_pdb_residue_info)
+
+
+def prop_to_rdmol(pl_obj, rd_obj, prop):
+    """
+    Convert a single PLAMS property into an RDKit property.
+
+    :paramter pl_obj: A PLAMS object.
+    :type pl_obj: |Molecule|, |Atom| or |Bond|.
+    :parameter rd_obj: An RDKit object.
+    :type rd_obj: rdkit.Chem.Mol, rdkit.Chem.Atom or rdkit.Chem.Bond
+    :parameter str prop: The |Settings| key of the PLAMS property.
+    """
+    obj = type(pl_obj.properties.get(prop))
+    obj_dict = {bool: rd_obj.SetBoolProp,
+                float: rd_obj.SetDoubleProp,
+                int: rd_obj.SetIntProp,
+                str: rd_obj.SetProp}
+    if obj_dict.get(obj):
+        obj_dict[obj](prop, pl_obj.properties.get(prop))
+    else:
+        name = prop + '_pickled'
+        try:
+            rd_obj.SetProp(name, pickle.dumps(pl_obj.properties.get(prop), 0).decode())
+        except (Exception, pickle.PicklingError):
+            pass
+
+
+def prop_from_rdmol(pl_obj, rd_obj):
+    """
+    Convert one or more RDKit properties into PLAMS properties.
+
+    :paramter pl_obj: A PLAMS object.
+    :type pl_obj: |Molecule|, |Atom| or |Bond|.
+    :parameter rd_obj: An RDKit object.
+    :type rd_obj: rdkit.Chem.Mol, rdkit.Chem.Atom or rdkit.Chem.Bond
+    """
+    prop_dict = rd_obj.GetPropsAsDict()
+    for propname in prop_dict.keys():
+        if '_pickled' not in propname:
+            pl_obj.properties[propname] = prop_dict[propname]
+        else:
+            prop = prop_dict[propname]
+            propname = propname.rsplit('_pickled', 1)[0]
+            pl_obj.properties[propname] = pickle.loads(prop.encode())
 
 
 def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
@@ -573,20 +532,21 @@ def write_molblock(plams_mol, file=sys.stdout):
     file.write(Chem.MolToMolBlock(to_rdmol(plams_mol)))
 
 
-def readpdb(pdb_file, removeHs=False, return_rdmol=False):
+def readpdb(pdb_file, removeHs=False, proximityBonding=True, return_rdmol=False):
     """
     Generate a molecule from a PDB file
 
     :param pdb_file: The PDB file to read
     :type pdb_file: str or file
-    :param bool removeHs: Hydrogens are removed if Trur
+    :param bool removeHs: Hydrogens are removed if True
+    :param bool proximityBonding: Enables automatic proximity bonding
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: The molecule
     :rtype: |Molecule| or rdkit.Chem.Mol
     """
     if isinstance(pdb_file, str):
         pdb_file = open(pdb_file, 'r')
-    pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), removeHs=removeHs)
+    pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), removeHs=removeHs, proximityBonding=proximityBonding)
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
 

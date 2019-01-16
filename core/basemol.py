@@ -794,6 +794,37 @@ class Molecule (object):
             del at.cube,at.free,at._id,at.arom
 
 
+    def in_ring(self, arg):
+        """Check if an atom or a bond belonging to this |Molecule| forms a ring. *arg* should be an instance of |Atom| or |Bond| belonging to this |Molecule|.
+        """
+
+        if (not isinstance(arg, (Atom, Bond))) or arg.mol != self:
+            raise MoleculeError('in_ring: Argument should be a Bond or an Atom and it should be a part of the Molecule')
+
+        def dfs(v, depth=0):
+            v._visited = True
+            for bond in v.bonds:
+                if bond is not arg:
+                    u = bond.other_end(v)
+                    if u is arg and depth > 1:
+                        u._visited = 'cycle'
+                    if not u._visited:
+                        dfs(u, depth+1)
+
+        for at in self:
+            at._visited = False
+
+        if isinstance(arg, Atom):
+            dfs(arg)
+            ret = (arg._visited == 'cycle')
+        else:
+            dfs(arg.atom1)
+            ret = arg.atom2._visited
+
+        for at in self:
+            del at._visited
+        return ret
+
 
 
 #===========================================================================
