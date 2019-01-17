@@ -981,7 +981,7 @@ class Molecule (object):
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
         """
         at = self.closest_atom(point, unit)
-        return at.distance_to(point, unit, result_uni)
+        return at.distance_to(point, unit, result_unit)
 
 
     def distance_to_mol(self, other, result_unit='angstrom', return_atoms=False):
