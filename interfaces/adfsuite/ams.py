@@ -199,6 +199,7 @@ class AMSResults(Results):
                 inp = input_to_settings(user_input)
             except:
                 log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path, 5))
+                return None
             s = Settings()
             s.input = inp
             del s.input.ams[s.input.ams.find_case('system')]

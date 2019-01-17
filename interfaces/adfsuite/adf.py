@@ -1,5 +1,7 @@
 import numpy as np
 
+from subprocess import CalledProcessError
+
 from .scmjob import SCMJob, SCMResults
 from ...core.errors import ResultsError
 from ...core.settings import Settings
@@ -139,15 +141,24 @@ class ADFResults(SCMResults):
         if self._kfpresent():
             if ('General', 'Input') in self._kf:
                 tmp = self.readkf('General', 'Input')
-                user_input = '\n'.join([tmp[i:160+i] for i in range(0,len(tmp),160)])
+                user_input = '\n'.join([tmp[i:160+i].rstrip() for i in range(0,len(tmp),160)])
             else:
                 user_input = self.readkf('General', 'user input')
             try:
                 from scm.input_parser import input_to_settings
-                inp = input_to_settings(user_input, program='adf')
+                inp = input_to_settings(user_input, program='adf', silent=True)
+            except CalledProcessError:
+                from scm.input_parser import convert_legacy_input
+                new_input = convert_legacy_input(user_input, program='adf')
+                try:
+                    inp = input_to_settings(new_input, program='adf', silent=True)
+                except:
+                    log('Failed to recreate input settings from {}'.format(self._kf.path, 5))
+                    return None
             except:
                 log('Failed to recreate input settings from {}'.format(self._kf.path, 5))
                 return None
+
             s = Settings()
             s.input = inp
             del s.input[s.input.find_case('atoms')]
