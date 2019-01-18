@@ -235,6 +235,9 @@ class Atom(object):
         matrix = np.array(matrix).reshape(3,3)
         self.coords = tuple(np.dot(matrix, np.array(self.coords)))
 
+    def neighbors(self):
+        """Return a list of neighbors of this atom within the molecule. The list follows the same order as the ``bonds`` attribute."""
+        return [b.other_end(self) for b in self.bonds]
 
 
 #===========================================================================
