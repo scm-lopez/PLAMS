@@ -43,3 +43,4 @@ Recipes
     numgrad
     numhess
     molecule_gun
+    global_minimum

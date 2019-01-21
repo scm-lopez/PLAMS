@@ -1,5 +1,5 @@
-Vibration
--------------------------
+Vibrational analysis with ASE
+------------------------------
 
 .. currentmodule:: scm.plams.recipes.vibration
 

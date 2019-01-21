@@ -76,7 +76,7 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
     """
     Translate a PLAMS molecule into an RDKit molecule type.
     PLAMS |Molecule|, |Atom| or |Bond| properties are pickled if they are neither booleans, floats,
-        integers, floats nor strings, the resulting property names are appended with '_pickled'.
+    integers, floats nor strings, the resulting property names are appended with '_pickled'.
 
     :parameter plams_mol: A PLAMS molecule
     :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization

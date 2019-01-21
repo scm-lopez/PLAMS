@@ -1,5 +1,8 @@
 Global Minimum Search
---------------------
+----------------------
+
+(*contributed by* `Bas van Beek <https://www.researchgate.net/profile/Bas_Beek>`_\)
+
 
 This module implements a scheme for finding/approaching the conformational global minimum of a |Molecule|. The script accomplishes this by systematically varying all dihedral angles, going through the following steps in the process:
 
@@ -12,7 +15,7 @@ This module implements a scheme for finding/approaching the conformational globa
 4.    After all dihedral angles have been exhausted, the final geometry is returned.
 
 
-Optimizations are possible at various levels of theory, RDKit UFF being a cheap default. Alternatively, the geometry can be optimized at an arbitrary level of theory with the help of the PLAMS |Jobrunner|. Besides the input molecule an additional two arguments, at minimum, are required: A type object of a class derived from |Jobs| and a dictionary of all keyword arguments that should be passed to aforementioned job (e.g. the job |Settings|).
+Optimizations are possible at various levels of theory, RDKit UFF being a cheap default. Alternatively, the geometry can be optimized at an arbitrary level of theory with the help of the PLAMS |Jobrunner|. Besides the input molecule an additional two arguments, at minimum, are required: A type object of a class derived from |Job| and a dictionary of all keyword arguments that should be passed to aforementioned job (e.g. the job |Settings|).
 See below for an exampling using |ADFJob| (DFT level)::
 
     s = Settings()
