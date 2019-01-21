@@ -1,4 +1,4 @@
-from ...core.basemol import Molecule,Atom
+from ...mol.basemol import Molecule,Atom
 from ...core.functions import add_to_class
 from numpy import zeros as npz
 from numpy import array as npa

@@ -1,8 +1,7 @@
 from ..core.basejob import MultiJob
-from ..core.basemol import Molecule
 from ..core.results import Results
 from ..core.settings import Settings
-
+from ..mol.basemol import Molecule
 from ..interfaces.adfsuite.adf import ADFJob
 
 

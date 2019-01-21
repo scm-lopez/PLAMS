@@ -11,12 +11,12 @@ except ImportError:
 
 from os.path import join as opj
 
-from .basemol import Molecule
 from .errors import FileError, JobError, PlamsError, ResultsError
 from .functions import config, log
 from .private import sha256
 from .results import Results
 from .settings import Settings
+from ..mol.basemol import Molecule
 
 __all__ = ['SingleJob', 'MultiJob']
 

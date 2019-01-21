@@ -22,7 +22,7 @@ try:
 except ModuleNotFoundError:
     __all__ = []
 
-from ...core.basemol import Molecule, Atom, Bond
+from ...mol.basemol import Molecule, Atom, Bond
 
 
 def from_rdmol(rdkit_mol, confid=-1, properties=True):

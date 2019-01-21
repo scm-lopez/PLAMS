@@ -3,12 +3,12 @@ import os
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.basemol import Molecule, Atom
 from ...core.errors import FileError
 from ...core.functions import config, log
 from ...core.private import sha256
 from ...core.results import Results
 from ...core.settings import Settings
+from ...mol.basemol import Molecule, Atom
 from ...tools.kftools import KFFile
 from ...tools.units import Units
 

@@ -4,10 +4,10 @@ import numpy as np
 
 from ...core.basejob  import SingleJob
 from ...core.results import Results
-from ...core.basemol  import Molecule
 from ...core.settings import Settings
 from ...core.functions import log
 from ...core.errors import PlamsError, MoleculeError
+from ...mol.basemol  import Molecule
 
 __all__ = ['CrystalJob','mol2CrystalConf']
 

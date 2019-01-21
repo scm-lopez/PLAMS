@@ -6,13 +6,14 @@ import os
 
 from os.path import join as opj
 
-from .errors import MoleculeError, PTError, FileError
-from .functions import log
-from .private import smart_copy
-from .settings import Settings
-from ..tools.geometry import rotation_matrix
-from ..tools.pdbtools import PDBHandler, PDBRecord
+from .pdbtools import PDBHandler, PDBRecord
+
+from ..core.errors import MoleculeError, PTError, FileError
+from ..core.functions import log
+from ..core.private import smart_copy
+from ..core.settings import Settings
 from ..tools.periodic_table import PT
+from ..tools.geometry import rotation_matrix
 from ..tools.units import Units
 
 __all__ = ['Atom', 'Bond', 'Molecule']
