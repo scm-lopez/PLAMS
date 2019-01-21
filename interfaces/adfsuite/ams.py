@@ -8,7 +8,8 @@ from ...core.functions import config, log
 from ...core.private import sha256
 from ...core.results import Results
 from ...core.settings import Settings
-from ...mol.basemol import Molecule, Atom
+from ...mol.molecule import Molecule
+from ...mol.atom import Atom
 from ...tools.kftools import KFFile
 from ...tools.units import Units
 

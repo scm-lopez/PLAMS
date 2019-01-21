@@ -9,7 +9,7 @@ class PeriodicTable(object):
 
     Atomic mass is, strictly speaking, atomic weight, as present in Mathematica's ElementData function.
 
-    Atomic radius and number of connectors are used by :meth:`~scm.plams.core.basemol.Molecule.guess_bonds`. Note that values of radii are neither atomic radii nor covalent radii. They are somewhat "emprically optimized" for the bond guessing algorithm.
+    Atomic radius and number of connectors are used by :meth:`~scm.plams.mol.molecule.Molecule.guess_bonds`. Note that values of radii are neither atomic radii nor covalent radii. They are somewhat "emprically optimized" for the bond guessing algorithm.
 
     .. note::
 

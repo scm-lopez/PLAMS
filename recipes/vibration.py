@@ -1,7 +1,5 @@
-from collections import OrderedDict
 from ..core.results import Results
 from ..core.basejob import MultiJob
-from ..core.functions import log
 from ..core.errors import PlamsError
 from ..interfaces.adfsuite.adf import ADFJob
 from numpy import array as npa

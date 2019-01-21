@@ -1,6 +1,4 @@
-import glob
 import os
-import shutil
 import threading
 try:
     import dill as pickle

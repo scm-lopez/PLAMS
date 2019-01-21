@@ -1,4 +1,3 @@
-import glob
 import os
 import shutil
 import sys
@@ -128,14 +127,14 @@ def load_all(path, jobmanager=None):
 def read_molecules(folder, formats=None):
     """Read all molecules from *folder*.
 
-    Read all the files present in *folder* with extensions compatible with :meth:`Molecule.read<scm.plams.core.basemol.Molecule.read>`. Returned value is a dictionary with keys being molecule names (filename without extension) and values being |Molecule| instances.
+    Read all the files present in *folder* with extensions compatible with :meth:`Molecule.read<scm.plams.mol.molecule.Molecule.read>`. Returned value is a dictionary with keys being molecule names (filename without extension) and values being |Molecule| instances.
 
     The optional argument *formats* can be used to narrow down the search to files with specified extensions::
 
         molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
 
     """
-    from .basemol import Molecule
+    from ..mol.molecule import Molecule
     extensions = formats or list(Molecule._readformat.keys())
     is_valid = lambda x: isfile(opj(folder,x)) and any([x.endswith('.'+ext) for ext in extensions])
     filenames = filter(is_valid, os.listdir(folder))

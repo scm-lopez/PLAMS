@@ -1,4 +1,3 @@
-import copy
 import os
 import stat
 import threading
@@ -16,7 +15,7 @@ from .functions import config, log
 from .private import sha256
 from .results import Results
 from .settings import Settings
-from ..mol.basemol import Molecule
+from ..mol.molecule import Molecule
 
 __all__ = ['SingleJob', 'MultiJob']
 

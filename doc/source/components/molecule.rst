@@ -1,7 +1,7 @@
 Molecule
 -------------------------
 
-.. currentmodule:: scm.plams.core.basemol
+.. currentmodule:: scm.plams.mol.molecule
 
 In this chapter the PLAMS module responsible for handling molecular geometries is presented.
 Information about atomic coordinates can be read from (or written to) files of various types: ``xyz``, ``pdb``, ``mol`` or ``mol2``.

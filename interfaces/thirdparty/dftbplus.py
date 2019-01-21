@@ -11,9 +11,8 @@ from ...core.basejob import SingleJob
 from ...core.settings import Settings
 from ...core.results import Results
 from ...tools.units import Units
-from ...core.errors import PlamsError, MoleculeError
-from ...interfaces.molecule.ase import fromASE
-from ...mol.basemol import Molecule
+from ...core.errors import MoleculeError
+from ...mol.molecule import Molecule
 
 __all__ = ['DFTBPlusJob', 'DFTBPlusResults']
 

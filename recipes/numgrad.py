@@ -3,7 +3,6 @@ from itertools import product
 
 from ..core.results import Results
 from ..core.basejob import MultiJob
-from ..interfaces.adfsuite.adf import ADFJob
 
 __all__ = ['NumGradJob', 'NumGradResults'] #names exported to the main namespace
 

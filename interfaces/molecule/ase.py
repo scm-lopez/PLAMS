@@ -1,5 +1,6 @@
-from ...mol.basemol import Molecule,Atom
 from ...core.functions import add_to_class
+from ...mol.molecule import Molecule
+from ...mol.atom import Atom
 from numpy import zeros as npz
 from numpy import array as npa
 

@@ -8,7 +8,6 @@ VERSION = 1.3
 
 import argparse
 import os
-import shutil
 import sys
 import traceback
 from os.path import join as opj

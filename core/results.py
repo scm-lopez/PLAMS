@@ -6,7 +6,6 @@ import operator
 import os
 import shutil
 import threading
-import time
 
 from os.path import join as opj
 from subprocess import PIPE

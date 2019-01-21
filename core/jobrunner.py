@@ -6,7 +6,6 @@ import time
 from os.path import join as opj
 from subprocess import DEVNULL, PIPE
 
-from .basejob import SingleJob
 from .errors import PlamsError
 from .functions import config, log
 from .private import saferun

@@ -4,7 +4,6 @@ import numpy as np
 
 from ..core.results import Results
 from ..core.basejob import MultiJob
-from ..interfaces.adfsuite.adf import ADFJob
 from ..tools.units import Units
 
 __all__ = ['NumHessJob', 'NumHessResults'] #names exported to the main namespace

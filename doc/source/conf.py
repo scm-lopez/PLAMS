@@ -227,9 +227,9 @@ rst_epilog = """
 .. |postrun| replace:: :meth:`~scm.plams.core.basejob.Job.postrun`
 .. |load_external| replace:: :meth:`~scm.plams.core.basejob.SingleJob.load_external`
 
-.. |Atom| replace:: :class:`~scm.plams.core.basemol.Atom`
-.. |Bond| replace:: :class:`~scm.plams.core.basemol.Bond`
-.. |Molecule| replace:: :class:`~scm.plams.core.basemol.Molecule`
+.. |Atom| replace:: :class:`~scm.plams.mol.atom.Atom`
+.. |Bond| replace:: :class:`~scm.plams.mol.bond.Bond`
+.. |Molecule| replace:: :class:`~scm.plams.mol.molecule.Molecule`
 
 .. |PeriodicTable| replace:: :class:`~scm.plams.tools.periodic_table.PeriodicTable`
 .. |Units| replace:: :class:`~scm.plams.tools.units.Units`
