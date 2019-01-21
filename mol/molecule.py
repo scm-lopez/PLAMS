@@ -100,7 +100,6 @@ class Molecule (object):
     However, if you feel more familiar with identifying atoms by natural numbers, you can use :meth:`set_atoms_id` to equip each atom of the molecule with ``id`` attribute equal to atom's position within ``atoms`` list. This method can also be helpful to track changes in your molecule during tasks that can reorder atoms.
     """
 
-
     def __init__(self, filename=None, inputformat=None, **other):
         self.atoms = []
         self.bonds = []
@@ -145,7 +144,6 @@ class Molecule (object):
             del at._bro
 
         return ret
-
 
 
     def add_atom(self, atom, adjacent=None):
@@ -1156,7 +1154,6 @@ class Molecule (object):
                 self.add_bond(newbond)
 
 
-
     def writemol2(self, f):
 
         def write_prop(name, obj, separator, space=0, replacement=None):
@@ -1195,7 +1192,6 @@ class Molecule (object):
         self.unset_atoms_id()
 
 
-
     def readpdb(self, f, frame=0):
         """PDB Reader:
 
@@ -1225,7 +1221,6 @@ class Molecule (object):
                 self.add_atom(Atom(atnum=atnum,coords=(x,y,z)))
 
         return pdb
-
 
 
     def writepdb(self, f):
@@ -1263,7 +1258,6 @@ class Molecule (object):
             raise MoleculeError('read: Unsupported file format')
 
 
-
     def write(self, filename, outputformat=None, **other):
         """Write molecular coordinates to a file.
 
@@ -1289,7 +1283,6 @@ class Molecule (object):
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
 
 
-
     def as_dict(self):
         """Store all information about the molecule in a dictionary.
 
@@ -1312,7 +1305,6 @@ class Molecule (object):
         mol_dict['atoms'] = atom_dicts
         mol_dict['bonds'] = bond_dicts
         return mol_dict
-
 
 
     @classmethod

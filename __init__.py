@@ -18,4 +18,4 @@ def __autoimport(path, folders):
     return ret
 
 
-__all__ = __autoimport(__path__[0], ['core', 'interfaces', 'tools', 'recipes'])
+__all__ = __autoimport(__path__[0], ['core', 'mol', 'interfaces', 'tools', 'recipes'])
