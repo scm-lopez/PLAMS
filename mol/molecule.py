@@ -4,6 +4,11 @@ import math
 import numpy as np
 import os
 
+try:
+    from scipy.spatial.distance import cdist
+except ImportError:
+    pass
+
 from .atom import Atom
 from .bond import Bond
 from .pdbtools import PDBHandler, PDBRecord
