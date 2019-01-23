@@ -695,7 +695,7 @@ class Molecule (object):
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
         """
-        at = self.closest_atom_np(point, unit)
+        at = self.closest_atom(point, unit)
         return at.distance_to(point, unit, result_unit)
 
 
@@ -1353,7 +1353,7 @@ class Molecule (object):
         """Convert the cartesian coordinates of a |Molecule|, containing n atoms, into a (≤n)*3 numpy array.
 
         :param |Molecule| self: A |Molecule| with n atoms.
-        :param ''None'' or list atom_subset: An iterable container (e.g. list or tuple) consisting of ≤n atoms (|Atom|).
+        :param ''None'' or list atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
             Allows one to convert a subset of atoms within *self* into a numpy array.
         :return np.ndarray: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
         """
@@ -1369,7 +1369,7 @@ class Molecule (object):
 
         :param |Molecule| self: A |Molecule| with n atoms.
         :param np.ndarray xyz_array: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
-        :param ''None'' or list atom_subset: An iterable container (e.g. list or tuple) consisting of ≤n atoms (|Atom|).
+        :param ''None'' or list atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
             Allows one to update the cartesian coordinates of a subset of atoms wthin *self*.
         """
         ar = xyz_array.T
