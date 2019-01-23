@@ -539,8 +539,10 @@ class Molecule (object):
 
         *vector* should be an iterable container of length 3 (usually tuple, list or numpy array). *unit* describes unit of values stored in *vector*.
         """
-        for at in self.atoms:
-            at.translate(vector, unit)
+        xyz_array = self.as_array()
+        ratio = Units.conversion_ratio(unit, 'angstrom')
+        xyz_array += np.array(vector) * ratio
+        self.from_array(xyz_array)
 
 
     def rotate_lattice(self, matrix):
@@ -564,10 +566,10 @@ class Molecule (object):
 
             This method does not check if *matrix* is a proper rotation matrix.
         """
-        for at in self.atoms:
-            at.rotate(matrix)
-        if lattice:
-            self.rotate_lattice(matrix)
+        xyz_array = self.as_array()
+        matrix = np.array(matrix).reshape(3, 3)
+        xyz_array = xyz_array@matrix
+        self.from_array(xyz_array)
 
 
     def align_lattice(self, convention='x', zero=1e-10):
@@ -646,20 +648,23 @@ class Molecule (object):
         v /= np.linalg.norm(v)
 
         W = np.array([[0, -v[2], v[1]],
-                     [v[2], 0, -v[0]],
-                     [-v[1], v[0], 0]])
+                      [v[2], 0, -v[0]],
+                      [-v[1], v[0], 0]])
 
         angle = Units.convert(angle, unit, 'radian')
         a1 = math.sin(angle)
         a2 = 2 * math.pow(math.sin(0.5 * angle), 2)
 
-        rotmat = np.identity(3) + a1 * W + a2 * np.dot(W,W)
+        rotmat = np.identity(3) + a1 * W + a2 * W@W
 
         trans = np.array(other_end.vector_to((0,0,0)))
-        for at in atoms_to_rotate:
-            at.translate(trans)
-            at.rotate(rotmat)
-            at.translate(-trans)
+
+        xyz_array = self.as_array(atom_subset=atoms_to_rotate)
+        xyz_array += trans
+        xyz_array = xyz_array@rotmat
+        xyz_array -= trans
+
+        self.from_array(xyz_array, atom_subset=atoms_to_rotate)
 
 
     def closest_atom(self, point, unit='angstrom'):
@@ -667,13 +672,15 @@ class Molecule (object):
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*.
         """
-        dist = float('inf')
-        for at in self.atoms:
-            newdist = at.distance_to(point, unit=unit)
-            if newdist < dist:
-                dist = newdist
-                ret = at
-        return ret
+        if isinstance(point, Atom):
+            point = np.array(point.coords) * Units.conversion_ratio(unit, 'angstrom')
+        else:
+            point = np.array(point) * Units.conversion_ratio(unit, 'angstrom')
+
+        xyz_array = self.as_array()
+        dist_array = np.linalg.norm(point - xyz_array, axis=1)
+        idx = dist_array.argmin()
+        return self[int(idx + 1)]
 
 
     def distance_to_point(self, point, unit='angstrom', result_unit='angstrom'):
@@ -681,7 +688,7 @@ class Molecule (object):
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
         """
-        at = self.closest_atom(point, unit)
+        at = self.closest_atom_np(point, unit)
         return at.distance_to(point, unit, result_unit)
 
 
@@ -692,16 +699,20 @@ class Molecule (object):
 
         If *return_atoms* is ``False``, only a single number is returned.  If *return_atoms* is ``True``, the method returns a tuple ``(distance, atom1, atom2)`` where ``atom1`` and ``atom2`` are atoms fulfilling the minimal distance, with atom1 belonging to this molecule and atom2 to *other*.
         """
-        dist = float('inf')
-        for at1 in self.atoms:
-            for at2 in other.atoms:
-                newdist = (at1.x-at2.x)**2 + (at1.y-at2.y)**2 + (at1.z-at2.z)**2
-                if newdist < dist:
-                    dist = newdist
-                    atom1 = at1
-                    atom2 = at2
-        res = Units.convert(math.sqrt(dist), 'angstrom', result_unit)
+        xyz_array1 = self.as_array()
+        xyz_array2 = other.as_array()
+
+        # Try to use the faster cdist function if scipy is installed
+        try:
+            dist_array = cdist(xyz_array1, xyz_array2)
+        except NameError:
+            dist_array = np.array([np.linalg.norm((i - xyz_array2), axis=1) for i in xyz_array1])
+
+        res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:
+            idx1, idx2 = np.unravel_index(dist_array.argmin(), dist_array.shape)
+            atom1 = self[int(idx1 + 1)]
+            atom2 = other[int(idx2 + 1)]
             return res, atom1, atom2
         return res
 
@@ -750,15 +761,12 @@ class Molecule (object):
 
     def get_center_of_mass(self, unit='angstrom'):
         """Return the center of mass of the molecule (as a tuple). Returned coordinates are expressed in *unit*."""
-        center = [0.0,0.0,0.0]
-        total_mass = 0.0
-        for at in self.atoms:
-            total_mass += at.mass
-            for i in range(3):
-                center[i] += at.mass*at.coords[i]
-        for i in range(3):
-            center[i] = Units.convert(center[i]/total_mass, 'angstrom', unit)
-        return tuple(center)
+        mass_array = np.array([atom.mass for atom in self])
+        xyz_array = self.as_array().T
+        xyz_array *= mass_array
+        center = xyz_array.sum(axis=1)
+        center /= mass_array.sum()
+        return tuple(center * Units.conversion_ratio('angstrom', unit))
 
 
     def get_mass(self):
@@ -1333,3 +1341,33 @@ class Molecule (object):
             b.mol = mol
             mol.add_bond(b)
         return mol
+
+
+    def as_array(self, atom_subset=None):
+        """Convert the cartesian coordinates of a |Molecule|, containing n atoms, into a (≤n)*3 numpy array.
+
+        :param |Molecule| self: A |Molecule| with n atoms.
+        :param ''None'' or list atom_subset: An iterable consisting of ≤n atoms; allows one to convert a subset of atoms within *self* into a numpy array.
+        :return np.ndarray: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
+        """
+        if atom_subset is None:
+            x, y, z = zip(*[atom.coords for atom in self.atoms])
+        else:
+            x, y, z = zip(*[atom.coords for atom in atom_subset])
+        return np.array((x, y, z)).T
+
+
+    def from_array(self, xyz_array, atom_subset=None):
+        """Update the cartesian coordinates of a |Molecule|, containing n atoms, with coordinates provided by a (≤n)*3 numpy array.
+
+        :param |Molecule| self: A |Molecule| with n atoms.
+        :param np.ndarray xyz_array: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
+        :param ''None'' or list atom_subset: An iterable consisting of ≤n atoms; allows one to update the cartesian coordinates of a subset of atoms wthin *self*.
+        """
+        ar = xyz_array.T
+        if atom_subset is not None:
+            for at, x, y, z in zip(self.atoms, ar[0], ar[1], ar[2]):
+                at.coords = (x, y, z)
+        else:
+            for at, x, y, z in zip(atom_subset, ar[0], ar[1], ar[2]):
+                at.coords = (x, y, z)
