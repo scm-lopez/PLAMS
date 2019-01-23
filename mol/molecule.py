@@ -568,8 +568,10 @@ class Molecule (object):
         """
         xyz_array = self.as_array()
         matrix = np.array(matrix).reshape(3, 3)
-        xyz_array = xyz_array@matrix
+        xyz_array = xyz_array@matrix.T
         self.from_array(xyz_array)
+        if lattice:
+            self.rotate_lattice(matrix)
 
 
     def align_lattice(self, convention='x', zero=1e-10):
@@ -661,7 +663,7 @@ class Molecule (object):
 
         xyz_array = self.as_array(atom_subset=atoms_to_rotate)
         xyz_array += trans
-        xyz_array = xyz_array@rotmat
+        xyz_array = xyz_array@rotmat.T
         xyz_array -= trans
 
         self.from_array(xyz_array, atom_subset=atoms_to_rotate)
@@ -743,8 +745,8 @@ class Molecule (object):
         length = Units.convert(length, length_unit, 'angstrom')
         angle = Units.convert(angle, angle_unit, 'radian')
 
-        xs = [atom.x for atom in self.atoms]
-        if max(xs)-min(xs) > length:
+        xy_array = self.to_array()[:, 0:2].T
+        if xy_array[0].ptp() > length:
             raise MoleculeError('wrap: x-extension of the molecule is larger than length')
 
         if angle < 0 or angle > 2*math.pi:
@@ -752,11 +754,11 @@ class Molecule (object):
 
         R = length / angle
 
-        def map_ring(x,y):
-            return ((R-y) * math.cos(x/R), (R-y) * math.sin(x/R))
+        x_array = (R - xy_array[1]) * np.cos(xy_array[0] / R)
+        y_array = (R - xy_array[1]) * np.sin(xy_array[0] / R)
 
-        for at in self.atoms:
-            at.x, at.y = map_ring(at.x, at.y)
+        for at, x, y in zip(self.atoms, x_array, y_array):
+            at.coords = (x, y, at.coords[-1])
 
 
     def get_center_of_mass(self, unit='angstrom'):
@@ -1347,7 +1349,8 @@ class Molecule (object):
         """Convert the cartesian coordinates of a |Molecule|, containing n atoms, into a (≤n)*3 numpy array.
 
         :param |Molecule| self: A |Molecule| with n atoms.
-        :param ''None'' or list atom_subset: An iterable consisting of ≤n atoms; allows one to convert a subset of atoms within *self* into a numpy array.
+        :param ''None'' or list atom_subset: An iterable container (e.g. list or tuple) consisting of ≤n atoms (|Atom|).
+            Allows one to convert a subset of atoms within *self* into a numpy array.
         :return np.ndarray: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
         """
         if atom_subset is None:
@@ -1362,7 +1365,8 @@ class Molecule (object):
 
         :param |Molecule| self: A |Molecule| with n atoms.
         :param np.ndarray xyz_array: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
-        :param ''None'' or list atom_subset: An iterable consisting of ≤n atoms; allows one to update the cartesian coordinates of a subset of atoms wthin *self*.
+        :param ''None'' or list atom_subset: An iterable container (e.g. list or tuple) consisting of ≤n atoms (|Atom|).
+            Allows one to update the cartesian coordinates of a subset of atoms wthin *self*.
         """
         ar = xyz_array.T
         if atom_subset is not None:
