@@ -826,11 +826,10 @@ class Molecule (object):
         frac_coords_transf = np.linalg.inv(lattice_np.T)
         deformed_lattice = np.dot(lattice_np, np.eye(n) + np.array(strain))
 
-        for atom in self.atoms:
-            coord_np = np.array(atom.coords)
-            fractional_coords = np.matmul(frac_coords_transf, coord_np.T)
-            atom.coords = tuple(np.matmul(fractional_coords,deformed_lattice))
+        xyz_array = self.to_array()
+        fractional_coords = xyz_array@frac_coords_transf.T
 
+        self.from_array(deformed_lattice@fractional_coords.T)
         self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
 
 
