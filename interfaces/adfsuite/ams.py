@@ -152,6 +152,31 @@ class AMSResults(Results):
         return self.get_molecule('Molecule', 'ams')
 
 
+    def get_history_molecule(self, step):
+        """Return a |Molecule| instance with coordinates taken from a particular *step* in the ``History`` section of ``ams.rkf`` file.
+
+        All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+        """
+        if 'ams' in self.rkfs:
+            main = self.rkfs['ams']
+            if 'History' not in main:
+                raise KeyError("'History' section not present in {}".format(main.path))
+            n = main.read('History', 'nEntries')
+            if step > n:
+                raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
+            coords = main.read('History', f'Coords({step})')
+            coords = [coords[i:i+3] for i in range(0,len(coords),3)]
+            try:
+                system = main.read('History', f'SystemVersion({step})')
+                mol = self.get_molecule(f'ChemicalSystem({system})')
+            except KeyError:
+                mol = self.get_main_molecule()
+            assert len(mol) == len(coords), '!!!!!!!!!!!!'
+            for at, c in zip(mol, coords):
+                at.move_to(c, unit='bohr')
+            return mol
+
+
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
 
@@ -220,7 +245,7 @@ class AMSResults(Results):
 
         The *func* argument has to be a function to call on a chosen ``.rkf`` file. It should take one argument, an instance of |KFFile|.
         """
-        #Try unique engine
+        #Try unique engine:
         if file == 'engine':
             names = self.engine_names()
             if len(names) == 1:

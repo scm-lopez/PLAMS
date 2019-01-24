@@ -60,11 +60,11 @@ class KFReader(object):
         try:
             tmp = self._sections[section]
         except KeyError:
-            raise FileError('Section {} not present in {}'.format(section, self.path))
+            raise KeyError('Section {} not present in {}'.format(section, self.path))
         try:
             vtype, vlb, vstart, vlen = tmp[variable]
         except KeyError:
-            raise FileError('Variable {} not present in section {} of {}'.format(variable, section, self.path))
+            raise KeyError('Variable {} not present in section {} of {}'.format(variable, section, self.path))
 
         ret = []
         first = True
@@ -409,7 +409,7 @@ class KFFile(object):
             try:
                 self.read(*arg)
                 return True
-            except FileError:
+            except KeyError:
                 return False
         raise TypeError("'in <KFFile>' requires string of a pair of strings as left operand")
 
