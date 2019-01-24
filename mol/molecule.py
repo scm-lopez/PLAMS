@@ -1373,7 +1373,7 @@ class Molecule (object):
             Allows one to update the cartesian coordinates of a subset of atoms wthin *self*.
         """
         ar = xyz_array.T
-        if atom_subset is not None:
+        if atom_subset is None:
             for at, x, y, z in zip(self.atoms, ar[0], ar[1], ar[2]):
                 at.coords = (x, y, z)
         else:
