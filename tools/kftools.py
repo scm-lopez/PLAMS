@@ -401,6 +401,19 @@ class KFFile(object):
             yield i
 
 
+    def __contains__(self, arg):
+        """Implements Python ``in`` operator for KFFiles. *arg* can be a single string with a section name or a pair of strings (section, variable)."""
+        if isinstance(arg, str):
+            return arg in self.sections()
+        if isinstance(arg, tuple) and len(arg) == 2 and isinstance(arg[0],str) and isinstance(arg[1],str):
+            try:
+                self.read(*arg)
+                return True
+            except FileError:
+                return False
+        raise TypeError("'in <KFFile>' requires string of a pair of strings as left operand")
+
+
     @staticmethod
     def _split(name):
         """Ensure that a key used in bracket notation is of the form ``'section%variable'`` or ``('section','variable')``. If so, return a tuple ``('section','variable')``."""
