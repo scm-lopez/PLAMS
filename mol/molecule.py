@@ -750,7 +750,7 @@ class Molecule (object):
         length = Units.convert(length, length_unit, 'angstrom')
         angle = Units.convert(angle, angle_unit, 'radian')
 
-        xy_array = self.to_array()[:, 0:2].T
+        xy_array = self.as_array().T[0:2]
         if xy_array[0].ptp() > length:
             raise MoleculeError('wrap: x-extension of the molecule is larger than length')
 
@@ -824,9 +824,9 @@ class Molecule (object):
 
         lattice_np = np.array(self.lattice)
         frac_coords_transf = np.linalg.inv(lattice_np.T)
-        deformed_lattice = np.dot(lattice_np, np.eye(n) + np.array(strain))
+        deformed_lattice = np.dot(lattice_np, np.eye(n) + strain)
 
-        xyz_array = self.to_array()
+        xyz_array = self.as_array()
         fractional_coords = xyz_array@frac_coords_transf.T
 
         self.from_array(deformed_lattice@fractional_coords.T)
@@ -1353,7 +1353,7 @@ class Molecule (object):
         """Convert the cartesian coordinates of a |Molecule|, containing n atoms, into a (≤n)*3 numpy array.
 
         :param |Molecule| self: A |Molecule| with n atoms.
-        :param ''None'' or list atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
+        :param ''None'' or iterable atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
             Allows one to convert a subset of atoms within *self* into a numpy array.
         :return np.ndarray: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
         """
@@ -1369,7 +1369,7 @@ class Molecule (object):
 
         :param |Molecule| self: A |Molecule| with n atoms.
         :param np.ndarray xyz_array: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
-        :param ''None'' or list atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
+        :param ''None'' or iterable atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
             Allows one to update the cartesian coordinates of a subset of atoms wthin *self*.
         """
         ar = xyz_array.T
