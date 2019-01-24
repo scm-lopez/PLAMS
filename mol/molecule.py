@@ -713,7 +713,7 @@ class Molecule (object):
         try:
             dist_array = cdist(xyz_array1, xyz_array2)
         except NameError:
-            dist_array = np.array([np.linalg.norm((i - xyz_array2), axis=1) for i in xyz_array1])
+            dist_array = np.array([np.linalg.norm(i - xyz_array2, axis=1) for i in xyz_array1])
 
         res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:
@@ -824,7 +824,7 @@ class Molecule (object):
 
         lattice_np = np.array(self.lattice)
         frac_coords_transf = np.linalg.inv(lattice_np.T)
-        deformed_lattice = np.dot(lattice_np, np.eye(n) + strain)
+        deformed_lattice = lattice_np.dot(np.eye(n) + strain)
 
         xyz_array = self.as_array()
         fractional_coords = xyz_array@frac_coords_transf.T
