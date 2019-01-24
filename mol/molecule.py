@@ -6,7 +6,7 @@ import os
 
 try:
     from scipy.spatial.distance import cdist
-except ImportError:
+except ModuleNotFoundError:
     pass
 
 from .atom import Atom
