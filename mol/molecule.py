@@ -941,6 +941,88 @@ class Molecule (object):
 
 
 #===========================================================================
+#==== Converters ===========================================================
+#===========================================================================
+
+
+
+    def as_dict(self):
+        """Store all information about the molecule in a dictionary.
+
+        The returned dictionary is, in principle, identical to ``self.__dict__`` of the current instance, apart from the fact that all |Atom| and |Bond| instances in ``atoms`` and ``bonds`` lists are replaced with dictionaries storing corresponing information.
+
+        This method is a counterpart of :meth:`from_dict`.
+        """
+        mol_dict = copy.copy(self.__dict__)
+        atom_indices = {id(a): i for i, a in enumerate(mol_dict['atoms'])}
+        bond_indices = {id(b): i for i, b in enumerate(mol_dict['bonds'])}
+        atom_dicts = [copy.copy(a.__dict__) for a in mol_dict['atoms']]
+        bond_dicts = [copy.copy(b.__dict__) for b in mol_dict['bonds']]
+        for a_dict in atom_dicts:
+            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds']]
+            del(a_dict['mol'])
+        for b_dict in bond_dicts:
+            b_dict['atom1'] = atom_indices[id(b_dict['atom1'])]
+            b_dict['atom2'] = atom_indices[id(b_dict['atom2'])]
+            del(b_dict['mol'])
+        mol_dict['atoms'] = atom_dicts
+        mol_dict['bonds'] = bond_dicts
+        return mol_dict
+
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Generate a new |Molecule| instance based on the information stored in a *dictionary*.
+
+        This method is a counterpart of :meth:`as_dict`.
+        """
+        mol = cls()
+        mol.__dict__ = copy.copy(dictionary)
+        atom_dicts = mol.atoms
+        bond_dicts = mol.bonds
+        mol.atoms=[]
+        mol.bonds=[]
+        for a_dict in atom_dicts:
+            a = Atom()
+            a.__dict__ = a_dict
+            a.mol = mol
+            a.bonds=[]
+            mol.add_atom(a)
+        for b_dict in bond_dicts:
+            b = Bond(None, None)
+            b_dict['atom1'] = mol.atoms[b_dict['atom1']]
+            b_dict['atom2'] = mol.atoms[b_dict['atom2']]
+            b.__dict__ = b_dict
+            b.mol = mol
+            mol.add_bond(b)
+        return mol
+
+
+    def as_array(self, atom_subset=None):
+        """Return cartesian coordinates of this molecule's atoms as a numpy array.
+
+        *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
+
+        Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
+        """
+        atom_subset = atom_subset or self.atoms
+        x, y, z = zip(*[atom.coords for atom in atom_subset])
+        return np.array((x, y, z)).T
+
+
+    def from_array(self, xyz_array, atom_subset=None):
+        """Update the cartesian coordinates of this |Molecule|, containing n atoms, with coordinates provided by a (≤n)*3 numpy array *xyz_array*.
+
+        *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule. It should have the same length as the first dimenstion of *xyz_array*.
+        """
+        ar = xyz_array.T
+        atom_subset = atom_subset or self.atoms
+        for at, x, y, z in zip(atom_subset, ar[0], ar[1], ar[2]):
+            at.coords = (x, y, z)
+
+
+
+#===========================================================================
 #==== File/format IO =======================================================
 #===========================================================================
 
@@ -1296,86 +1378,3 @@ class Molecule (object):
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
 
-
-    def as_dict(self):
-        """Store all information about the molecule in a dictionary.
-
-        The returned dictionary is, in principle, identical to ``self.__dict__`` of the current instance, apart from the fact that all |Atom| and |Bond| instances in ``atoms`` and ``bonds`` lists are replaced with dictionaries storing corresponing information.
-
-        This method is a counterpart of :meth:`from_dict`.
-        """
-        mol_dict = copy.copy(self.__dict__)
-        atom_indices = {id(a): i for i, a in enumerate(mol_dict['atoms'])}
-        bond_indices = {id(b): i for i, b in enumerate(mol_dict['bonds'])}
-        atom_dicts = [copy.copy(a.__dict__) for a in mol_dict['atoms']]
-        bond_dicts = [copy.copy(b.__dict__) for b in mol_dict['bonds']]
-        for a_dict in atom_dicts:
-            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds']]
-            del(a_dict['mol'])
-        for b_dict in bond_dicts:
-            b_dict['atom1'] = atom_indices[id(b_dict['atom1'])]
-            b_dict['atom2'] = atom_indices[id(b_dict['atom2'])]
-            del(b_dict['mol'])
-        mol_dict['atoms'] = atom_dicts
-        mol_dict['bonds'] = bond_dicts
-        return mol_dict
-
-
-    @classmethod
-    def from_dict(cls, dictionary):
-        """Generate a new |Molecule| instance based on the information stored in a *dictionary*.
-
-        This method is a counterpart of :meth:`as_dict`.
-        """
-        mol = cls()
-        mol.__dict__ = copy.copy(dictionary)
-        atom_dicts = mol.atoms
-        bond_dicts = mol.bonds
-        mol.atoms=[]
-        mol.bonds=[]
-        for a_dict in atom_dicts:
-            a = Atom()
-            a.__dict__ = a_dict
-            a.mol = mol
-            a.bonds=[]
-            mol.add_atom(a)
-        for b_dict in bond_dicts:
-            b = Bond(None, None)
-            b_dict['atom1'] = mol.atoms[b_dict['atom1']]
-            b_dict['atom2'] = mol.atoms[b_dict['atom2']]
-            b.__dict__ = b_dict
-            b.mol = mol
-            mol.add_bond(b)
-        return mol
-
-
-    def as_array(self, atom_subset=None):
-        """Convert the cartesian coordinates of a |Molecule|, containing n atoms, into a (≤n)*3 numpy array.
-
-        :param |Molecule| self: A |Molecule| with n atoms.
-        :param ''None'' or iterable atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
-            Allows one to convert a subset of atoms within *self* into a numpy array.
-        :return np.ndarray: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
-        """
-        if atom_subset is None:
-            x, y, z = zip(*[atom.coords for atom in self.atoms])
-        else:
-            x, y, z = zip(*[atom.coords for atom in atom_subset])
-        return np.array((x, y, z)).T
-
-
-    def from_array(self, xyz_array, atom_subset=None):
-        """Update the cartesian coordinates of a |Molecule|, containing n atoms, with coordinates provided by a (≤n)*3 numpy array.
-
-        :param |Molecule| self: A |Molecule| with n atoms.
-        :param np.ndarray xyz_array: A (≤n)*3 numpy array with the cartesian coordinates of *self*.
-        :param ''None'' or iterable atom_subset: An iterable (e.g. list, tuple or generator) consisting of ≤n atoms (|Atom|).
-            Allows one to update the cartesian coordinates of a subset of atoms wthin *self*.
-        """
-        ar = xyz_array.T
-        if atom_subset is None:
-            for at, x, y, z in zip(self.atoms, ar[0], ar[1], ar[2]):
-                at.coords = (x, y, z)
-        else:
-            for at, x, y, z in zip(atom_subset, ar[0], ar[1], ar[2]):
-                at.coords = (x, y, z)
