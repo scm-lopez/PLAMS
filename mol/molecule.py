@@ -559,6 +559,7 @@ class Molecule (object):
 
             This method does not check if *matrix* is a proper rotation matrix.
         """
+        matrix = np.array(matrix).reshape(3,3)
         self.lattice = [tuple(np.dot(matrix,i)) for i in self.lattice]
 
 
