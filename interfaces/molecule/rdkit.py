@@ -19,7 +19,7 @@ from warnings import warn
 try:
     from rdkit import Chem, Geometry
     from rdkit.Chem import AllChem
-except ModuleNotFoundError:
+except ImportError:
     __all__ = []
 
 from ...mol.bond import Bond
