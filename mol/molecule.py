@@ -628,15 +628,15 @@ class Molecule:
         return rotated
 
 
-    def rotate_bond(self, bond, atom, angle, unit='radian'):
-        """Rotate given *bond* by an *angle* expressed in *unit*.
+    def rotate_bond(self, bond, moving_atom, angle, unit='radian'):
+        """Rotate part of this molecule containing *moving_atom* along axis defined by *bond* by an *angle* expressed in *unit*.
 
-        *bond* should be chosen in such a way, that it divides the molecule into two parts (using a bond being part of a ring results in an error). *atom* has to belong to *bond* and is used to pick which "half" of the molecule is rotated. A positive angle denotes counterclockwise rotation (when looking along the bond, from the stationary part of the molecule).
+        *bond* should be chosen in such a way, that it divides the molecule into two parts (using a bond that forms a ring results in a |MoleculeError|). *moving_atom* has to belong to *bond* and is used to pick which part of the molecule is rotated. A positive angle denotes counterclockwise rotation (when looking along the bond, from the stationary part of the molecule).
         """
-        if atom not in bond:
+        if moving_atom not in bond:
             raise MoleculeError('rotate_bond: atom has to belong to the bond')
 
-        atoms_to_rotate = {atom}
+        atoms_to_rotate = {moving_atom}
 
         def dfs(v):
             for e in v.bonds:
@@ -646,13 +646,13 @@ class Molecule:
                         atoms_to_rotate.add(u)
                         dfs(u)
 
-        dfs(atom)
+        dfs(moving_atom)
 
         if len(atoms_to_rotate) == len(self):
             raise MoleculeError('rotate_bond: chosen bond does not divide molecule')
 
-        other_end = bond.other_end(atom)
-        v = np.array(other_end.vector_to(atom))
+        other_end = bond.other_end(moving_atom)
+        v = np.array(other_end.vector_to(moving_atom))
         v /= np.linalg.norm(v)
 
         W = np.array([[0, -v[2], v[1]],
@@ -673,6 +673,37 @@ class Molecule:
         xyz_array -= trans
 
         self.from_array(xyz_array, atom_subset=atoms_to_rotate)
+
+
+    def resize_bond(self, bond, moving_atom, length, unit='angstrom'):
+        """Change the length of *bond* to *length* expressed in *unit* by moving part of the molecule containing *moving_atom*
+
+        *bond* should be chosen in such a way, that it divides the molecule into two parts (using a bond that forms a ring results in a |MoleculeError|). *moving_atom* has to belong to *bond* and is used to pick which part of the molecule is moved.
+        """
+        if moving_atom not in bond:
+            raise MoleculeError('resize_bond: atom has to belong to the bond')
+
+        atoms_to_move = {moving_atom}
+
+        def dfs(v):
+            for e in v.bonds:
+                if e is not bond:
+                    u = e.other_end(v)
+                    if u not in atoms_to_move:
+                        atoms_to_move.add(u)
+                        dfs(u)
+
+        dfs(moving_atom)
+
+        if len(atoms_to_move) == len(self):
+            raise MoleculeError('resize_bond: chosen bond does not divide molecule')
+
+        bond_v = np.array(bond.as_vector(start=moving_atom))
+        trans_v = (1 - length/bond.length(unit)) * bond_v
+
+        xyz_array = self.as_array(atom_subset=atoms_to_move)
+        xyz_array += trans_v
+        self.from_array(xyz_array, atom_subset=atoms_to_move)
 
 
     def closest_atom(self, point, unit='angstrom'):

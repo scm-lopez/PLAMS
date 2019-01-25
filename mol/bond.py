@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..core.errors import MoleculeError
 from ..core.settings import Settings
 from ..tools.units import Units
@@ -51,6 +53,18 @@ class Bond:
         return self.atom1.distance_to(self.atom2, result_unit=unit)
 
 
+    def as_vector(self, start=None, unit='angstrom'):
+        """Return a vector between two atoms that form this bond. *start* can be used to indicate which atom should be the beginning of that vector. If not specified, ``self.atom1`` is used. Returned value if a tuple of length 3, expressed in *unit*.
+        """
+        if start:
+            if start not in self:
+                raise MoleculeError('Bond.as_vector: given atom is not a part of this bond')
+            a,b = start, self.other_end(start)
+        else:
+            a,b = self.atom1, self.atom2
+        return a.vector_to(b, result_unit=unit)
+
+
     def other_end(self, atom):
         """Return the atom on the other end of this bond with respect to *atom*. *atom* has to be one of the atoms forming this bond, otherwise an exception is raised.
         """
@@ -62,13 +76,35 @@ class Bond:
             raise MoleculeError('Bond.other_end: invalid atom passed')
 
 
-    def resize(self, atom, length, unit='angstrom'):
-        """Change the length of the bond to *length*.
+    def resize(self, moving_atom, length, unit='angstrom'):
+        """Change the length of this bond to *length* expressed in *unit* by moving *moving_atom*.
 
-        One of two atoms forming this bond is moved along the bond in such a way that the new length is *length*, in *unit* (direction of the bond in space does not change). Atom indicated by *atom* has to be one of bond's atoms and it is the atom that is **not** moved.
+        *moving_atom* should be one of the atoms that form this bond. This atom is moved along the bond axis in such a way that new bond length equals *length. If this bond is a part of a |Molecule| the whole part connected to *moving_atom* is moved.
+
+        .. note::
+
+            Calling this method on a bond that forms a ring within a molecule raises a |MoleculeError|.
+
         """
-        ratio = 1.0 - Units.convert(length, unit, 'angstrom')/self.length()
-        moving = self.other_end(atom)
-        moving.translate(tuple(i*ratio for i in moving.vector_to(atom)))
 
+        if self.mol:
+            self.mol.resize_bond(self, moving_atom, length, unit)
+        else:
+            bond_v = np.array(self.as_vector(start=moving_atom))
+            trans_v = (1 - length/bond.length(unit)) * bond_v
+            moving_atom.translate(trans_v)
+
+
+    def rotate(self, moving_atom, angle, unit='radian'):
+        """Rotate part of the molecule containing *moving_atom* along axis defined by this bond by an *angle* expressed in *unit*.
+
+        Calling this method makes sense only if this bond is a part of a |Molecule|. *moving_atom* should be one of the atoms that form this bond and it indicates which part of the molecule is rotated. A positive value of *angle* denotes counterclockwise rotation (when looking along the bond, from the stationary part of the molecule).
+
+        .. note::
+
+            Calling this method on a bond that forms a ring raises a |MoleculeError|.
+
+        """
+        if self.mol:
+            self.mol.rotate_bond(self, moving_atom, angle, unit)
 
