@@ -2,7 +2,7 @@ from ..core.errors import PTError
 
 __all__ = ['PeriodicTable', 'PT']
 
-class PeriodicTable(object):
+class PeriodicTable:
     """A singleton class for the periodic table of elements.
 
     For each element the following properties are stores: atomic symbol, atomic mass, atomic radius and number of connectors.

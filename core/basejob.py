@@ -20,7 +20,7 @@ from ..mol.molecule import Molecule
 __all__ = ['SingleJob', 'MultiJob']
 
 
-class Job(object):
+class Job:
     """General abstract class for all kind of computational tasks.
 
     Methods common for all kinds of jobs are gathered here. Instances of |Job| should never be created. It should not be subclassed either. If you wish to define a new type of job please subclass either |SingleJob| or |MultiJob|.

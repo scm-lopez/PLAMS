@@ -15,7 +15,7 @@ __all__ = ['KFFile', 'KFReader']
 
 
 
-class KFReader(object):
+class KFReader:
     """A class for efficient Python-native reader of binary files in KF format.
 
     This class offers read-only access to any fragment of data from a KF file. Unlike other Python KF readers, this one does not use the Fortran binary ``dmpkf`` to process KF files, but instead reads and interprets raw binary data straight from the file, on Python level. That approach results in significant speedup (by a factor of few hundreds for large files extracted variable by variable).
@@ -227,7 +227,7 @@ class KFReader(object):
 
 
 
-class KFFile(object):
+class KFFile:
     """A class for reading and writing binary files in KF format.
 
     This class acts as a wrapper around |KFReader| collecting all the data written by user in some "temporary zone" and using Fortran binaries ``udmpkf`` and ``cpkf`` to write this data to the physical file when needed.

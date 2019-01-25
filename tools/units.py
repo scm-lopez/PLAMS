@@ -8,7 +8,7 @@ from ..core.errors import UnitsError
 __all__ = ['Units']
 
 
-class Units(object):
+class Units:
     """A singleton class for unit converter.
 
     All values are based on `2014 CODATA recommended values <http://physics.nist.gov/cuu/Constants>`_.

@@ -24,7 +24,7 @@ from ..tools.units import Units
 __all__ = ['Molecule']
 
 
-class Molecule (object):
+class Molecule:
     """A class representing the molecule object.
 
     An instance of this class has the following attributes:
@@ -387,7 +387,7 @@ class Molecule (object):
 
         """
 
-        class HeapElement(object):
+        class HeapElement:
             def __init__(self, order, ratio, atom1, atom2):
                 eff_ord = order
                 if order == 1.5: #effective order for aromatic bonds

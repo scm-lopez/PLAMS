@@ -15,7 +15,7 @@ __all__ = ['JobManager']
 
 
 
-class JobManager(object):
+class JobManager:
     """Class responsible for jobs and files management.
 
     Every instance has the following attributes:

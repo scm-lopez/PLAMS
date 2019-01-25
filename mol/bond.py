@@ -6,7 +6,7 @@ from ..tools.units import Units
 __all__ = ['Bond']
 
 
-class Bond (object):
+class Bond:
     """A class representing a bond between two atoms.
 
     An instance of this class has the following attributes:

@@ -9,7 +9,7 @@ from ..tools.units import Units
 __all__ = ['Atom']
 
 
-class Atom(object):
+class Atom:
     """A class representing a single atom in three dimensional space.
 
     An instance of this class has the following attributes:

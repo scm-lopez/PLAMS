@@ -14,7 +14,7 @@ _coord = ['ATOM  ','ANISOU','HETATM','TER   ','ENDMDL']
 #===========================================================================
 
 
-class PDBRecord(object):
+class PDBRecord:
     __slots__ = ['name', 'value', 'model']
 
     def __init__(self, s):
@@ -69,7 +69,7 @@ class PDBRecord(object):
 
 
 
-class PDBHandler(object):
+class PDBHandler:
     def __init__(self, textfile=None):
         self.records = {}
         for key in _sequence + _coord:
