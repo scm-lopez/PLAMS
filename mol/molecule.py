@@ -4,6 +4,11 @@ import math
 import numpy as np
 import os
 
+try:
+    from scipy.spatial.distance import cdist
+except ModuleNotFoundError:
+    pass
+
 from .atom import Atom
 from .bond import Bond
 from .pdbtools import PDBHandler, PDBRecord
@@ -539,8 +544,10 @@ class Molecule (object):
 
         *vector* should be an iterable container of length 3 (usually tuple, list or numpy array). *unit* describes unit of values stored in *vector*.
         """
-        for at in self.atoms:
-            at.translate(vector, unit)
+        xyz_array = self.as_array()
+        ratio = Units.conversion_ratio(unit, 'angstrom')
+        xyz_array += np.array(vector) * ratio
+        self.from_array(xyz_array)
 
 
     def rotate_lattice(self, matrix):
@@ -552,6 +559,7 @@ class Molecule (object):
 
             This method does not check if *matrix* is a proper rotation matrix.
         """
+        matrix = np.array(matrix).reshape(3,3)
         self.lattice = [tuple(np.dot(matrix,i)) for i in self.lattice]
 
 
@@ -564,8 +572,10 @@ class Molecule (object):
 
             This method does not check if *matrix* is a proper rotation matrix.
         """
-        for at in self.atoms:
-            at.rotate(matrix)
+        xyz_array = self.as_array()
+        matrix = np.array(matrix).reshape(3, 3)
+        xyz_array = xyz_array@matrix.T
+        self.from_array(xyz_array)
         if lattice:
             self.rotate_lattice(matrix)
 
@@ -646,20 +656,23 @@ class Molecule (object):
         v /= np.linalg.norm(v)
 
         W = np.array([[0, -v[2], v[1]],
-                     [v[2], 0, -v[0]],
-                     [-v[1], v[0], 0]])
+                      [v[2], 0, -v[0]],
+                      [-v[1], v[0], 0]])
 
         angle = Units.convert(angle, unit, 'radian')
         a1 = math.sin(angle)
         a2 = 2 * math.pow(math.sin(0.5 * angle), 2)
 
-        rotmat = np.identity(3) + a1 * W + a2 * np.dot(W,W)
+        rotmat = np.identity(3) + a1 * W + a2 * W@W
 
         trans = np.array(other_end.vector_to((0,0,0)))
-        for at in atoms_to_rotate:
-            at.translate(trans)
-            at.rotate(rotmat)
-            at.translate(-trans)
+
+        xyz_array = self.as_array(atom_subset=atoms_to_rotate)
+        xyz_array += trans
+        xyz_array = xyz_array@rotmat.T
+        xyz_array -= trans
+
+        self.from_array(xyz_array, atom_subset=atoms_to_rotate)
 
 
     def closest_atom(self, point, unit='angstrom'):
@@ -667,13 +680,15 @@ class Molecule (object):
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*.
         """
-        dist = float('inf')
-        for at in self.atoms:
-            newdist = at.distance_to(point, unit=unit)
-            if newdist < dist:
-                dist = newdist
-                ret = at
-        return ret
+        if isinstance(point, Atom):
+            point = np.array(point.coords) * Units.conversion_ratio(unit, 'angstrom')
+        else:
+            point = np.array(point) * Units.conversion_ratio(unit, 'angstrom')
+
+        xyz_array = self.as_array()
+        dist_array = np.linalg.norm(point - xyz_array, axis=1)
+        idx = dist_array.argmin()
+        return self[int(idx + 1)]
 
 
     def distance_to_point(self, point, unit='angstrom', result_unit='angstrom'):
@@ -692,16 +707,20 @@ class Molecule (object):
 
         If *return_atoms* is ``False``, only a single number is returned.  If *return_atoms* is ``True``, the method returns a tuple ``(distance, atom1, atom2)`` where ``atom1`` and ``atom2`` are atoms fulfilling the minimal distance, with atom1 belonging to this molecule and atom2 to *other*.
         """
-        dist = float('inf')
-        for at1 in self.atoms:
-            for at2 in other.atoms:
-                newdist = (at1.x-at2.x)**2 + (at1.y-at2.y)**2 + (at1.z-at2.z)**2
-                if newdist < dist:
-                    dist = newdist
-                    atom1 = at1
-                    atom2 = at2
-        res = Units.convert(math.sqrt(dist), 'angstrom', result_unit)
+        xyz_array1 = self.as_array()
+        xyz_array2 = other.as_array()
+
+        # Try to use the faster cdist function if scipy is installed
+        try:
+            dist_array = cdist(xyz_array1, xyz_array2)
+        except NameError:
+            dist_array = np.array([np.linalg.norm(i - xyz_array2, axis=1) for i in xyz_array1])
+
+        res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:
+            idx1, idx2 = np.unravel_index(dist_array.argmin(), dist_array.shape)
+            atom1 = self[int(idx1 + 1)]
+            atom2 = other[int(idx2 + 1)]
             return res, atom1, atom2
         return res
 
@@ -732,8 +751,8 @@ class Molecule (object):
         length = Units.convert(length, length_unit, 'angstrom')
         angle = Units.convert(angle, angle_unit, 'radian')
 
-        xs = [atom.x for atom in self.atoms]
-        if max(xs)-min(xs) > length:
+        xy_array = self.as_array().T[0:2]
+        if xy_array[0].ptp() > length:
             raise MoleculeError('wrap: x-extension of the molecule is larger than length')
 
         if angle < 0 or angle > 2*math.pi:
@@ -741,24 +760,21 @@ class Molecule (object):
 
         R = length / angle
 
-        def map_ring(x,y):
-            return ((R-y) * math.cos(x/R), (R-y) * math.sin(x/R))
+        x_array = (R - xy_array[1]) * np.cos(xy_array[0] / R)
+        y_array = (R - xy_array[1]) * np.sin(xy_array[0] / R)
 
-        for at in self.atoms:
-            at.x, at.y = map_ring(at.x, at.y)
+        for at, x, y in zip(self.atoms, x_array, y_array):
+            at.coords = (x, y, at.coords[-1])
 
 
     def get_center_of_mass(self, unit='angstrom'):
         """Return the center of mass of the molecule (as a tuple). Returned coordinates are expressed in *unit*."""
-        center = [0.0,0.0,0.0]
-        total_mass = 0.0
-        for at in self.atoms:
-            total_mass += at.mass
-            for i in range(3):
-                center[i] += at.mass*at.coords[i]
-        for i in range(3):
-            center[i] = Units.convert(center[i]/total_mass, 'angstrom', unit)
-        return tuple(center)
+        mass_array = np.array([atom.mass for atom in self])
+        xyz_array = self.as_array().T
+        xyz_array *= mass_array
+        center = xyz_array.sum(axis=1)
+        center /= mass_array.sum()
+        return tuple(center * Units.conversion_ratio('angstrom', unit))
 
 
     def get_mass(self):
@@ -809,13 +825,12 @@ class Molecule (object):
 
         lattice_np = np.array(self.lattice)
         frac_coords_transf = np.linalg.inv(lattice_np.T)
-        deformed_lattice = np.dot(lattice_np, np.eye(n) + np.array(strain))
+        deformed_lattice = lattice_np.dot(np.eye(n) + strain)
 
-        for atom in self.atoms:
-            coord_np = np.array(atom.coords)
-            fractional_coords = np.matmul(frac_coords_transf, coord_np.T)
-            atom.coords = tuple(np.matmul(fractional_coords,deformed_lattice))
+        xyz_array = self.as_array()
+        fractional_coords = xyz_array@frac_coords_transf.T
 
+        self.from_array(deformed_lattice@fractional_coords.T)
         self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
 
 
@@ -923,6 +938,88 @@ class Molecule (object):
 
     def __copy__(self):
         return self.copy()
+
+
+
+#===========================================================================
+#==== Converters ===========================================================
+#===========================================================================
+
+
+
+    def as_dict(self):
+        """Store all information about the molecule in a dictionary.
+
+        The returned dictionary is, in principle, identical to ``self.__dict__`` of the current instance, apart from the fact that all |Atom| and |Bond| instances in ``atoms`` and ``bonds`` lists are replaced with dictionaries storing corresponing information.
+
+        This method is a counterpart of :meth:`from_dict`.
+        """
+        mol_dict = copy.copy(self.__dict__)
+        atom_indices = {id(a): i for i, a in enumerate(mol_dict['atoms'])}
+        bond_indices = {id(b): i for i, b in enumerate(mol_dict['bonds'])}
+        atom_dicts = [copy.copy(a.__dict__) for a in mol_dict['atoms']]
+        bond_dicts = [copy.copy(b.__dict__) for b in mol_dict['bonds']]
+        for a_dict in atom_dicts:
+            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds']]
+            del(a_dict['mol'])
+        for b_dict in bond_dicts:
+            b_dict['atom1'] = atom_indices[id(b_dict['atom1'])]
+            b_dict['atom2'] = atom_indices[id(b_dict['atom2'])]
+            del(b_dict['mol'])
+        mol_dict['atoms'] = atom_dicts
+        mol_dict['bonds'] = bond_dicts
+        return mol_dict
+
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Generate a new |Molecule| instance based on the information stored in a *dictionary*.
+
+        This method is a counterpart of :meth:`as_dict`.
+        """
+        mol = cls()
+        mol.__dict__ = copy.copy(dictionary)
+        atom_dicts = mol.atoms
+        bond_dicts = mol.bonds
+        mol.atoms=[]
+        mol.bonds=[]
+        for a_dict in atom_dicts:
+            a = Atom()
+            a.__dict__ = a_dict
+            a.mol = mol
+            a.bonds=[]
+            mol.add_atom(a)
+        for b_dict in bond_dicts:
+            b = Bond(None, None)
+            b_dict['atom1'] = mol.atoms[b_dict['atom1']]
+            b_dict['atom2'] = mol.atoms[b_dict['atom2']]
+            b.__dict__ = b_dict
+            b.mol = mol
+            mol.add_bond(b)
+        return mol
+
+
+    def as_array(self, atom_subset=None):
+        """Return cartesian coordinates of this molecule's atoms as a numpy array.
+
+        *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
+
+        Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
+        """
+        atom_subset = atom_subset or self.atoms
+        x, y, z = zip(*[atom.coords for atom in atom_subset])
+        return np.array((x, y, z)).T
+
+
+    def from_array(self, xyz_array, atom_subset=None):
+        """Update the cartesian coordinates of this |Molecule|, containing n atoms, with coordinates provided by a (≤n)*3 numpy array *xyz_array*.
+
+        *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule. It should have the same length as the first dimenstion of *xyz_array*.
+        """
+        ar = xyz_array.T
+        atom_subset = atom_subset or self.atoms
+        for at, x, y, z in zip(atom_subset, ar[0], ar[1], ar[2]):
+            at.coords = (x, y, z)
 
 
 
@@ -1282,54 +1379,3 @@ class Molecule (object):
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
 
-
-    def as_dict(self):
-        """Store all information about the molecule in a dictionary.
-
-        The returned dictionary is, in principle, identical to ``self.__dict__`` of the current instance, apart from the fact that all |Atom| and |Bond| instances in ``atoms`` and ``bonds`` lists are replaced with dictionaries storing corresponing information.
-
-        This method is a counterpart of :meth:`from_dict`.
-        """
-        mol_dict = copy.copy(self.__dict__)
-        atom_indices = {id(a): i for i, a in enumerate(mol_dict['atoms'])}
-        bond_indices = {id(b): i for i, b in enumerate(mol_dict['bonds'])}
-        atom_dicts = [copy.copy(a.__dict__) for a in mol_dict['atoms']]
-        bond_dicts = [copy.copy(b.__dict__) for b in mol_dict['bonds']]
-        for a_dict in atom_dicts:
-            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds']]
-            del(a_dict['mol'])
-        for b_dict in bond_dicts:
-            b_dict['atom1'] = atom_indices[id(b_dict['atom1'])]
-            b_dict['atom2'] = atom_indices[id(b_dict['atom2'])]
-            del(b_dict['mol'])
-        mol_dict['atoms'] = atom_dicts
-        mol_dict['bonds'] = bond_dicts
-        return mol_dict
-
-
-    @classmethod
-    def from_dict(cls, dictionary):
-        """Generate a new |Molecule| instance based on the information stored in a *dictionary*.
-
-        This method is a counterpart of :meth:`as_dict`.
-        """
-        mol = cls()
-        mol.__dict__ = copy.copy(dictionary)
-        atom_dicts = mol.atoms
-        bond_dicts = mol.bonds
-        mol.atoms=[]
-        mol.bonds=[]
-        for a_dict in atom_dicts:
-            a = Atom()
-            a.__dict__ = a_dict
-            a.mol = mol
-            a.bonds=[]
-            mol.add_atom(a)
-        for b_dict in bond_dicts:
-            b = Bond(None, None)
-            b_dict['atom1'] = mol.atoms[b_dict['atom1']]
-            b_dict['atom2'] = mol.atoms[b_dict['atom2']]
-            b.__dict__ = b_dict
-            b.mol = mol
-            mol.add_bond(b)
-        return mol
