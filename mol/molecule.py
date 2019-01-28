@@ -1,5 +1,6 @@
 import copy
 import heapq
+import itertools
 import math
 import numpy as np
 import os
@@ -529,6 +530,38 @@ class Molecule:
 
         for at in self:
             del at._visited
+        return ret
+
+
+    def supercell(self, *args):
+        """Return a new |Molecule| instance representing a supercell build by replicating this |Molecule| along its lattice vectors.
+
+        The number of arguments supplied to this method should be equal the number of lattice vectors this molecule has. Each argument should be a positive integer.
+
+        The returned |Molecule| is fully distinct from the current one, in a sense that it contains a different set of |Atom| and |Bond| instances. However, each atom of the returned |Molecule| carries an additional information about its origin within the supercell. If ``atom`` is an |Atom| instance in the supercell, ``atom.properties.supercell.origin`` points to the |Atom| instance of the original molecule that was copied to create ``atom``, while ``atom.properties.supercell.index`` stores the tuple (with lentgh equal to the number of lattice vectors) with cell index. For example, ``atom.properties.supercell.index == (2,1,0)`` means that ``atom`` is a copy of ``atom.properties.supercell.origin`` that was translated twice along the first lattice vector, once along the second vector, and not translated along the thid vector. Values in cell indices are always non-negative (translation always occurs in the positive direction of lattice vectors).
+        """
+
+        if len(args) != len(self.lattice):
+            raise MoleculeError('supercell: The lattice has {} vectors, but {} arguments were given'. format(len(self.lattice), len(args)))
+
+        if not all(isinstance(arg, int) and arg > 0 for arg in args):
+            raise MoleculeError('supercell: arguments should be positive integers')
+
+        lattice = [np.array(v) for v in self.lattice]
+
+        tmp = self.copy()
+        for parent, son in zip(self, tmp):
+            son.properties.supercell.origin = parent
+
+        ret = Molecule()
+        for index in itertools.product(*[range(arg) for arg in args]):
+            newmol = tmp.copy()
+            for atom in newmol:
+                atom.properties.supercell.index = index
+            newmol.translate(sum(i*v for i,v in zip(index, lattice)))
+            ret += newmol
+
+        ret.lattice = [tuple(n*vec) for n, vec in zip(args, lattice)]
         return ret
 
 
