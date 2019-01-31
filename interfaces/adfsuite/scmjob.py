@@ -215,9 +215,9 @@ class SCMJob(SingleJob):
         ret = '$ADFBIN/'+self._command
         if 'nproc' in s:
             ret += ' -n ' + str(s.nproc)
-        ret += ' <'+self._filename('inp')
+        ret += ' <"{}"'.format(self._filename('inp'))
         if s.stdout_redirect:
-            ret += ' >'+self._filename('out')
+            ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
         return ret
 

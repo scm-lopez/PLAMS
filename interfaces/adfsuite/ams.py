@@ -350,12 +350,12 @@ class AMSJob(SingleJob):
 
         ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``.
         """
-        ret = 'AMS_JOBNAME={} AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
+        ret = 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
-        ret += ' <'+self._filename('inp')
+        ret += ' <"{}"'.format(self._filename('inp'))
         if self.settings.runscript.stdout_redirect:
-            ret += ' >'+self._filename('out')
+            ret += ' >"{}"'.formatself._filename('out')
         ret += '\n\n'
         return ret
 
