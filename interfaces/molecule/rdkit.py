@@ -66,11 +66,15 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
         at1 = plams_mol.atoms[bond.GetBeginAtomIdx()]
         at2 = plams_mol.atoms[bond.GetEndAtomIdx()]
         plams_mol.add_bond(Bond(at1, at2, bond.GetBondTypeAsDouble()))
-        stereo = bond.GetStereo()
-        if stereo == 'STEREOZ' or stereo == 'STEREOCIS':
+        stereo, bond_dir = str(bond.GetStereo()), str(bond.GetBondDir())
+        if stereo == 'STEREOZ' or stereo == 'STEREOCIS': 
             plams_mol.bonds[-1].properties.stereo = 'Z'
         elif stereo == 'STEREOE' or stereo == 'STEREOTRANS':
             plams_mol.bonds[-1].properties.stereo = 'E'
+        elif bond_dir == 'ENDUPRIGHT':
+            plams_mol.bonds[-1].properties.stereo = 'up'
+        elif bond_dir == 'ENDDOWNRIGHT':
+            plams_mol.bonds[-1].properties.stereo = 'down'
 
     # Set charge and assign properties to PLAMS molecule and bonds if *properties* = True
     plams_mol.charge = total_charge
@@ -126,9 +130,13 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
         if pl_bond.properties.stereo:
             stereo = pl_bond.properties.stereo.lower()
             if stereo == 'e' or stereo == 'trans':
-                rd_bond.SetStereo('STEREOE')
+                rd_bond.SetStereo(Chem.rdchem.BondStereo.STEREOE)
             elif stereo == 'z' or stereo == 'cis':
-                rd_bond.SetStereo('STEREOZ')
+                rd_bond.SetStereo(Chem.rdchem.BondStereo.STEREOZ)
+            elif stereo == 'up':
+                rd_bond.SetBondDir(Chem.rdchem.BondDir.ENDUPRIGHT)
+            elif stereo == 'down':
+                rd_bond.SetBondDir(Chem.rdchem.BondDir.ENDDOWNRIGHT)
 
     # Assign properties to RDKit molecule and bonds if *properties* = True
     if properties:
