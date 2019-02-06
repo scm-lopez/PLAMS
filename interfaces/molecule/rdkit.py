@@ -49,6 +49,8 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     except:
         pass
     conf = rdkit_mol.GetConformer(id=confid)
+
+    # Add atoms and assign properties to the PLAMS atom if *properties* = True
     for rd_atom in rdkit_mol.GetAtoms():
         pos = conf.GetAtomPosition(rd_atom.GetIdx())
         ch = rd_atom.GetFormalCharge()
@@ -58,10 +60,19 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
             pl_atom.properties.pdb_info = get_PDBResidueInfo(rd_atom)
         plams_mol.add_atom(pl_atom)
         total_charge += ch
+
+    # Add bonds and read cis/trans information from the RDKit bonds
     for bond in rdkit_mol.GetBonds():
         at1 = plams_mol.atoms[bond.GetBeginAtomIdx()]
         at2 = plams_mol.atoms[bond.GetEndAtomIdx()]
         plams_mol.add_bond(Bond(at1, at2, bond.GetBondTypeAsDouble()))
+        stereo = bond.GetStereo()
+        if stereo == 'STEREOZ' or stereo == 'STEREOCIS':
+            plams_mol.bonds[-1].properties.stereo = 'Z'
+        elif stereo == 'STEREOE' or stereo == 'STEREOTRANS':
+            plams_mol.bonds[-1].properties.stereo = 'E'
+
+    # Set charge and assign properties to PLAMS molecule and bonds if *properties* = True
     plams_mol.charge = total_charge
     if properties:
         prop_from_rdmol(plams_mol, rdkit_mol)
@@ -89,6 +100,8 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
         return plams_mol
     # Create rdkit molecule
     e = Chem.EditableMol(Chem.Mol())
+
+    # Add atoms and assign properties to the RDKit atom if *properties* = True
     for atom in plams_mol.atoms:
         a = Chem.Atom(atom.atnum)
         if 'charge' in atom.properties:
@@ -100,17 +113,32 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
                 if prop != 'charge' or prop != 'pdb_info':
                     prop_to_rdmol(atom, a, prop)
         e.AddAtom(a)
+
+    # Add bonds to the RDKit molecule
     for bond in plams_mol.bonds:
         a1 = plams_mol.atoms.index(bond.atom1)
         a2 = plams_mol.atoms.index(bond.atom2)
         e.AddBond(a1, a2, Chem.BondType(bond.order))
     rdmol = e.GetMol()
+
+    # Check if cis/trans information is stored in the Bond.properties.stereo attribute
+    for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
+        if pl_bond.properties.stereo:
+            stereo = pl_bond.properties.stereo.lower()
+            if stereo == 'e' or stereo == 'trans':
+                rd_bond.SetStereo('STEREOE')
+            elif stereo == 'z' or stereo == 'cis':
+                rd_bond.SetStereo('STEREOZ')
+
+    # Assign properties to RDKit molecule and bonds if *properties* = True
     if properties:
-        for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
-            for prop in pl_bond.properties:
-                prop_to_rdmol(pl_bond, rd_bond, prop)
         for prop in plams_mol.properties:
             prop_to_rdmol(plams_mol, rdmol, prop)
+        for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
+            for prop in pl_bond.properties:
+                if prop != 'stereo':
+                    prop_to_rdmol(pl_bond, rd_bond, prop)
+
     if sanitize:
         Chem.SanitizeMol(rdmol)
     conf = Chem.Conformer()
