@@ -1,6 +1,8 @@
 import os
+import numpy as np
 
 from os.path import join as opj
+
 
 from ...core.basejob import SingleJob
 from ...core.errors import FileError
@@ -232,6 +234,25 @@ class AMSResults(Results):
             s.soft_update(config.job)
             return s
         return None
+
+
+    def get_energy(self, unit='au'):
+        """Return final bond energy, expressed in unit.
+
+        Energies are extracted from the engine-specific .rkf file.
+        """
+        rkf = self.engine_names()[0]
+        return self.readrkf('AMSResults', 'Energy', file=rkf) * Units.conversion_ratio('au', unit)
+
+
+    def get_frequencies(self, unit='cm^-1'):
+        """Return a numpy array of vibrational frequencies, expressed in *unit*.
+
+        Frequencies are extracted from the engine-specific .rkf file.
+        """
+        rkf = self.engine_names()[0]
+        freqs = np.array(self.readrkf('Vibrations', 'Frequencies[cm-1]', file=rkf))
+        return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
 
