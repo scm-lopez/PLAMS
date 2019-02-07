@@ -1,5 +1,39 @@
+import numpy as np
+
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
+from ...core.results import Results
+from ...mol.molecule import Molecule
+from ...tools.units import Units
+
+
+class ORCAResults(Results):
+    """
+    A class for accessing results of Orca jobs.
+    """
+
+    def get_main_molecule(self):
+        """ Return a |Molecule| instance with final coordinates read from the .xyz file. """
+        return Molecule(filename=self['$JN.xyz'])
+
+    def get_energy(self, unit='au'):
+        """ Return the total energy, expressed in *unit*. """
+        string = self.grep_output(pattern='FINAL SINGLE POINT ENERGY')
+        energy = float(string.split()[4])
+        return Units.convert(energy, 'au', unit)
+
+    def get_frequencies(self, unit='cm^-1'):
+        """ Return a numpy array of vibrational frequencies, expressed in *unit*. """
+        options = '-A ' + str(2 + 3 * len(self.job.molecule.atoms))
+        string = self.grep_output(pattern='VIBRATIONAL FREQUENCIES', options=options)
+        freq_list = string.spltlines()[3:]
+        freqs = np.array([float(freq.split()[1]) for freq in freq_list])
+        return freqs * Units.conversion_ratio('cm^-1', unit)
+
+
+#===========================================================================
+#===========================================================================
+#===========================================================================
 
 
 class ORCAJob(SingleJob):
@@ -10,6 +44,7 @@ class ORCAJob(SingleJob):
        * print molecule in internal coordinates
        * print xyz including different basis set
     """
+    _result_type = ORCAResults
 
     def get_input(self):
         """
@@ -116,4 +151,3 @@ class ORCAJob(SingleJob):
         """
         s = self.results.grep_output("ORCA TERMINATED NORMALLY")
         return len(s) > 0
-
