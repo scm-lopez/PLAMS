@@ -71,14 +71,21 @@ class KFReader:
         with open(self.path, 'rb') as f:
             for i in KFReader._datablocks(self._data[section], vlb):
                 if first:
-                    ret = self._get_data(self._read_block(f,i))[vtype-1][vstart-1:]
+                    ret = self._get_data(self._read_block(f,i), vtype)[vstart-1:]
                     first = False
                 else:
-                    ret += self._get_data(self._read_block(f,i))[vtype-1]
+                    ret += self._get_data(self._read_block(f,i), vtype)
                 if len(ret) >= vlen:
                     ret = ret[:vlen]
-                    if len(ret) == 1: return ret[0]
-                    return ret
+                    if isinstance(ret, bytes):
+                        try:
+                            return ret.decode()
+                        except UnicodeDecodeError:
+                            return ret.decode("Latin-1")
+                    elif len(ret) == 1:
+                        return ret[0]
+                    else:
+                        return ret
 
 
     def __iter__(self):
@@ -126,9 +133,9 @@ class KFReader:
     def _parse(self, block, format):   #format = [(32,'s'),(4,'i'),(2,'d')]
         """Translate a *block* of binary data into list of values in specified *format*.
 
-        *format* should be a list of pairs *(a,t)* where *t* is one of the following characters: ``'s'`` for string, ``'i'`` for 32-bit integer, ``'q'`` for 64-bit integer and *a* is the number of occurrences (or length of a string).
+        *format* should be a list of pairs *(a,t)* where *t* is one of the following characters: ``'s'`` for string (bytes), ``'i'`` for 32-bit integer, ``'q'`` for 64-bit integer and *a* is the number of occurrences (or length of a string).
 
-        For example, if *format* is equal to ``[(32,'s'),(4,'i'),(2,'d'),(2,'i')]``, the contents of *block* are divided into 72 bytes (32*1 + 4*4 + 2*8 + 2*4 = 72) chunks (possibly droping the last one, if it's shorter than 72 bytes). Then each chunk is translated to a 9-tuple of string, 4 ints, 2 floats and 2 ints. List of such tuples is the returned value.
+        For example, if *format* is equal to ``[(32,'s'),(4,'i'),(2,'d'),(2,'i')]``, the contents of *block* are divided into 72 bytes (32*1 + 4*4 + 2*8 + 2*4 = 72) chunks (possibly droping the last one, if it's shorter than 72 bytes). Then each chunk is translated to a 9-tuple of bytes, 4 ints, 2 floats and 2 ints. List of such tuples is the returned value.
         """
         step = 0
         formatstring = self.endian
@@ -136,30 +143,32 @@ class KFReader:
             step += a * self._sizes[t]
             formatstring += str(a) + t
 
-        ret = []
         if step > 0:
-            while step <= len(block):
-                new = struct.unpack(str(formatstring), block[:step])
-                try:
-                    new = tuple(map(lambda x: x.decode() if isinstance(x,bytes) else x, new))
-                except UnicodeDecodeError:
-                    new = tuple(map(lambda x: x.decode("Latin-1") if isinstance(x,bytes) else x, new))
-                ret.append(new)
-                block = block[step:]
-        return ret
+            return [struct.unpack(str(formatstring), block[pos:pos+step]) for pos in range(0, len(block) - step + 1, step)]
+        else:
+            return []
 
 
-    def _get_data(self, datablock):
-        """Extract all data from a single data block. Returned value is a 4-tuple of lists, one list for each data type (respectively: int, float, str, bool).
+    def _get_data(self, datablock, vtype):
+        """Extract all data of a given type from a single data block. Returned value is a list of values (int, float, or bool) or a single "bytes" object.
         """
         hlen = 4 * self._sizes[self.word]
         i,d,s,b = self._parse(datablock[:hlen],[(4,self.word)])[0]
         contents = self._parse(datablock[hlen:], zip((i,d,s,b),(self.word,'d','s',self.word)))
         if contents:
-            ret = list(contents[0])
-            return ret[:i], ret[i:i+d], ret[i+d], list(map(bool,ret[i+d+1:]))
+            contents = contents[0]  # there won't be more than one chunk of data in any data block
+            if vtype == 1:
+                return list(contents[:i])
+            elif vtype == 2:
+                return list(contents[i:i+d])
+            elif vtype == 3:
+                return contents[i+d]
+            elif vtype == 4:
+                return list(map(bool,contents[i+d+1:]))
+            else:
+                raise KeyError('Unknown vtype')
         else:
-            return [], [], [], []
+            return []
 
 
     def _create_index(self):
@@ -183,6 +192,10 @@ class KFReader:
             self._data = {}   #list of triples to convert logical to physical block numbers
             self._sections = {}
             for key, pb, lb, le, ty in superlist:   #pb=physical block, lb=logical block, le=length, ty=type (3 for index, 4 for data)
+                try:
+                    key = key.decode()
+                except UnicodeDecodeError:
+                    key = key.decode("Latin-1")
                 key = key.rstrip(' ')
                 if key in ['SUPERINDEX', 'EMPTY']: continue
                 if ty == 4:   #data block
@@ -194,9 +207,12 @@ class KFReader:
                         self._sections[key] = {}
                     for i in range(le):
                         indexblock = self._read_block(f, pb+i)
-                        header = self._parse(indexblock[:hlen],[(32,'s'),(7,self.word)])[0]
                         body = self._parse(indexblock[hlen:],[(32,'s'),(6,self.word)])
                         for var, vlb, vstart, vlen, _xx1, vused, vtype in body:
+                            try:
+                                var = var.decode()
+                            except UnicodeDecodeError:
+                                var = var.decode("Latin-1")
                             var = var.rstrip(' ')
                             if var == 'EMPTY': continue
                             self._sections[key][var] = (vtype, vlb, vstart, vused)
