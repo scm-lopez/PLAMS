@@ -202,22 +202,28 @@ class KFReader:
                             self._sections[key][var] = (vtype, vlb, vstart, vused)
 
             for k,v in self._data.items():
-                self._data[k] = sorted(v)
+                lbs = []
+                pbs = []
+                for lb, first, last in sorted(v):
+                    lbs.append(lb)
+                    pbs.append((first, last))
+                self._data[k] = (lbs, pbs)
 
 
     @staticmethod
     def _datablocks(lst, n=1):
-        """Transform a list of tuples ``[(x1,a1,b1),(x2,a2,b2),...]`` into an iterator over ``range(a1,b1)+range(a2,b2)+...`` Iteration starts from nth element of this list."""
-        i = bisect(list(zip(*lst))[0], n) - 1
-        lb, first, last = lst[i]
+        """Transform a tuple of lists ``([x1,x2,...], [(a1,b1),(a2,b2),...])`` into an iterator over ``range(a1,b1)+range(a2,b2)+...`` Iteration starts from nth element of this list."""
+        i = bisect(lst[0], n) - 1
+        lb = lst[0][i]
+        first, last = lst[1][i]
         ret = first + n - lb
-        while i < len(lst):
+        while i < len(lst[1]):
             while ret < last:
                 yield ret
                 ret += 1
             i += 1
-            if i < len(lst):
-                _, ret, last = lst[i]
+            if i < len(lst[1]):
+                ret, last = lst[1][i]
 
 
 
