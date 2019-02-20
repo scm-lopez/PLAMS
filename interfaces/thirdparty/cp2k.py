@@ -1,4 +1,5 @@
 import subprocess
+import shutil
 
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
@@ -8,7 +9,28 @@ __all__ = ['Cp2kJob']
 class Cp2kJob(SingleJob):
     """
     A class representing a single computational job with `CP2K <https://www.cp2k.org/>`
+
+    In addition to the arguments of |SingleJob|, |Cp2kJob| takes a *copy* argument.
+    *copy* can be a list or string, containing paths to files to be copied to the jobs directory.
+    This might e.g. be a molecule, further input files etc.
     """
+
+    def __init__(self, copy=None, **kwargs):
+        SingleJob.__init__(self, **kwargs)
+        self.copy_files = copy
+
+    def _get_ready(self):
+        """Copy files to execution dir if self.copy_files is set."""
+        SingleJob._get_ready(self)
+        if self.copy_files:
+            if not isinstance(self.copy_files, list):
+                self.copy_files = [self.copy_files]
+            for f in self.copy_files:
+                shutil.copy(f, self.path)
+        return
+
+
+
     def get_input(self):
         """
         Transform all contents of ``input`` branch of ``settings`` into string
