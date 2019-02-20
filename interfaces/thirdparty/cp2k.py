@@ -3,6 +3,7 @@ import subprocess
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
 
+__all__ = ['Cp2kJob']
 
 class Cp2kJob(SingleJob):
     """
