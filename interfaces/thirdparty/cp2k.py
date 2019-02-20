@@ -22,8 +22,13 @@ class Cp2kJob(SingleJob):
             key = key.upper()
             if isinstance(value, Settings):
                 if not any(k == key for k in _reserved_keywords):
-                    ret += '{}&{}\n'.format(indent, key)
+                    if '_h' in value:
+                        ret += '{}&{} {}\n'.format(indent, key, value['_h'])
+                    else:
+                        ret += '{}&{}\n'.format(indent, key)
                     for el in value:
+                        if el == '_h':
+                            continue
                         ret += parse(el, value[el], indent + '  ')
                     ret += '{}&END\n'.format(indent)
 

@@ -14,6 +14,9 @@ For instance, a single point calculation for pentacene::
     penta.input.force_eval.dft.potential_set_file_name = "/path/to/potential"
     penta.input.force_eval.dft.mgrid.cutoff = 400
     penta.input.force_eval.dft.mgrid.ngrids = 4
+    penta.input.force_eval.dft.poisson = Settings()
+    penta.input.force_eval.dft.localize._h = "T"
+
 
     penta.input.force_eval.qs.method = "GPW"
     penta.input.force_eval.scf.eps_scf = 1e-6
@@ -43,6 +46,10 @@ The input generated during the execution of the cp2k_ job is similar to: ::
         &MGRID
           CUTOFF  400
           NGRIDS  4
+        &END
+        &POISSON
+        &END
+        &LOCALIZE T
         &END
         POTENTIAL_FILE_NAME  /path/to/potential
         &QS
