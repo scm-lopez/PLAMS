@@ -8,7 +8,7 @@ __all__ = ['Cp2kJob']
 
 class Cp2kJob(SingleJob):
     """
-    A class representing a single computational job with `CP2K <https://www.cp2k.org/>`
+    A class representing a single computational job with `CP2K <https://www.cp2k.org/>`_
 
     In addition to the arguments of |SingleJob|, |Cp2kJob| takes a *copy* argument.
     *copy* can be a list or string, containing paths to files to be copied to the jobs directory.

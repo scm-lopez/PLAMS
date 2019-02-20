@@ -1,8 +1,9 @@
-
 CP2K
-=====
+-------------------------
 
-(*contributed by* `Felipe Zapata <https://www.researchgate.net/profile/Felipe_Zapata>`_\)
+(*contributed by* `Felipe Zapata <https://www.researchgate.net/profile/Felipe_Zapata>`_\, extended by `Patrick Melix <https://www.researchgate.net/profile/Patrick_Melix>`_\)
+
+.. currentmodule:: scm.plams.interfaces.thirdparty.cp2k
 
 cp2k_ input is rather complex one compared to other computational codes, but its input is structured as a set of nested block and sub-blocks that can be easily represented by the |Settings| class.
 Like the other interfaces, the *CP2K* input file is generated using the *input* branch of the job settings.
@@ -107,3 +108,8 @@ For a more detailed description of *cp2k* input see manual_.
 .. _cp2k: https://www.cp2k.org/
 
 .. _manual: https://manual.cp2k.org/#gsc.tab=0
+
+API
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: Cp2kJob()
