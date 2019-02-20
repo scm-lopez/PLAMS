@@ -35,9 +35,9 @@ For instance, a single point calculation for pentacene::
     penta.input.force_eval.subsys.topology.coord_file_name = "./penta.xyz"
     penta.input.force_eval.subsys.topology.coordinate = "xyz"
 
-    penta.input.global.print_level = "low"
-    penta.input.global.project  = "example"
-    penta.input.global.run_type = "energy_force"
+    penta.input.['global'].print_level = "low"
+    penta.input.['global'].project  = "example"
+    penta.input.['global'].run_type = "energy_force"
 
 The input generated during the execution of the cp2k_ job is similar to: ::
 
