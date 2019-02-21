@@ -1,40 +1,13 @@
 import subprocess
-import numpy as np
 
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
-from ...core.results import Results
-from ...mol.molecule import Molecule
-from ...tools.units import Units
-
-
-class Cp2kResults(Results):
-    """
-    A class for accessing results of CP2K jobs.
-    """
-
-    def get_main_molecule(self):
-        """ Return a |Molecule| instance with final coordinates read from the .xyz file. """
-        return Molecule(filename=self['$JN.xyz'])
-
-    def get_energy(self, unit='au'):
-        """ Return the total energy, expressed in *unit*. """
-        string = self.grep_output(pattern='Total energy')
-        energy = float(string.split()[2])
-        return Units.convert(energy, 'au', unit)
-
-
-#===========================================================================
-#===========================================================================
-#===========================================================================
 
 
 class Cp2kJob(SingleJob):
     """
     A class representing a single computational job with `CP2K <https://www.cp2k.org/>`
     """
-    _result_type = Cp2kResults
-
     def get_input(self):
         """
         Transform all contents of ``input`` branch of ``settings`` into string
