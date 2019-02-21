@@ -3,7 +3,6 @@ import numpy as np
 
 from os.path import join as opj
 
-
 from ...core.basejob import SingleJob
 from ...core.errors import FileError
 from ...core.functions import config, log
