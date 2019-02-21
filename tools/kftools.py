@@ -144,7 +144,8 @@ class KFReader:
             formatstring += str(a) + t
 
         if step > 0:
-            return [struct.unpack(str(formatstring), block[pos:pos+step]) for pos in range(0, len(block) - step + 1, step)]
+            end = (len(block) // step) * step
+            return list(struct.iter_unpack(formatstring, block[:end]))
         else:
             return []
 
