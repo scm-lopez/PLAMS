@@ -13,29 +13,21 @@ class ORCAResults(Results):
     """
 
     def get_main_molecule(self):
-        """
-        Return a |Molecule| instance with final coordinates read from the .xyz file.
-        """
+        """ Return a |Molecule| instance with final coordinates read from the .xyz file. """
         return Molecule(filename=self['$JN.xyz'])
 
     def get_energy(self, unit='au'):
-        """
-        Return the total energy, expressed in *unit*.
-        """
-        grep_list = self.grep_output(pattern='FINAL SINGLE POINT ENERGY')
-        energy = float(grep_list[-1].split()[4])
+        """ Return the total energy, expressed in *unit*. """
+        string = self.grep_output(pattern='FINAL SINGLE POINT ENERGY')
+        energy = float(string.split()[4])
         return Units.convert(energy, 'au', unit)
 
     def get_frequencies(self, unit='cm^-1'):
-        """
-        Return a numpy array of vibrational frequencies, expressed in *unit*.
-        """
-        options = '-A ' + str(1 + 3 * len(self.job.molecule.atoms))
-        grep_list = self.grep_file('$JN.hess',
-                                   pattern='$vibrational_frequencies',
-                                   options=options)[2:]
-        grep_list = [item.split() for item in grep_list]
-        freqs = np.array(grep_list, dtype=float)[:, 1]
+        """ Return a numpy array of vibrational frequencies, expressed in *unit*. """
+        options = '-A ' + str(2 + 3 * len(self.job.molecule.atoms))
+        string = self.grep_output(pattern='VIBRATIONAL FREQUENCIES', options=options)
+        freq_list = string.spltlines()[3:]
+        freqs = np.array([float(freq.split()[1]) for freq in freq_list])
         return freqs * Units.conversion_ratio('cm^-1', unit)
 
 

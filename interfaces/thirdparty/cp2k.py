@@ -10,34 +10,18 @@ from ...tools.units import Units
 
 class Cp2kResults(Results):
     """
-    A class for accessing the results of CP2K jobs.
+    A class for accessing results of CP2K jobs.
     """
 
     def get_main_molecule(self):
-        """
-        Return a |Molecule| instance with final coordinates read from the .xyz file.
-        """
-        input_global = self.job.settings.input['global']
-        if input_global.get('project'):
-            return Molecule(filename=self[input_global.get('project') + '-pos-1.xyz'])
-        return Molecule(filename=self['$JN-pos-1.xyz'])
+        """ Return a |Molecule| instance with final coordinates read from the .xyz file. """
+        return Molecule(filename=self['$JN.xyz'])
 
     def get_energy(self, unit='au'):
-        """
-        Return the total energy, expressed in *unit*.
-        """
-        grep_list = self.grep_output(pattern='  Total energy:')[0]
-        energy = float(grep_list.split()[2])
+        """ Return the total energy, expressed in *unit*. """
+        string = self.grep_output(pattern='Total energy')
+        energy = float(string.split()[2])
         return Units.convert(energy, 'au', unit)
-
-    def get_frequencies(self, unit='cm^-1'):
-        """
-        Return a numpy array of vibrational frequencies, expressed in *unit*.
-        """
-        grep_list = self.grep_output(pattern=' VIB|Frequency (cm^-1)')
-        grep_list = [item.split()[2:] for item in grep_list]
-        freqs = np.array(grep_list, dtype=float).flatten()
-        return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
 #===========================================================================
