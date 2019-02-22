@@ -93,7 +93,7 @@ class Units:
     energy['eV']                                      =  27.21138602   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
     energy['kJ/mol']                                  =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
     energy['kcal/mol']                                =  energy['kJ/mol'] / 4.184
-    energy['cm^-1']                                   =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
+    energy['cm^-1'] = energy['cm-1']                  =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
 
     angle = {}
     angle['degree'] =  angle['deg'] = 1.0
