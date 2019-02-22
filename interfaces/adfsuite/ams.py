@@ -204,6 +204,23 @@ class AMSResults(Results):
         return self._process_engine_results(properties, engine)
 
 
+    def get_energy(self, unit='au', engine=None):
+        """Return final bond energy, expressed in *unit*.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
+
+
+    def get_frequencies(self, unit='cm^-1', engine=None):
+        """Return a numpy array of vibrational frequencies, expressed in *unit*.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        freqs = np.array(self._process_engine_results(lambda x: x.read('AMSResults', 'Frequencies[cm-1]'), engine))
+        return freqs * Units.conversion_ratio('cm^-1', unit)
+
+
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
@@ -233,25 +250,6 @@ class AMSResults(Results):
             s.soft_update(config.job)
             return s
         return None
-
-
-    def get_energy(self, unit='au'):
-        """Return final bond energy, expressed in unit.
-
-        Energies are extracted from the engine-specific .rkf file.
-        """
-        rkf = self.engine_names()[0]
-        return self.readrkf('AMSResults', 'Energy', file=rkf) * Units.conversion_ratio('au', unit)
-
-
-    def get_frequencies(self, unit='cm^-1'):
-        """Return a numpy array of vibrational frequencies, expressed in *unit*.
-
-        Frequencies are extracted from the engine-specific .rkf file.
-        """
-        rkf = self.engine_names()[0]
-        freqs = np.array(self.readrkf('Vibrations', 'Frequencies[cm-1]', file=rkf))
-        return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
 
