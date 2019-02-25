@@ -187,6 +187,26 @@ class Cp2kResults(Results):
         """
         return self._get_charges(return_spin, index, 'Hirshfeld')
 
+    def get_multigrid_info(self):
+        """Get Information on multigrids.
+
+        Usefull for converging cutoffs.
+        Needs 'Medium' global print level.
+
+        Returns a dict with keys 'counts' and 'cutoffs'.
+        """
+        dic = {'counts': [], 'cutoffs': []}
+
+        s = self.get_output_chunk(begin='MULTIGRID INFO', end='total gridlevel count')[1:]
+        for line in s:
+            split = line.strip().split()
+            dic['counts'].append(int(split[4]))
+            dic['cutoffs'].append(float(split[-1]))
+
+        return dic
+
+
+
 class Cp2kJob(SingleJob):
     """
     A class representing a single computational job with `CP2K <https://www.cp2k.org/>`_
