@@ -93,6 +93,14 @@ class ADFResults(SCMResults):
         return ret
 
 
+    def get_frequencies(self, unit='cm^-1'):
+        """get_frequencies(unit='cm^-1')
+        Return a numpy array of vibrational frequencies, expressed in *unit*.
+        """
+        freqs = np.array(self.readkf('Freq', 'Frequencies]'))
+        return freqs * Units.conversion_ratio('cm^-1', unit)
+
+
     def get_timings(self):
         """get_timings()
 
