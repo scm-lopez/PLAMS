@@ -46,9 +46,11 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     total_charge = 0
     try:
         Chem.Kekulize(rdkit_mol)
-    except:
+    except Exception:
         pass
     conf = rdkit_mol.GetConformer(id=confid)
+
+    # Add atoms and assign properties to the PLAMS atom if *properties* = True
     for rd_atom in rdkit_mol.GetAtoms():
         pos = conf.GetAtomPosition(rd_atom.GetIdx())
         ch = rd_atom.GetFormalCharge()
@@ -58,10 +60,32 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
             pl_atom.properties.pdb_info = get_PDBResidueInfo(rd_atom)
         plams_mol.add_atom(pl_atom)
         total_charge += ch
+
+        # Check for R/S information
+        stereo = str(rd_atom.GetChiralTag())
+        if stereo == 'CHI_TETRAHEDRAL_CCW':
+            pl_atom.properties.stereo = 'counter-clockwise'
+        elif stereo == 'CHI_TETRAHEDRAL_CW':
+            pl_atom.properties.stereo = 'clockwise'
+
+    # Add bonds to the PLAMS molecule
     for bond in rdkit_mol.GetBonds():
         at1 = plams_mol.atoms[bond.GetBeginAtomIdx()]
         at2 = plams_mol.atoms[bond.GetEndAtomIdx()]
         plams_mol.add_bond(Bond(at1, at2, bond.GetBondTypeAsDouble()))
+
+        # Check for cis/trans information
+        stereo, bond_dir = str(bond.GetStereo()), str(bond.GetBondDir())
+        if stereo == 'STEREOZ' or stereo == 'STEREOCIS':
+            plams_mol.bonds[-1].properties.stereo = 'Z'
+        elif stereo == 'STEREOE' or stereo == 'STEREOTRANS':
+            plams_mol.bonds[-1].properties.stereo = 'E'
+        elif bond_dir == 'ENDUPRIGHT':
+            plams_mol.bonds[-1].properties.stereo = 'up'
+        elif bond_dir == 'ENDDOWNRIGHT':
+            plams_mol.bonds[-1].properties.stereo = 'down'
+
+    # Set charge and assign properties to PLAMS molecule and bonds if *properties* = True
     plams_mol.charge = total_charge
     if properties:
         prop_from_rdmol(plams_mol, rdkit_mol)
@@ -89,35 +113,63 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
         return plams_mol
     # Create rdkit molecule
     e = Chem.EditableMol(Chem.Mol())
-    for atom in plams_mol.atoms:
-        a = Chem.Atom(atom.atnum)
-        if 'charge' in atom.properties:
-            a.SetFormalCharge(atom.properties.charge)
+
+    # Add atoms and assign properties to the RDKit atom if *properties* = True
+    for pl_atom in plams_mol.atoms:
+        rd_atom = Chem.Atom(pl_atom.atnum)
+        if 'charge' in pl_atom.properties:
+            rd_atom.SetFormalCharge(pl_atom.properties.charge)
         if properties:
-            if 'pdb_info' in atom.properties:
-                set_PDBresidueInfo(a, atom.properties.pdb_info)
-            for prop in atom.properties:
-                if prop != 'charge' or prop != 'pdb_info':
-                    prop_to_rdmol(atom, a, prop)
-        e.AddAtom(a)
+            if 'pdb_info' in pl_atom.properties:
+                set_PDBresidueInfo(rd_atom, pl_atom.properties.pdb_info)
+            for prop in pl_atom.properties:
+                if prop not in ('charge', 'pdb_info', 'stereo'):
+                    prop_to_rdmol(pl_atom, rd_atom, prop)
+
+        # Check for R/S information
+        if pl_atom.properties.stereo:
+            stereo = pl_atom.properties.stereo.lower()
+            if stereo == 'counter-clockwise':
+                rd_atom.SetChiralTag(Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CCW)
+            elif stereo == 'clockwise':
+                rd_atom.SetChiralTag(Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW)
+        e.AddAtom(rd_atom)
+
+    # Add bonds to the RDKit molecule
     for bond in plams_mol.bonds:
         a1 = plams_mol.atoms.index(bond.atom1)
         a2 = plams_mol.atoms.index(bond.atom2)
         e.AddBond(a1, a2, Chem.BondType(bond.order))
     rdmol = e.GetMol()
+
+    # Check for cis/trans information
+    for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
+        if pl_bond.properties.stereo:
+            stereo = pl_bond.properties.stereo.lower()
+            if stereo == 'e' or stereo == 'trans':
+                rd_bond.SetStereo(Chem.rdchem.BondStereo.STEREOE)
+            elif stereo == 'z' or stereo == 'cis':
+                rd_bond.SetStereo(Chem.rdchem.BondStereo.STEREOZ)
+            elif stereo == 'up':
+                rd_bond.SetBondDir(Chem.rdchem.BondDir.ENDUPRIGHT)
+            elif stereo == 'down':
+                rd_bond.SetBondDir(Chem.rdchem.BondDir.ENDDOWNRIGHT)
+
+    # Assign properties to RDKit molecule and bonds if *properties* = True
     if properties:
-        for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
-            for prop in pl_bond.properties:
-                prop_to_rdmol(pl_bond, rd_bond, prop)
         for prop in plams_mol.properties:
             prop_to_rdmol(plams_mol, rdmol, prop)
+        for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
+            for prop in pl_bond.properties:
+                if prop != 'stereo':
+                    prop_to_rdmol(pl_bond, rd_bond, prop)
+
     if sanitize:
         Chem.SanitizeMol(rdmol)
     conf = Chem.Conformer()
-    for a in range(len(plams_mol.atoms)):
-        atom = plams_mol.atoms[a]
-        p = Geometry.Point3D(atom._getx(), atom._gety(), atom._getz())
-        conf.SetAtomPosition(a, p)
+    for i, atom in enumerate(plams_mol.atoms):
+        xyz = Geometry.Point3D(atom._getx(), atom._gety(), atom._getz())
+        conf.SetAtomPosition(i, xyz)
     rdmol.AddConformer(conf)
     return rdmol
 
@@ -205,6 +257,7 @@ def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
     :rtype: |Molecule| or list of PLAMS Molecules
     """
     smiles = str(smiles.split()[0])
+    smiles = Chem.CanonSmiles(smiles)
     rdkit_mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
     rdkit_mol.SetProp('smiles', smiles)
     return get_conformations(rdkit_mol, nconfs, name, forcefield, rms)
