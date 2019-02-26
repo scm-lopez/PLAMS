@@ -88,7 +88,7 @@ class Cp2kResults(Results):
         return s
 
     def get_runtime(self):
-        """Returns runtime in seconds"""
+        """Returns runtime in seconds from output."""
         from datetime import datetime
         start = " ".join(self.grep_output('PROGRAM STARTED AT')[-1].split()[-2:])
         end = " ".join(self.grep_output('PROGRAM ENDED AT')[-1].split()[-2:])
@@ -168,22 +168,22 @@ class Cp2kResults(Results):
     def get_mulliken_charges(self, return_spin=False, index=-1):
         """Get Mulliken charges (and spin moments).
 
-        Set index to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
         Set to *None* to return all as a list.
         Defaults to the last occurence.
 
-        Returns list of charges. If `return_spin` is `True` returns tuple of charges and spins.
+        Returns list of charges. If ``return_spin`` is `True` returns tuple of charges and spins.
         """
         return self._get_charges(return_spin, index, 'Mulliken')
 
     def get_hirshfeld_charges(self, return_spin=False, index=-1):
         """Get Hirshfeld charges (and spin moments).
 
-        Set index to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
         Set to *None* to return all as a list.
         Defaults to the last occurence.
 
-        Returns list of charges. If `return_spin` is `True` returns tuple of charges and spins.
+        Returns list of charges. If ``return_spin`` is `True` returns tuple of charges and spins.
         """
         return self._get_charges(return_spin, index, 'Hirshfeld')
 
@@ -211,8 +211,8 @@ class Cp2kJob(SingleJob):
     """
     A class representing a single computational job with `CP2K <https://www.cp2k.org/>`_
 
-    In addition to the arguments of |SingleJob|, |Cp2kJob| takes a *copy* argument.
-    *copy* can be a list or string, containing paths to files to be copied to the jobs directory.
+    In addition to the arguments of |SingleJob|, |Cp2kJob| takes a ``copy`` argument.
+    ``copy`` can be a list or string, containing paths to files to be copied to the jobs directory.
     This might e.g. be a molecule, further input files etc.
     """
     _result_type = Cp2kResults
@@ -235,7 +235,7 @@ class Cp2kJob(SingleJob):
 
     def get_input(self):
         """
-        Transform all contents of ``input`` branch of ``settings`` into string
+        Transform all contents of ``input`` branch of |Settings| into string
         with blocks, subblocks, keys and values.
         """
 
@@ -288,10 +288,37 @@ class Cp2kJob(SingleJob):
             return ret
 
         inp = ''
+
+        if self.molecule:
+            use_molecule = ('ignore_molecule' not in self.settings) or (self.settings.ignore_molecule == False)
+            if use_molecule:
+                self._parsemol()
+
         for item in self.settings.input:
             inp += parse(item, self.settings.input[item]) + '\n'
 
         return inp
+
+    def _parsemol(self):
+        #make lines shorter
+        inp = self.settings.input.force_eval.subsys
+        #add cell information
+        nDim = len(self.molecule.lattice)
+        keys = ['A', 'B', 'C']
+        periodic = ['X', 'XY', 'XYZ']
+        for iDim in range(0,nDim):
+            inp.cell[keys[iDim]] = "{:} {:} {:}".format(*self.molecule.lattice[iDim])
+        if nDim > 0:
+            inp.cell.periodic = periodic[nDim-1]
+
+        #get block of: symbol coords
+        coord_sec = ""
+        for atom in self.molecule:
+            coord_sec += "\n"
+            coord_sec += (" {:}"*4).format(atom.symbol, *atom.coords)
+        inp.coord._h = coord_sec
+
+
 
     def get_runscript(self):
         """

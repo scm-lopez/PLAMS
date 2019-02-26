@@ -282,6 +282,7 @@ rst_epilog = """
 .. |mol2CrystalConf| replace:: :func:`mol2CrystalConf<scm.plams.interfaces.thirdparty.crystal.mol2CrystalConf>`
 
 .. |Cp2kJob| replace:: :class:`Cp2kJob<scm.plams.interfaces.thirdparty.cp2k.Cp2kJob>`
+.. |Cp2kResults| replace:: :class:`Cp2kJob<scm.plams.interfaces.thirdparty.cp2k.Cp2kResults>`
 
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`
