@@ -1,10 +1,14 @@
-
 CP2K
-=====
+-------------------------
 
-(*contributed by* `Felipe Zapata <https://www.researchgate.net/profile/Felipe_Zapata>`_\)
+(*contributed by* `Felipe Zapata <https://www.researchgate.net/profile/Felipe_Zapata>`_\, extended by `Patrick Melix <https://www.researchgate.net/profile/Patrick_Melix>`_\)
 
-cp2k_ input is rather complex one compared to other computational codes, but its input is structured as a set of nested block and sub-blocks that can be easily represented by the |Settings| class.
+.. currentmodule:: scm.plams.interfaces.thirdparty.cp2k
+
+Settings
+~~~~~~~~~~~~~~
+
+The cp2k_ input is rather complex one compared to other computational codes, but its input is structured as a set of nested block and sub-blocks that can be easily represented by the |Settings| class.
 Like the other interfaces, the *CP2K* input file is generated using the *input* branch of the job settings.
 For instance, a single point calculation for pentacene::
 
@@ -14,6 +18,9 @@ For instance, a single point calculation for pentacene::
     penta.input.force_eval.dft.potential_set_file_name = "/path/to/potential"
     penta.input.force_eval.dft.mgrid.cutoff = 400
     penta.input.force_eval.dft.mgrid.ngrids = 4
+    penta.input.force_eval.dft.poisson = Settings()
+    penta.input.force_eval.dft.localize._h = "T"
+
 
     penta.input.force_eval.qs.method = "GPW"
     penta.input.force_eval.scf.eps_scf = 1e-6
@@ -31,9 +38,9 @@ For instance, a single point calculation for pentacene::
     penta.input.force_eval.subsys.topology.coord_file_name = "./penta.xyz"
     penta.input.force_eval.subsys.topology.coordinate = "xyz"
 
-    penta.input.global.print_level = "low"
-    penta.input.global.project  = "example"
-    penta.input.global.run_type = "energy_force"
+    penta.input.['global'].print_level = "low"
+    penta.input.['global'].project  = "example"
+    penta.input.['global'].run_type = "energy_force"
 
 The input generated during the execution of the cp2k_ job is similar to: ::
 
@@ -43,6 +50,10 @@ The input generated during the execution of the cp2k_ job is similar to: ::
         &MGRID
           CUTOFF  400
           NGRIDS  4
+        &END
+        &POISSON
+        &END
+        &LOCALIZE T
         &END
         POTENTIAL_FILE_NAME  /path/to/potential
         &QS
@@ -89,14 +100,43 @@ PLAMS automatically creates the indented structure of the previous example toget
 
 Notice that *CP2K* requires the explicit declaration of the basis set together with the charge and the name of the potential used for each one of the atoms.
 In the previous example the basis for the carbon is *DZVP-MOLOPT-SR-GTH*, while the potential is *GTH-PBE* and the charge *q4*.
+
+The input parser also allows for header values like in this example *&LOCALIZE T  &END* by using the ``<some_section>._h`` (for header) notation in the |Settings| instance (just like in |ADFJob|).
+
+Inclusion of external files by using the *@INCLUDE* notation of Cp2k is supported. Also the *@SET* and *@IF* keys can be used, just replace the *@* sign by ``at_`` in the definition of your |Settings|.
+If you need some files to be copied to the actual execution directory, pass them to the constructor using the ``copy=`` option. See the API below.
+
+
+Molecule parsing
+~~~~~~~~~~~~~~~~~~~~
+
+Molecules can be parsed into the input automatically by passing them to the |Cp2kJob| constructor.
+Leaving the molecule unset is supported, make sure you then set your molecule by hand (e.g. using the *TOPOLOGY* section).
+Parsing of the molecule can be avoided by setting ``job.settings.ignore_molecule = True`` in the |Settings| of the job.
+
 Also, the simulation cell can be specified using the x, y, z vectors like in the previous example.
 A cubic box can be easily specified by::
 
   penta.input.force_eval.subsys.cell.ABC = "[angstrom] 50 50 50"
 
 That results in a simulation cube of 50 cubic angstroms.
-For a more detailed description of *cp2k* input see manual_.
+For a more detailed description of the *cp2k* input see manual_.
 
 .. _cp2k: https://www.cp2k.org/
 
 .. _manual: https://manual.cp2k.org/#gsc.tab=0
+
+Loading jobs
+~~~~~~~~~~~~~~~~~~~
+
+Calculations done without PLAMS can be loaded using the |load_external| functionality. The |Cp2kResults| class supports reading input files into |Settings| objects.
+
+Just do ``Cp2kJob.load_external(path)`` to get the settings from the file.
+
+
+API
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: Cp2kJob()
+
+.. autoclass:: Cp2kResults()
