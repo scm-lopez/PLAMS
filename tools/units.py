@@ -163,7 +163,7 @@ class Units:
         """
         if value is None or isinstance(value, (bool, str)):
             return value
-        if isinstance(value, collections.Iterable):
+        if isinstance(value, collections.abc.Iterable):
             t = type(value)
             if t == np.ndarray:
                 t = np.array
