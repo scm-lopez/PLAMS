@@ -477,13 +477,17 @@ class AMSJob(SingleJob):
     def _serialize_molecule(self):
         """Return a |Settings| instance containing the information about the |Molecule| stored in the ``molecule`` attribute.
 
-        If ``settings.input.ams.system`` contains ``geometryfile`` key, the ``molecule`` attribute is completely ignored and this method returns an empty |Settings| instance. If ``settings.input.ams.system`` already contains ``atoms``, ``lattice``, or ``charge`` entries, the corresponding information from the ``molecule`` attribute is ignored.
+        If ``settings.input.ams`` contains ``loadsystem`` key or if``settings.input.ams.system`` contains ``geometryfile`` key, the ``molecule`` attribute is completely ignored and this method returns an empty |Settings| instance. If ``settings.input.ams.system`` already contains ``atoms``, ``lattice``, or ``charge`` entries, the corresponding information from the ``molecule`` attribute is ignored.
 
         Molecular charge is taken from ``molecule.properties.charge``, if present. Additional, atom-specific information to be put in ``atoms`` block after XYZ coordinates can be supplied with ``atom.properties.suffix``.
 
         The returned |Settings| instance has the structure allowing it to be merged with ``settings.input`` branch (keys like ``ams`` or ``system`` have the same case as the ones present in ``settings.input``).
         """
         ams = self.settings.input.find_case('ams')
+        loadsystem = self.settings.input[ams].find_case('loadsystem')
+        if loadsystem in self.settings.input[ams]:
+            return Settings()
+
         system = self.settings.input[ams].find_case('system')
         s = self.settings.input[ams][system]
         atoms = s.find_case('atoms')
@@ -491,11 +495,11 @@ class AMSJob(SingleJob):
         charge = s.find_case('charge')
         geometryfile = s.find_case('geometryfile')
 
-        if self.molecule is None and atoms not in s and geometryfile not in s:
-            log("ERROR: It looks like job {} was not given any geometry. You can do it by supplying a Molecule object as 'thisjob.molecule', by using an external file as 'thisjob.settings.input.ams.system.geometryfile', or by directly manipulating entries in 'thisjob.settings.input.ams.system.atoms'".format(self.name), 1)
+        if geometryfile in s:
             return Settings()
 
-        if geometryfile in s:
+        if self.molecule is None and atoms not in s:
+            log("ERROR: It looks like job {} was not given any geometry. You can do it by supplying a Molecule object as 'thisjob.molecule', by using an external xyz file as 'thisjob.settings.input.ams.system.geometryfile', by using a previous KF file as 'thisjob.settings.input.ams.loadsystem' or by directly manipulating entries in 'thisjob.settings.input.ams.system.atoms'".format(self.name), 1)
             return Settings()
 
         if self.molecule and len(self.molecule.lattice) in [1,2] and self.molecule.align_lattice():
