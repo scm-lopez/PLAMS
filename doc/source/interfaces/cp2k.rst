@@ -133,6 +133,11 @@ Calculations done without PLAMS can be loaded using the |load_external| function
 
 Just do ``Cp2kJob.load_external(path)`` to get the settings from the file.
 
+Molecule loading
+~~~~~~~~~~~~~~~~~~~~
+
+A |Molecule| can be recreated from a |Settings| instance using the |Cp2kSettings2Mol| function.
+
 
 API
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -140,3 +145,5 @@ API
 .. autoclass:: Cp2kJob()
 
 .. autoclass:: Cp2kResults()
+
+.. autofunction:: Cp2kSettings2Mol()

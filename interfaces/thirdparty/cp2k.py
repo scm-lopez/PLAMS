@@ -6,8 +6,10 @@ from ...core.basejob import SingleJob
 from ...core.settings import Settings
 from ...core.results import Results
 from ...core.errors import ResultsError
+from ...mol.molecule import Molecule
+from ...mol.atom import Atom
 
-__all__ = ['Cp2kJob', 'Cp2kResults']
+__all__ = ['Cp2kJob', 'Cp2kResults', 'Cp2kSettings2Mol']
 
 
 class Cp2kResults(Results):
@@ -379,3 +381,49 @@ class Cp2kJob(SingleJob):
         """
         s = self.results.grep_output("PROGRAM STOPPED IN")
         return len(s) > 0
+
+def Cp2kSettings2Mol(settings):
+    """Returns a molecule from a |Settings| instance used for a |Cp2kJob|.
+
+    Loads coordinates from ``settings.input.force_eval.subsys.coord._h`` and
+    cell information from ``settings.input.force_eval.subsys.cell``.
+    """
+    mol = Molecule()
+
+    if not 'force_eval' in settings.input:
+        return None
+    elif not 'subsys' in settings.input.force_eval:
+        return None
+    elif not 'coord' in settings.input.force_eval.subsys:
+        return None
+    elif not '_h' in settings.input.force_eval.subsys.coord:
+        return None
+    coord = settings.input.force_eval.subsys.coord._h
+
+    pbc = False
+    if 'cell' in settings.input.force_eval.subsys:
+        pbc = True
+        cell = settings.input.force_eval.subsys.cell
+
+    split = coord.strip().split('\n')
+    for line in split:
+        lineSplit = line.split()
+        try:
+            lineSplit[1:4] = [float(x) for x in lineSplit[1:4]]
+        except ValueError:
+            #not an atom entry
+            continue
+        mol.add_atom(Atom(symbol=lineSplit[0], coords=tuple(lineSplit[1:4])))
+
+    if pbc:
+        vec = []
+        keys = ['a','b','c']
+        for key in keys:
+            if not key in cell:
+                break
+            try:
+               vec.append(tuple([float(x) for x in cell[key].split()]))
+            except ValueError:
+                break
+        mol.lattice = vec
+    return mol
