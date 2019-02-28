@@ -283,6 +283,7 @@ rst_epilog = """
 
 .. |Cp2kJob| replace:: :class:`Cp2kJob<scm.plams.interfaces.thirdparty.cp2k.Cp2kJob>`
 .. |Cp2kResults| replace:: :class:`Cp2kJob<scm.plams.interfaces.thirdparty.cp2k.Cp2kResults>`
+.. |Cp2kSettings2Mol| replace:: :class:`Cp2kJob<scm.plams.interfaces.thirdparty.cp2k.Cp2kSettings2Mol>`
 
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`

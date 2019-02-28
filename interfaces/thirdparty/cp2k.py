@@ -6,16 +6,30 @@ from ...core.basejob import SingleJob
 from ...core.settings import Settings
 from ...core.results import Results
 from ...core.errors import ResultsError
+from ...mol.molecule import Molecule
+from ...mol.atom import Atom
 
-__all__ = ['Cp2kJob', 'Cp2kResults']
+__all__ = ['Cp2kJob', 'Cp2kResults', 'Cp2kSettings2Mol']
 
 
 class Cp2kResults(Results):
     """A class for CP2K results"""
     def recreate_settings(self):
-        """Recreate job for |load_external|."""
+        """Recreate job for |load_external|.
+
+        If a keyword and a section with the same name appear, only the keyword is used.
+        This happens e.g. when reading restart files where ``kind.symbol.potential`` is given
+        as *Potential ABCD* and *&POTENTIAL .... &END POTENTIAL*.
+
+        Limited support of sections that have different formatting like *KIND* and *COORD*.
+        Check the resulting |Settings| instance if the information you want is there.
+        Be careful with reading restart files, since they are automatically generated
+        and not every case is handled well here.
+        You should get all the information but not sure if I know about all special cases of input.
+        """
 
         _reserved_keywords = ["KIND", "@SET", "@INCLUDE", "@IF"]
+        _different_keywords = ["COORD", "VELOCITY", "MASS", "FORCE"] #blocks of information
 
         def input_generator(f):
             """yield lines from input"""
@@ -37,6 +51,9 @@ class Cp2kResults(Results):
             #empty line
             if not string:
                 return True
+            #comment line:
+            elif string.startswith('#'):
+                return True
             #end section
             elif string.startswith('&END'):
                 return False
@@ -53,9 +70,32 @@ class Cp2kResults(Results):
                     while r:
                         r = parse(input_iter, res_dic['kind'][l[1].lower()])
                 return True
+            elif any("&"+k == string for k in _different_keywords):
+                #save the entire block as one string until &END
+                l[0] = l[0].replace('&','')
+                res_dic[l[0].lower()] = {'_h': ""}
+                r = True
+                while r:
+                    r = next(input_iter).strip()
+                    if "&" in r:
+                        r = False
+                        break
+                    res_dic[l[0].lower()]['_h'] += "\n"
+                    res_dic[l[0].lower()]['_h'] += r
+                return True
             #section
             elif string.startswith('&'):
                 l[0] = l[0].replace('&','')
+                #if section already exists as a key, use the key
+                if l[0].lower() in res_dic:
+                    #fast forward to the next &END
+                    r = True
+                    while r:
+                        r = next(input_iter).strip()
+                        if r.startswith('&END'):
+                            r = False
+                            break
+                    return True
                 res_dic[l[0].lower()] = {}
                 #if section has a header value
                 if len(l) > 1:
@@ -341,3 +381,49 @@ class Cp2kJob(SingleJob):
         """
         s = self.results.grep_output("PROGRAM STOPPED IN")
         return len(s) > 0
+
+def Cp2kSettings2Mol(settings):
+    """Returns a molecule from a |Settings| instance used for a |Cp2kJob|.
+
+    Loads coordinates from ``settings.input.force_eval.subsys.coord._h`` and
+    cell information from ``settings.input.force_eval.subsys.cell``.
+    """
+    mol = Molecule()
+
+    if not 'force_eval' in settings.input:
+        return None
+    elif not 'subsys' in settings.input.force_eval:
+        return None
+    elif not 'coord' in settings.input.force_eval.subsys:
+        return None
+    elif not '_h' in settings.input.force_eval.subsys.coord:
+        return None
+    coord = settings.input.force_eval.subsys.coord._h
+
+    pbc = False
+    if 'cell' in settings.input.force_eval.subsys:
+        pbc = True
+        cell = settings.input.force_eval.subsys.cell
+
+    split = coord.strip().split('\n')
+    for line in split:
+        lineSplit = line.split()
+        try:
+            lineSplit[1:4] = [float(x) for x in lineSplit[1:4]]
+        except ValueError:
+            #not an atom entry
+            continue
+        mol.add_atom(Atom(symbol=lineSplit[0], coords=tuple(lineSplit[1:4])))
+
+    if pbc:
+        vec = []
+        keys = ['a','b','c']
+        for key in keys:
+            if not key in cell:
+                break
+            try:
+               vec.append(tuple([float(x) for x in cell[key].split()]))
+            except ValueError:
+                break
+        mol.lattice = vec
+    return mol
