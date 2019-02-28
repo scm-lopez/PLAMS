@@ -184,6 +184,24 @@ class PeriodicTable:
 
 
     @classmethod
+    def set_mass(cls, element, value):
+        """Set the mass of *element* to *value*."""
+        cls.data[cls.get_atomic_number(element)][1] = value
+
+
+    @classmethod
+    def set_radius(cls, element, value):
+        """Set the radius of *element* to *value*."""
+        cls.data[cls.get_atomic_number(element)][2] = value
+
+
+    @classmethod
+    def set_connectors(cls, element, value):
+        """Set the mass of *element* to *value*."""
+        cls.data[cls.get_atomic_number(element)][3] = value
+
+
+    @classmethod
     def _get_property(cls, arg, prop):
         """Get property of element described by either symbol or atomic number. Skeleton method for :meth:`get_radius`, :meth:`get_mass` and  :meth:`get_connectors`."""
         if isinstance(arg, str):
