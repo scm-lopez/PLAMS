@@ -311,7 +311,7 @@ class AMSResults(Results):
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
         symbols = sectiondict['AtomSymbols'].split()
-        for at, crd, sym, mass in zip(sectiondict['AtomicNumbers'], coords, symbols, sectiondict['AtomMasses']):
+        for at, crd, sym in zip(sectiondict['AtomicNumbers'], coords, symbols):
             newatom = Atom(atnum=at, coords=crd, unit='bohr')
             if sym.startswith('Gh.'):
                 sym = sym[3:]
