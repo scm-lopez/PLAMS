@@ -299,6 +299,17 @@ class Molecule:
         return [b.other_end(atom) for b in atom.bonds]
 
 
+    def bond_matrix(self):
+        """Return a square numpy array with bond orders. The size of the array is equal to the number of atoms."""
+        ret = np.zeros((len(self), len(self)))
+        self.set_atoms_id()
+        for b in self.bonds:
+            i,j = b.atom1.id-1, b.atom2.id-1
+            ret[i][j] = ret[j][i] = b.order
+        self.unset_atoms_id()
+        return ret
+
+
     def separate(self):
         """Separate the molecule into connected components.
 
@@ -571,7 +582,7 @@ class Molecule:
         *unit* is the unit of length, the cube of which will be used as the unit of volume.
         """
         if len(self.lattice) != 3:
-            raise MoleculeError('unit_cell_volume: ')
+            raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
         return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
 
 
