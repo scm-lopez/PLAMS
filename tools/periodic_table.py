@@ -5,7 +5,7 @@ __all__ = ['PeriodicTable', 'PT']
 class PeriodicTable:
     """A singleton class for the periodic table of elements.
 
-    For each element the following properties are stores: atomic symbol, atomic mass, atomic radius and number of connectors.
+    For each element the following properties are stored: atomic symbol, atomic mass, atomic radius and number of connectors.
 
     Atomic mass is, strictly speaking, atomic weight, as present in Mathematica's ElementData function.
 
