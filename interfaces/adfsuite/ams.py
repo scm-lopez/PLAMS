@@ -4,7 +4,7 @@ import numpy as np
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import FileError
+from ...core.errors import FileError, ResultsError
 from ...core.functions import config, log
 from ...core.private import sha256
 from ...core.results import Results
@@ -167,14 +167,25 @@ class AMSResults(Results):
                 raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
             coords = main.read('History', f'Coords({step})')
             coords = [coords[i:i+3] for i in range(0,len(coords),3)]
-            try:
+            if ('History', f'SystemVersion({step})') in main:
                 system = main.read('History', f'SystemVersion({step})')
                 mol = self.get_molecule(f'ChemicalSystem({system})')
-            except KeyError:
+                molsrc = f'ChemicalSystem({system})'
+            else:
                 mol = self.get_main_molecule()
-            assert len(mol) == len(coords), '!!!!!!!!!!!!'
+                molsrc = 'Molecule'
+            if len(mol) != len(coords):
+                raise ResultsError(f'Coordinates taken from "History%Coords({step})" have incompatible lenght with molecule from {molsrc} section')
             for at, c in zip(mol, coords):
                 at.move_to(c, unit='bohr')
+
+            if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
+                index = main.read('History', f'Bonds.Index({step})')
+                atoms = main.read('History', f'Bonds.Atoms({step})')
+                orders = main.read('History', f'Bonds.Orders({step})')
+                for i in range(len(index)-1):
+                    for j in range(index[i], index[i+1]):
+                        mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
             return mol
 
 
