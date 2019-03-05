@@ -918,6 +918,38 @@ class Molecule:
         self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
 
 
+    def perturb_atoms(self, max_displacement=0.01, unit='angstrom'):
+        """Randomly perturb the coordinates of the atoms in the molecule. 
+
+        Each Cartesian coordinate is displaced by a random value picked out of a uniform distribution in the interval *[-max_displacement, +max_displacement]* (converted to requested *unit*).
+        """
+        s = Units.convert(max_displacement, 'angstrom', unit)
+
+        for atom in self.atoms:
+            atom.translate(np.random.uniform(-s, s, 3))
+
+
+    def perturb_lattice(self, max_displacement=0.01, unit='angstrom', ams_convention=True):
+        """Randomly perturb the lattice vectors.
+        
+        The Cartesian components of the lattice vectors are changed by a random value picked out of a uniform distribution in the interval *[-max_displacement, +max_displacement]* (converted to requested *unit*).
+        
+        If *ams_convention=True* then for 1D-periodic systems only the x-component of the lattice vector is perturbed, and for 2D-periodic systems only the xy-components of the lattice vectors are perturbed. 
+        """
+        s = Units.convert(max_displacement, 'angstrom', unit)
+        n = len(self.lattice)
+
+        if n == 0:
+            raise MoleculeError('perturb_lattice can only be applied to periodic systems')
+
+        for i,vec in enumerate(self.lattice):
+            if ams_convention:
+                # For 1D systems we only want to perturb the first number. For 2D systems only the first 2 numbers of each vector.
+                perturbed_vec = np.array(vec) + np.concatenate((np.random.uniform(-s, s, n), np.zeros(3-n)))
+            else:
+                perturbed_vec = np.array(vec) + np.random.uniform(-s, s, 3)
+            self.lattice[i] = tuple(perturbed_vec)
+
 
 
 #===========================================================================

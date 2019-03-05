@@ -207,11 +207,11 @@ def label(self, level=1, keep_labels=False, flags=None):
 
     Possible levels are:
 
-        *   **0**: does not pefrom any atom labeling, returns empirical formula (see :meth:`~scm.plams.mol.molecule.Molecule.get_formula`)
-        *   **1**: only direct connectivity is considered, without bond orders (in other words, treats all the bonds as single bonds)
-        *   **2**: use connectivity and bond orders
-        *   **3**: use connectivity, bond orders and some spatial information to distinguish R/S and E/Z isomers
-        *   **4**: use all above, plus more spatial information to distinguish different rotamers and different types of coordination complexes
+    *   **0**: does not pefrom any atom labeling, returns empirical formula (see :meth:`~scm.plams.mol.molecule.Molecule.get_formula`)
+    *   **1**: only direct connectivity is considered, without bond orders (in other words, treats all the bonds as single bonds)
+    *   **2**: use connectivity and bond orders
+    *   **3**: use connectivity, bond orders and some spatial information to distinguish R/S and E/Z isomers
+    *   **4**: use all above, plus more spatial information to distinguish different rotamers and different types of coordination complexes
 
     If you need more precise control of what is taken into account while computing the label (or adjust the tolerance for geometrical operations) you can use the *flags* argument. It should be a dictionary of parameters recognized by :func:`~scm.plams.mol.identify.label_atoms`. Each of two letter boolean flags has to be present in *flags*. If you use *flags*, *level* is ignored.
 
