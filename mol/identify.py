@@ -9,7 +9,7 @@ from ..core.functions import add_to_class
 from ..tools.units import Units
 
 
-__all__ = ['label']
+__all__ = ['label_atoms']
 
 
 possible_flags = ['BO', 'RS', 'EZ', 'DH', 'CO', 'H2']

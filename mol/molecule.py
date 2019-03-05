@@ -702,7 +702,7 @@ class Molecule:
         dfs(moving_atom)
 
         if len(atoms_to_rotate) == len(self):
-            raise MoleculeError('rotate_bond: chosen bond does not divide molecule')
+            raise MoleculeError('rotate_bond: chosen bond does not divide the molecule')
 
         other_end = bond.other_end(moving_atom)
         v = np.array(other_end.vector_to(moving_atom))
