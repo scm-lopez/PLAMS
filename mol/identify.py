@@ -12,7 +12,7 @@ from ..tools.units import Units
 __all__ = ['label']
 
 
-possible_flags = ['BO', 'RS', 'EZ', 'DH', 'CO']
+possible_flags = ['BO', 'RS', 'EZ', 'DH', 'CO', 'H2']
 
 
 def twist(v1, v2, v3, tolerance=None):
@@ -142,6 +142,15 @@ def knock(A, bond, flags):
     if flags['BO'] and bond.order != 1:
         ret += 'BO' + str(bond.order)
 
+    if flags['H2']:
+        S_nbors = S.neighbors()
+        S_nbors.remove(A)
+        if len(S_nbors) == 3 and len(unique_atoms(S_nbors)) == 3:
+            S_nbors.sort(key=lambda x: x.IDname)
+            v1, v2, v3 = [S.vector_to(i) for i in S_nbors]
+            t = twist(v1, v2, v3, flags.get('twist_tol'))
+            ret += 'H2' + str(t)
+
     if flags['EZ'] or flags['DH']:
         S_unique = unique_atoms(S.neighbors())
         if A in S_unique: #*A* is a unique neighbor of *S*
@@ -253,4 +262,28 @@ def label(self, level=1, keep_labels=False, flags=None):
     if not keep_labels:
         clear(self)
     return ret
+
+
+def find_permutation(molecule1, molecule2):
+    """
+
+
+    """
+    if molecule1.label(0) != molecule2.label(0):
+        return None
+
+
+
+
+
+@add_to_class(Molecule)
+def reorder(self, other):
+    """Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
+    """
+
+    perm = find_permutation(self, other)
+    if perm:
+        self.atoms = [self.atoms[i] for i in perm]
+        return perm
+    return None
 
