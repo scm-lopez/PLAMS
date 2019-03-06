@@ -197,7 +197,7 @@ class PeriodicTable:
 
     @classmethod
     def set_connectors(cls, element, value):
-        """Set the mass of *element* to *value*."""
+        """Set the number of connectors of *element* to *value*."""
         cls.data[cls.get_atomic_number(element)][3] = value
 
 
