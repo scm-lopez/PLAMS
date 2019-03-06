@@ -655,7 +655,7 @@ class Molecule:
 
         rotated = False
         if convention == 'AMS':
-            if dim == 1 and (abs(self.lattice[0][1]) > zero or abs(self.lattice[0][2]) > zero)
+            if dim == 1 and (abs(self.lattice[0][1]) > zero or abs(self.lattice[0][2]) > zero):
                 mat = rotation_matrix(self.lattice[0], [1.0, 0.0, 0.0])
                 self.rotate(mat, lattice=True)
                 rotated = True
