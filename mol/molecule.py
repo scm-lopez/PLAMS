@@ -633,15 +633,15 @@ class Molecule:
             self.rotate_lattice(matrix)
 
 
-    def align_lattice(self, convention='x', zero=1e-10):
+    def align_lattice(self, convention='AMS', zero=1e-10):
         """Rotate the molecule in such a way that lattice vectors are aligned with the coordinate system.
 
         This method is meant to be used with periodic systems only. Using it on a |Molecule| instance with an empty ``lattice`` attribute has no effect.
 
         Possible values of the *convention* argument are:
 
-        *   ``x`` (default) -- first lattice vector aligned with X axis. Second vector (if present) aligned with XY plane.
-        *   ``z`` (convention used by `ReaxFF <https://www.scm.com/product/reaxff>`_) -- second lattice vector (if present) aligned with YZ plane. Third vector (if present) aligned with Z axis.
+        *   ``AMS`` (default) -- for 1D systems the lattice vector aligned with X axis. For 2D systems both lattice vectors aligned with XY plane. No constraints for 3D systems
+        *   ``reax`` (convention used by `ReaxFF <https://www.scm.com/product/reaxff>`_) -- second lattice vector (if present) aligned with YZ plane. Third vector (if present) aligned with Z axis.
 
         *zero* argument can be used to specify the numerical tolerance for zero (used to determine if some vector is already aligned with a particular axis or plane).
 
@@ -654,18 +654,21 @@ class Molecule:
             return False
 
         rotated = False
-        if convention == 'x':
-            if abs(self.lattice[0][1]) > zero or abs(self.lattice[0][2]) > zero:
+        if convention == 'AMS':
+            if dim == 1 and (abs(self.lattice[0][1]) > zero or abs(self.lattice[0][2]) > zero)
                 mat = rotation_matrix(self.lattice[0], [1.0, 0.0, 0.0])
                 self.rotate(mat, lattice=True)
                 rotated = True
 
-            if dim >= 2 and abs(self.lattice[1][2]) > zero:
-                mat = rotation_matrix([0.0, self.lattice[1][1], self.lattice[1][2]], [0.0, 1.0, 0.0])
+            if dim == 2 and (abs(self.lattice[0][2]) > zero or abs(self.lattice[1][2]) > zero):
+                mat = rotation_matrix(self.lattice[0], [1.0, 0.0, 0.0])
                 self.rotate(mat, lattice=True)
+                if abs(self.lattice[1][2]) > zero:
+                    mat = rotation_matrix([0.0, self.lattice[1][1], self.lattice[1][2]], [0.0, 1.0, 0.0])
+                    self.rotate(mat, lattice=True)
                 rotated = True
 
-        elif convention == 'z':
+        elif convention == 'reax':
             if dim == 3 and (abs(self.lattice[2][0]) > zero or abs(self.lattice[2][1]) > zero):
                 mat = rotation_matrix(self.lattice[2], [0.0, 0.0, 1.0])
                 self.rotate(mat, lattice=True)
@@ -677,7 +680,7 @@ class Molecule:
                 rotated = True
 
         else:
-            raise MoleculeError("align_lattice: unknown convention: {}. Possible values are 'x' or 'z'".format(convention))
+            raise MoleculeError("align_lattice: unknown convention: {}. Possible values are 'AMS' or 'reax'".format(convention))
         return rotated
 
 
@@ -919,10 +922,10 @@ class Molecule:
 
 
     def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
-        """Randomly perturb the coordinates of the atoms in the molecule. 
+        """Randomly perturb the coordinates of the atoms in the molecule.
 
         Each Cartesian coordinate is displaced by a random value picked out of a uniform distribution in the interval *[-max_displacement, +max_displacement]* (converted to requested *unit*).
-        
+
         By default, all atoms are perturbed. It is also possible to perturb only part of the molecule, indicated by *atoms* argument. It should be a list of atoms belonging to the molecule.
         """
         s = Units.convert(max_displacement, 'angstrom', unit)
@@ -936,10 +939,10 @@ class Molecule:
 
     def perturb_lattice(self, max_displacement=0.01, unit='angstrom', ams_convention=True):
         """Randomly perturb the lattice vectors.
-        
+
         The Cartesian components of the lattice vectors are changed by a random value picked out of a uniform distribution in the interval *[-max_displacement, +max_displacement]* (converted to requested *unit*).
-        
-        If *ams_convention=True* then for 1D-periodic systems only the x-component of the lattice vector is perturbed, and for 2D-periodic systems only the xy-components of the lattice vectors are perturbed. 
+
+        If *ams_convention=True* then for 1D-periodic systems only the x-component of the lattice vector is perturbed, and for 2D-periodic systems only the xy-components of the lattice vectors are perturbed.
         """
         s = Units.convert(max_displacement, 'angstrom', unit)
         n = len(self.lattice)
