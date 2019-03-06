@@ -177,22 +177,13 @@ class Settings(dict):
 
 
     def find_case(self, key):
-        """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*."""
-        lowkey = key.lower()
-        for k in self:
-            if k.lower() == lowkey:
-                return k
-        return key
-
-
-    def ig(self, key):
-        """Access the value under *key*, but ignore case. If any casing of *key* is present as a key in this |Settings| instance, its value is returned. Otherwise, a new empty |Settings| instance is inserted under *key*.
+        """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*.
 
         When |Settings| are used in case-insensitive contexts, this helps preventing multiple occurences of the same key with different case::
 
             >>> s = Settings()
-            >>> s.system.key1 = 'value1'
-            >>> s.System.key2 = 'value2'
+            >>> s.system.key1 = value1
+            >>> s.System.key2 = value2
             >>> print(s)
             System:
                 key2:    value2
@@ -200,16 +191,19 @@ class Settings(dict):
                 key1:    value1
 
             >>> t = Settings()
-            >>> t.system.key1 = 'value1'
-            >>> t.ig('System').key2 = 'value2'
-            >>> t.ig('SyStEm').key3 = 'value3'
+            >>> t.system.key1 = value1
+            >>> t[t.find_case('System')].key2 = value2
             >>> print(t)
             system:
                 key1:    value1
                 key2:    value2
-                key3:    value3
+
         """
-        return self[self.find_case(key)]
+        lowkey = key.lower()
+        for k in self:
+            if k.lower() == lowkey:
+                return k
+        return key
 
 
 

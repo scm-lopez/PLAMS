@@ -7,10 +7,12 @@ class ADFNBOJob(ADFJob):
 
     def prerun(self):
         s = self.settings.input
-        s.ig('fullfock') = True
-        s.ig('aomat2file') = True
-        s.ig('symmetry') = 'NoSym'
-        s.ig('basis').ig('core') = 'None'
+        s[s.find_case('fullfock')] = True
+        s[s.find_case('aomat2file')] = True
+        s[s.find_case('symmetry')] = 'NoSym'
+        basis = s.find_case('basis')
+        core = s[basis].find_case('core')
+        s[basis][core] = 'None'
         save = s.find_case('save')
         if save in s:
             if isinstance(s.save, str):

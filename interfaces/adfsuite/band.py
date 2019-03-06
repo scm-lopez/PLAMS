@@ -118,7 +118,9 @@ class BANDJob(SCMJob):
 
     def _serialize_mol(self):
         s = self.settings.input
-        s.ig('units').ig('length') = 'angstrom'
+        units = s.find_case('units')
+        length = s[units].find_case('length')
+        s[units][length] = 'angstrom'
 
         if len(self.molecule.lattice) in [1,2] and self.molecule.align_lattice():
             log("The lattice supplied for job {} did not follow the convention required by BAND. I rotated the whole system for you. You're welcome".format(self.name), 3)
