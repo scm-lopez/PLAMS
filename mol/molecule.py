@@ -918,14 +918,19 @@ class Molecule:
         self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
 
 
-    def perturb_atoms(self, max_displacement=0.01, unit='angstrom'):
+    def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
         """Randomly perturb the coordinates of the atoms in the molecule. 
 
         Each Cartesian coordinate is displaced by a random value picked out of a uniform distribution in the interval *[-max_displacement, +max_displacement]* (converted to requested *unit*).
+        
+        By default, all atoms are perturbed. It is also possible to perturb only part of the molecule, indicated by *atoms* argument. It should be a list of atoms belonging to the molecule.
         """
         s = Units.convert(max_displacement, 'angstrom', unit)
 
-        for atom in self.atoms:
+        if atoms is None:
+            atoms = self.atoms
+
+        for atom in atoms:
             atom.translate(np.random.uniform(-s, s, 3))
 
 
