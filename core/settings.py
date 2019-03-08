@@ -1,4 +1,5 @@
-__all__ = ['Settings']
+__all__ = ['Settings', 'ig']
+
 
 class Settings(dict):
     """Automatic multi-level dictionary. Subclass of built-in class :class:`dict`.
@@ -182,8 +183,8 @@ class Settings(dict):
         When |Settings| are used in case-insensitive contexts, this helps preventing multiple occurences of the same key with different case::
 
             >>> s = Settings()
-            >>> s.system.key1 = value1
-            >>> s.System.key2 = value2
+            >>> s.system.key1 = 'value1'
+            >>> s.System.key2 = 'value2'
             >>> print(s)
             System:
                 key2:    value2
@@ -191,8 +192,8 @@ class Settings(dict):
                 key1:    value1
 
             >>> t = Settings()
-            >>> t.system.key1 = value1
-            >>> t[t.find_case('System')].key2 = value2
+            >>> t.system.key1 = 'value1'
+            >>> t[t.find_case('System')].key2 = 'value2'
             >>> print(t)
             system:
                 key1:    value1
@@ -242,12 +243,34 @@ class Settings(dict):
         return self[name]
 
 
+    def __contains__(self, name):
+        """Like regular ``__contains`__``, but if the key is an "ig" string, ignore the case."""
+        if isinstance(name, ig):
+            name = self.find_case(name)
+        return dict.__contains__(self, name)
+
+
+    def __getitem__(self, name):
+        """Like regular ``__getitem__``, but if the key is an "ig" string, ignore the case."""
+        if isinstance(name, ig):
+            name = self.find_case(name)
+        return dict.__getitem__(self, name)
+
+
     def __setitem__(self, name, value):
         """Like regular ``__setitem__``, but if the value is a dict, convert it to |Settings|."""
+        if isinstance(name, ig):
+            name = self.find_case(name)
         if isinstance(value, dict):
             value = Settings(value)
         dict.__setitem__(self, name, value)
 
+
+    def __delitem__(self, name):
+        """Like regular ``__detitem__``, but if the key is an "ig" string, ignore the case."""
+        if isinstance(name, ig):
+            name = self.find_case(name)
+        return dict.__delitem__(self, name)
 
 
     def __getattr__(self, name):
@@ -291,3 +314,11 @@ class Settings(dict):
     __iadd__ = soft_update
     __add__ = merge
     __copy__ = copy
+
+
+
+class ig(str):
+    """Special string that makes |Settings| work case-insensitive. Behaves exactly like the built-in `str` type. Usage: ``s = ig('abcdef')``."""
+    pass
+
+

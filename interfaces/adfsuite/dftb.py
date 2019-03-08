@@ -1,6 +1,7 @@
 from .scmjob import SCMJob, SCMResults
 from ...core.errors import ResultsError
 from ...core.functions import log
+from ...core.settings import ig
 from ...tools.units import Units
 
 __all__ = ['DFTBJob', 'DFTBResults']
@@ -121,24 +122,22 @@ class DFTBJob(SCMJob):
 
     def _serialize_mol(self):
         s = self.settings.input
-        system = s.find_case('system')
 
         if len(self.molecule.lattice) in [1,2] and self.molecule.align_lattice():
             log("The lattice supplied for job {} did not follow the convention required by DFTB. I rotated the whole system for you. You're welcome".format(self.name), 3)
 
         for i,atom in enumerate(self.molecule):
-            s[system]['atoms']['_'+str(i+1)] = atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10)
+            s[ig('system')]['atoms']['_'+str(i+1)] = atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10)
 
         if self.molecule.lattice:
             for i,vec in enumerate(self.molecule.lattice):
-                s[system]['lattice']['_'+str(i+1)] = '{:16.10f} {:16.10f} {:16.10f}'.format(*vec)
+                s[ig('system')]['lattice']['_'+str(i+1)] = '{:16.10f} {:16.10f} {:16.10f}'.format(*vec)
 
 
     def _remove_mol(self):
         s = self.settings.input
-        system = s.find_case('system')
-        if system in s:
-            if 'atoms' in s[system]:
-                del s[system]['atoms']
-            if 'lattice' in s[system]:
-                del s[system]['lattice']
+        if ig('system') in s:
+            if 'atoms' in s[ig('system')]:
+                del s[ig('system')]['atoms']
+            if 'lattice' in s[ig('system')]:
+                del s[ig('system')]['lattice']
