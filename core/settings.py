@@ -38,6 +38,9 @@ class Settings(dict):
         for k,v in self.items():
             if isinstance(v, dict):
                 self[k] = Settings(v)
+            if isinstance(v, list):
+                self[k] = [Settings(i) if isinstance(i, dict) else i for i in v]
+
 
     def copy(self):
         """Return a new instance that is a copy of this one. Nested |Settings| instances are copied recursively, not linked.
