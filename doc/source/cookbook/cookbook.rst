@@ -44,3 +44,4 @@ Recipes
     numhess
     molecule_gun
     global_minimum
+    vibrationASE

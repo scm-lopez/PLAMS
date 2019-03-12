@@ -1,7 +1,7 @@
 .. _ASEInterface:
 
-ASE
-~~~~~~~~~~~
+ASE interface
+~~~~~~~~~~~~~
 
 "The Atomic Simulation Environment (`ASE <https://wiki.fysik.dtu.dk/ase>`_) is a set of tools and Python modules for setting up, manipulating, running, visualizing and analyzing atomistic simulations.
 The PLAMS interface to ASE is limited to handling |Molecule| objects.
