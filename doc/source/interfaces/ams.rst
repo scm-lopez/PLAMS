@@ -297,7 +297,7 @@ The system without such a name is considered the main system.
 
 Multiple systems can be used in |AMSJob| by setting the ``molecule`` attribute to a dictionary, instead of a single |Molecule|.
 Such a dictionary should have strings as keys and |Molecule| instances as values.
-The main system should have a key being ``None`` or ``''`` (an empty string).
+The main system should have ``''`` (an empty string) as a key.
 
 Other methods of providing the contents of the ``system`` block mentioned above can also be used to provide multiple ``system`` blocks.
 ``myjob.settings.input.ams.system`` can be a list containg multiple |Settings| instances, one for each system.
@@ -306,6 +306,7 @@ Special header ``_h`` key can be used to set headers and hence names of differen
 Multiple instances of the ``LoadSystem`` key (also provided as a list, also with ``_h`` headers) can also be used.
 
 All the methods mentioned above (``molecule`` attribute, ``GeometryFile``, ``LoadSystem``, manual ``system`` block preparation) can be combined in any configuration.
+In case of a conflict, the data stored in ``settings.input.ams.system`` takes precedence over ``molecule``.
 It is, however, the user's responsibility to make sure that among all the systems provided there is exactly one main system (without a name).
 
 
