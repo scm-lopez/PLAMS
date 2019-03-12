@@ -13,4 +13,3 @@ All possible input keywords and options are covered, as well as extraction of ar
     mopac
     postadf
     kffiles
-    legacy
