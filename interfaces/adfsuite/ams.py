@@ -257,12 +257,7 @@ class AMSResults(Results):
                 return None
             s = Settings()
             s.input = inp
-
-            #TODO !!!!
-            #load_external + multiple systems = ???
-            del s.input.ams[s.input.ams.find_case('system')]
-
-
+            del s.input[ig('ams')][ig('system')]
             s.soft_update(config.job)
             return s
         return None
@@ -477,23 +472,33 @@ class AMSJob(SingleJob):
             return ret
 
         fullinput = self.settings.input.copy()
-        ams = fullinput.find_case('ams')
 
-        systems = self._serialize_molecule()
-        if systems:
-            system = fullinput[ams].find_case('system')
-            if fullinput[ams][system]: #system block was already in input.ams
-                if not isinstance(fullinput[ams][system], list):
-                    fullinput[ams][system] = [fullinput[ams][system]]
-                fullinput[ams][system] += systems
+        #prepare contents of 'system' block(s)
+        more_systems = self._serialize_molecule()
+        system = fullinput[ig('ams')][ig('system')]
+        if more_systems:
+            if system: #nonempty system block was already present in input.ams
+                system_list = system if isinstance(system, list) else [system]
+
+                system_list_set = Settings({(s._h if '_h' in s else ''):s   for s in system_list})
+                more_systems_set = Settings({(s._h if '_h' in s else ''):s   for s in more_systems})
+
+                system_list_set += more_systems_set
+                system_list = list(system_list_set.values())
+                system = system_list[0] if len(system_list) == 1 else system_list
+                fullinput[ig('ams')][ig('system')] = system
+
             else:
-                fullinput[ams][system] = systems
+                fullinput[ig('ams')][ig('system')] = more_systems[0] if len(more_systems) == 1 else more_systems
 
         txtinp = ''
+        ams = fullinput.find_case('ams')
 
+        #contents of the 'ams' block (AMS input) go first
         for item in fullinput[ams]:
             txtinp += serialize(item, fullinput[ams][item], 0) + '\n'
 
+        #and then engines
         for engine in fullinput:
             if engine != ams:
                 txtinp += serialize('engine '+engine, fullinput[engine], 0, end='endengine') + '\n'
