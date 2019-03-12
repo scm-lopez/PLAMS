@@ -183,6 +183,7 @@ def label_atoms(molecule, **kwargs):
     """Label atoms in *molecule*.
 
     Boolean keyword arguments:
+
     *   *BO* -- include bond orders
     *   *RS* -- include R/S stereoisomerism
     *   *EZ* -- include E/Z stereoisomerism
@@ -190,6 +191,7 @@ def label_atoms(molecule, **kwargs):
     *   *CO* -- include more spatial info to detect different conformation of coordination complexes (flat square, octaedr etc.)
 
     Numerical keyword arguments:
+
     *   *twist_tol* -- tolerance for :func:`twist` function
     *   *bend_tol* -- tolerance for :func:`bend` function
 
