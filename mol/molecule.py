@@ -152,6 +152,24 @@ class Molecule:
         return ret
 
 
+    def add_molecule(self, other, copy=False):
+        """Add some *other* molecule to this one::
+
+            protein += water
+
+        If *copy* is ``True, *other* molecule is copied and the copy is added to this molecule. Otherwise, *other* molecule is directly merged with this one
+        The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
+        """
+        other = other.copy() if copy else other
+        self.atoms += othercopy.atoms
+        self.bonds += othercopy.bonds
+        for atom in self.atoms:
+            atom.mol = self
+        for bond in self.bonds:
+            bond.mol = self
+        self.properties.soft_update(othercopy.properties)
+
+
     def add_atom(self, atom, adjacent=None):
         """Add a new *atom* to the molecule.
 
@@ -1043,20 +1061,8 @@ class Molecule:
 
 
     def __iadd__(self, other):
-        """Add some *other* molecule to this one::
-
-            protein += water
-
-        All atoms and bonds present in *other* are copied and copies are added to this molecule. The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
-        """
-        othercopy = other.copy()
-        self.atoms += othercopy.atoms
-        self.bonds += othercopy.bonds
-        for atom in self.atoms:
-            atom.mol = self
-        for bond in self.bonds:
-            bond.mol = self
-        self.properties.soft_update(othercopy.properties)
+        """Copy *other* molecule and add the copy to this one."""
+        self.add_molecule(other, copy=True)
         return self
 
 
