@@ -5,11 +5,6 @@ import math
 import numpy as np
 import os
 
-try:
-    from scipy.spatial.distance import cdist
-except ModuleNotFoundError:
-    pass
-
 from .atom import Atom
 from .bond import Bond
 from .pdbtools import PDBHandler, PDBRecord
@@ -19,7 +14,7 @@ from ..core.functions import log
 from ..core.private import smart_copy
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix, axis_rotation_matrix
+from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array
 from ..tools.units import Units
 
 __all__ = ['Molecule']
@@ -804,11 +799,7 @@ class Molecule:
         xyz_array1 = self.as_array()
         xyz_array2 = other.as_array()
 
-        # Try to use the faster cdist function if scipy is installed
-        try:
-            dist_array = cdist(xyz_array1, xyz_array2)
-        except NameError:
-            dist_array = np.array([np.linalg.norm(i - xyz_array2, axis=1) for i in xyz_array1])
+        dist_array = distance_array(xyz_array1, xyz_array2)
 
         res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:

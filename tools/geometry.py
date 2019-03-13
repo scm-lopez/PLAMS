@@ -1,8 +1,13 @@
 import numpy as np
+try:
+    from scipy.spatial.distance import cdist
+    scipy_present = True
+except ImportError:
+    scipy_present = False
 
 from .units import Units
 
-__all__ = ['rotation_matrix', 'axis_rotation_matrix']
+__all__ = ['rotation_matrix', 'axis_rotation_matrix', 'distance_array']
 
 def rotation_matrix(vec1, vec2):
     """
@@ -35,3 +40,11 @@ def axis_rotation_matrix(vector, angle, unit='radian'):
     a2 = 1.0 - np.cos(angle)
 
     return np.identity(3) + a1 * W + a2 * W@W
+
+
+def distance_array(array1, array2):
+    """Calculates distance between each pair of points in *array1* and *array2*. Returns 2D ``numpy`` array.
+
+    Uses fast ``cdist`` function if ``scipy`` is present, otherwise falls back to slightly slower ``numpy`` loop. Arguments should be 2-dimensional ``numpy`` arrays with the same second dimension. If *array1* is A x N and *array2* is B x N, the returned array is A x B.
+    """
+    return cdist(array1, array2) if scipy_present else np.array([np.linalg.norm(i - array2, axis=1) for i in array1])
