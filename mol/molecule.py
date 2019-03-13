@@ -19,7 +19,7 @@ from ..core.functions import log
 from ..core.private import smart_copy
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix
+from ..tools.geometry import rotation_matrix, axis_rotation_matrix
 from ..tools.units import Units
 
 __all__ = ['Molecule']
@@ -727,18 +727,7 @@ class Molecule:
 
         other_end = bond.other_end(moving_atom)
         v = np.array(other_end.vector_to(moving_atom))
-        v /= np.linalg.norm(v)
-
-        W = np.array([[0, -v[2], v[1]],
-                      [v[2], 0, -v[0]],
-                      [-v[1], v[0], 0]])
-
-        angle = Units.convert(angle, unit, 'radian')
-        a1 = math.sin(angle)
-        a2 = 2 * math.pow(math.sin(0.5 * angle), 2)
-
-        rotmat = np.identity(3) + a1 * W + a2 * W@W
-
+        rotmat = axis_rotation_matrix(v, angle, unit)
         trans = np.array(other_end.vector_to((0,0,0)))
 
         xyz_array = self.as_array(atom_subset=atoms_to_rotate)
