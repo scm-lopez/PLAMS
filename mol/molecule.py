@@ -156,13 +156,13 @@ class Molecule:
         The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
         """
         other = other.copy() if copy else other
-        self.atoms += othercopy.atoms
-        self.bonds += othercopy.bonds
+        self.atoms += other.atoms
+        self.bonds += other.bonds
         for atom in self.atoms:
             atom.mol = self
         for bond in self.bonds:
             bond.mol = self
-        self.properties.soft_update(othercopy.properties)
+        self.properties.soft_update(other.properties)
 
 
     def add_atom(self, atom, adjacent=None):
