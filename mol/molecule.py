@@ -604,7 +604,6 @@ class Molecule:
 #===========================================================================
 
 
-
     def translate(self, vector, unit='angstrom'):
         """Move the molecule in space by *vector*, expressed in *unit*.
 
@@ -956,6 +955,111 @@ class Molecule:
                 perturbed_vec = np.array(vec) + np.random.uniform(-s, s, 3)
             self.lattice[i] = tuple(perturbed_vec)
 
+
+    def substitute(self, connector, ligand, ligand_connector, bond_length=None, steps=12, cost_func_mol=None, cost_func_array=None):
+        """Substitute a part of this molecule with *ligand*.
+
+        *connector* should be a pair of atoms that belong to this molecule and form a bond. The first atom of *connector* is the atom to which the  ligand will be connected. The second atom of *connector* is removed from the molecule, together with all "further" atoms connected to it (that allows, for example, to substitute the whole functional group with another). Using *connector* that is a part or a ring triggers an exception.
+
+        *ligand_connector* is a *connector* analogue, but for *ligand*. IT describes the bond in the *ligand* that will be connected with the bond in this molecule descibed by *connector*.
+
+        If this molecule or *ligand* don't have any bonds, :meth:`guess_bonds` is used.
+
+        After removing all unneeded atoms, the *ligand* is translated to a new position, rotated, and connected by bond with the core molecule. The new |Bond| is added between the first atom of *connector* and the first atom of *ligand_connector*. The length of that bond can be adjusted with *bond_length* argument, otherwise the default is the sum of atomic radii taken from |PeriodicTable|.
+
+        Then the *ligand* is rotated along newly created bond to find the optimal position. The full 360 degrees angle is divided into *steps* equidistant rotations and each such rotation is evaluated using a cost function. The orientation with the minimal cost is chosen.
+
+        The default cost function is:
+
+        .. math::
+
+            \sum_{i \in mol, j\in lig} e^{-R_{ij}}
+
+        A different cost function can be also supplied by the user, using one of the two remaining arguments: *cost_func_mol* or *cost_func_array*. *cost_func_mol* should be a function that takes two |Molecule| instances: this molecule (after removing unneeded atoms) and ligand in a particular orientation (also without unneeded atoms) and returns a single number (the lower the number, the better the fit). *cost_func_array* is analogous, but instead of |Molecule| instances it takes two numpy arrays (with dimensions: number of atoms x 3) with coordinates of this molecule and the ligand. If both are supplied, *cost_func_mol* takes precedence over *cost_func_array*.
+
+        """
+
+        if not (isinstance(connector, tuple) and len(connector) == 2 and all(isinstance(i, Atom) and i.mol is self for i in connector)):
+            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule')
+
+        if not (isinstance(ligand_connector, tuple) and len(ligand_connector) == 2 and all(isinstance(i, Atom) and i.mol is ligand for i in ligand_connector)):
+            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand')
+
+        if len(self.bonds) == 0:
+            self.guess_bonds()
+        if len(ligand.bonds) == 0:
+            ligand.guess_bonds()
+
+        def dfs(atom, stay, go, delete, msg):
+            for N in atom.neighbors():
+                if N is stay:
+                    if atom is go:
+                        continue
+                    raise MoleculeError('substitute: {} is a part of a cycle'.format(msg))
+                if N not in delete:
+                    delete.add(N)
+                    dfs(N, stay, go, delete, msg)
+
+        stay, go = connector
+        stay_lig, go_lig = ligand_connector
+
+        #remove 'go' and all connected atoms from self
+        atoms_to_delete = {go}
+        dfs(go, stay, go, atoms_to_delete, 'connector')
+        for atom in atoms_to_delete:
+            self.delete_atom(atom)
+
+        #remove 'go_lig' and all connected atoms from ligand
+        atoms_to_delete = {go_lig}
+        dfs(go, stay_lig, go_lig, atoms_to_delete, 'ligand_connector')
+        for atom in atoms_to_delete:
+            ligand.delete_atom(atom)
+
+        #move the ligand such that 'go_lig' is in (0,0,0) and rotate it to its desired position
+        vec = np.array(stay.vector_to(go))
+        vec_lig = np.array(go_lig.vector_to(stay_lig))
+
+        ligand.translate(go_lig.vector_to((0,0,0)))
+        ligand.rotate(rotation_matrix(vec_lig, vec))
+
+        #rotate the ligand along the bond to create 'steps' copies
+        angles = [i*(2*np.pi/steps) for i in range(1, steps)]
+        axis_matrices = [axis_rotation_matrix(vec, angle) for angle in angles]
+        xyz_ligand = ligand.as_array()
+        xyz_ligands = np.array([xyz_ligand] + [xyz_ligand@matrix for matrix in axis_matrices])
+
+        #move all the ligand copies to the right position
+        if bond_length is None:
+            bond_length = stay.radius + stay_lig.radius
+        vec *= bond_length / np.linalg.norm(vec)
+        position = np.array(stay.coords) + vec
+        trans_vec =  np.array(stay_lig.vector_to(position))
+        xyz_ligands += trans_vec
+
+        #find the best ligand orientation
+        if cost_func_mol:
+            best_score = np.inf
+            for lig in xyz_ligands:
+                ligand.from_array(lig)
+                score = cost_func_mol(self, ligand)
+                if score < best_score:
+                    best_score = score
+                    best_lig = lig
+        else:
+            xyz_self = self.as_array()
+            if cost_func_array:
+                best = np.argmin([cost_func_array(xyz_self, i) for i in xyz_ligands])
+            else:
+                a,b,c = xyz_ligands.shape
+                dist_matrix = distance_array(xyz_ligands.reshape(a*b,c), xyz_self)
+                dist_matrix.shape = a,b,-1
+                best = np.sum(np.exp(-dist_matrix), axis=(1, 2)).argmin()
+            best_lig = xyz_ligands[best]
+
+        #add the best ligand to the molecule
+        ligand.from_array(best_lig)
+        self.add_molecule(ligand)
+        self.add_bond(stay, stay_lig)
 
 
 #===========================================================================
