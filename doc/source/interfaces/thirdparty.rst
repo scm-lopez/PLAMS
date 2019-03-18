@@ -7,3 +7,4 @@ Other programs
     crystal
     dftbplus
     cp2k
+    orca
