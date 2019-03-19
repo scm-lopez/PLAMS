@@ -1243,12 +1243,12 @@ class Molecule:
 
 
 
-    def readxyz(self, f, frame=0):
+    def readxyz(self, f, geometry=1, **other):
         """XYZ Reader:
 
             The xyz format allows to store more than one geometry of a particular molecule within a single file.
-            In such cases the *frame* argument can be used to indicate which (in order of appearance in the file) geometry to import.
-            Default is the first one (frame=0).
+            In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import.
+            Default is the first one (*geometry* = 1).
         """
 
         def newatom(line):
@@ -1263,7 +1263,7 @@ class Molecule:
             lst = line.split()
             self.lattice.append((float(lst[1]),float(lst[2]),float(lst[3])))
 
-        fr = frame + 1
+        fr = geometry
         begin, first, nohead = True, True, False
         for line in f:
             if first:
@@ -1302,10 +1302,10 @@ class Molecule:
                     else:
                         break
         if not nohead and fr > 0:
-            raise FileError('readxyz: There are only %i frames in %s' % (frame + 1 - fr, f.name))
+            raise FileError('readxyz: There are only %i geometries in %s' % (geometry - fr, f.name))
 
 
-    def writexyz(self, f):
+    def writexyz(self, f, **other):
         f.write(str(len(self)) + '\n')
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -1319,7 +1319,7 @@ class Molecule:
             f.write('VEC'+str(i+1) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
 
 
-    def readmol(self, f):
+    def readmol(self, f, **other):
 
         comment = []
         for i in range(4):
@@ -1371,7 +1371,7 @@ class Molecule:
 
 
 
-    def writemol(self, f):
+    def writemol(self, f, **other):
         commentblock = ['\n']*3
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -1399,7 +1399,7 @@ class Molecule:
 
 
 
-    def readmol2(self, f):
+    def readmol2(self, f, **other):
 
         bondorders = {'1':1, '2':2, '3':3, 'am':1, 'ar':Bond.AR, 'du':0, 'un':1, 'nc':0}
         mode = ('', 0)
@@ -1465,7 +1465,7 @@ class Molecule:
                 self.add_bond(newbond)
 
 
-    def writemol2(self, f):
+    def writemol2(self, f, **other):
 
         def write_prop(name, obj, separator, space=0, replacement=None):
             form_str = '%-' + str(space) + 's'
@@ -1503,20 +1503,20 @@ class Molecule:
         self.unset_atoms_id()
 
 
-    def readpdb(self, f, frame=0):
+    def readpdb(self, f, geometry=1, **other):
         """PDB Reader:
 
             The pdb format allows to store more than one geometry of a particular molecule within a single file.
-            In such cases the *frame* argument can be used to indicate which (in order of appearance in the file) geometry to import.
-            Default is the first one (frame=0).
+            In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import.
+            The default is the first one (*geometry* = 1).
         """
         pdb = PDBHandler(f)
         models = pdb.get_models()
-        if frame > len(models)-1:
-            raise FileError('readpdb: There are only %i frames in %s' % (len(models), f.name))
+        if geometry > len(models):
+            raise FileError('readpdb: There are only %i geometries in %s' % (len(models), f.name))
 
         symbol_columns = [70,6,7,8]
-        for i in models[frame]:
+        for i in models[geometry-1]:
             if i.name in ['ATOM  ','HETATM']:
                 x = float(i.value[0][24:32])
                 y = float(i.value[0][32:40])
@@ -1534,7 +1534,7 @@ class Molecule:
         return pdb
 
 
-    def writepdb(self, f):
+    def writepdb(self, f, **other):
         pdb = PDBHandler()
         pdb.add_record(PDBRecord('HEADER'))
         model = []
