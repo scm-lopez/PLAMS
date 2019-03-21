@@ -536,7 +536,7 @@ class MultiJob(Job):
         Each attribute of this |MultiJob| that is of type |Job| and has it's parent pointing to this |MultiJob| is returned, in a random order.
         """
         for attr in self.__dict__.values():
-            if isinstance(attr, Job) and attr.parent == self:
+            if isinstance(attr, Job) and ((hasattr(attr, 'parent') and attr.parent == self) or not hasattr(attr, 'parent')):
                 yield attr
 
 

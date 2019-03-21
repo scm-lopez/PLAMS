@@ -78,12 +78,13 @@ class ADFResults(SCMResults):
         gradients *= (Units.conversion_ratio('au',eUnit) / Units.conversion_ratio('bohr',lUnit))
         return gradients
 
+
     def _extract_hessian(self, section, variable, internal_order):
         """_extract_hessian(section, variable, internal_order)
         Extract Hessian from *section*/*variable* of the TAPE21 file. Reorder from internal to input order, if *internal_order* is ``True.
         """
         hess_int = np.array(self.readkf(section, variable))
-        n = int(math.sqrt(len(hess_int))/3.0)
+        n = int((len(hess_int)/9 + 1)**0.5)
         hess_int.shape = (3*n,3*n)
         if internal_order:
             hess_inp = np.zeros(hess_int.shape)
@@ -101,9 +102,9 @@ class ADFResults(SCMResults):
         Try extracting Hessian, either analytical or numerical, whichever is present in the TAPE21 file, in the input order. Returned value is a square numpy array of size 3*nAtoms.
         """
         if ('Hessian', 'Analytical Hessian') in self._kf:
-            return self.get_hessian('Hessian', 'Analytical Hessian', True)
+            return self._extract_hessian('Hessian', 'Analytical Hessian', True)
         if ('Freq', 'Hessian_complete') in self._kf:
-            return self.get_hessian('Freq', 'Hessian_complete', internal_order=True)
+            return self._extract_hessian('Freq', 'Hessian_complete', True)
         raise ResultsError('auto_hessian: Hessian does not seem to be present in t21 file.')
 
 
