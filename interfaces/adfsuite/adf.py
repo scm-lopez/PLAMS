@@ -100,7 +100,7 @@ class ADFResults(SCMResults):
         """get_hessian()
         Try extracting Hessian, either analytical or numerical, whichever is present in the TAPE21 file, in the input order. Returned value is a square numpy array of size 3*nAtoms.
         """
-        if ('Hessian', 'Analytical Hessian', internal_order=False) in self._kf:
+        if ('Hessian', 'Analytical Hessian') in self._kf:
             return self.get_hessian('Hessian', 'Analytical Hessian', True)
         if ('Freq', 'Hessian_complete') in self._kf:
             return self.get_hessian('Freq', 'Hessian_complete', internal_order=True)
