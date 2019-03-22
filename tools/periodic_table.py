@@ -5,7 +5,7 @@ __all__ = ['PeriodicTable', 'PT']
 class PeriodicTable:
     """A singleton class for the periodic table of elements.
 
-    For each element the following properties are stores: atomic symbol, atomic mass, atomic radius and number of connectors.
+    For each element the following properties are stored: atomic symbol, atomic mass, atomic radius and number of connectors.
 
     Atomic mass is, strictly speaking, atomic weight, as present in Mathematica's ElementData function.
 
@@ -181,6 +181,24 @@ class PeriodicTable:
     def get_connectors(cls, arg):
         """Convert atomic symbol or atomic number to number of connectors."""
         return cls._get_property(arg, 3)
+
+
+    @classmethod
+    def set_mass(cls, element, value):
+        """Set the mass of *element* to *value*."""
+        cls.data[cls.get_atomic_number(element)][1] = value
+
+
+    @classmethod
+    def set_radius(cls, element, value):
+        """Set the radius of *element* to *value*."""
+        cls.data[cls.get_atomic_number(element)][2] = value
+
+
+    @classmethod
+    def set_connectors(cls, element, value):
+        """Set the number of connectors of *element* to *value*."""
+        cls.data[cls.get_atomic_number(element)][3] = value
 
 
     @classmethod

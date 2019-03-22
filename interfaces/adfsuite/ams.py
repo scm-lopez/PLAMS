@@ -4,11 +4,11 @@ import numpy as np
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import FileError
+from ...core.errors import FileError, JobError, ResultsError
 from ...core.functions import config, log
 from ...core.private import sha256
 from ...core.results import Results
-from ...core.settings import Settings
+from ...core.settings import Settings, ig
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...tools.kftools import KFFile
@@ -167,14 +167,25 @@ class AMSResults(Results):
                 raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
             coords = main.read('History', f'Coords({step})')
             coords = [coords[i:i+3] for i in range(0,len(coords),3)]
-            try:
+            if ('History', f'SystemVersion({step})') in main:
                 system = main.read('History', f'SystemVersion({step})')
                 mol = self.get_molecule(f'ChemicalSystem({system})')
-            except KeyError:
+                molsrc = f'ChemicalSystem({system})'
+            else:
                 mol = self.get_main_molecule()
-            assert len(mol) == len(coords), '!!!!!!!!!!!!'
+                molsrc = 'Molecule'
+            if len(mol) != len(coords):
+                raise ResultsError(f'Coordinates taken from "History%Coords({step})" have incompatible lenght with molecule from {molsrc} section')
             for at, c in zip(mol, coords):
                 at.move_to(c, unit='bohr')
+
+            if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
+                index = main.read('History', f'Bonds.Index({step})')
+                atoms = main.read('History', f'Bonds.Atoms({step})')
+                orders = main.read('History', f'Bonds.Orders({step})')
+                for i in range(len(index)-1):
+                    for j in range(index[i], index[i+1]):
+                        mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
             return mol
 
 
@@ -217,7 +228,7 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        freqs = np.array(self._process_engine_results(lambda x: x.read('AMSResults', 'Frequencies[cm-1]'), engine))
+        freqs = np.array(self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine))
         return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
@@ -246,7 +257,7 @@ class AMSResults(Results):
                 return None
             s = Settings()
             s.input = inp
-            del s.input.ams[s.input.ams.find_case('system')]
+            del s.input[ig('ams')][ig('system')]
             s.soft_update(config.job)
             return s
         return None
@@ -311,7 +322,7 @@ class AMSResults(Results):
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
         symbols = sectiondict['AtomSymbols'].split()
-        for at, crd, sym, mass in zip(sectiondict['AtomicNumbers'], coords, symbols, sectiondict['AtomMasses']):
+        for at, crd, sym in zip(sectiondict['AtomicNumbers'], coords, symbols):
             newatom = Atom(atnum=at, coords=crd, unit='bohr')
             if sym.startswith('Gh.'):
                 sym = sym[3:]
@@ -460,13 +471,34 @@ class AMSJob(SingleJob):
                 ret += ' '*indent + key + ' ' + str(unspec(value)) + '\n'
             return ret
 
-        fullinput = self.settings.input + self._serialize_molecule()
-        ams = fullinput.find_case('ams')
-        txtinp = ''
+        fullinput = self.settings.input.copy()
 
+        #prepare contents of 'system' block(s)
+        more_systems = self._serialize_molecule()
+        system = fullinput[ig('ams')][ig('system')]
+        if more_systems:
+            if system: #nonempty system block was already present in input.ams
+                system_list = system if isinstance(system, list) else [system]
+
+                system_list_set = Settings({(s._h if '_h' in s else ''):s   for s in system_list})
+                more_systems_set = Settings({(s._h if '_h' in s else ''):s   for s in more_systems})
+
+                system_list_set += more_systems_set
+                system_list = list(system_list_set.values())
+                system = system_list[0] if len(system_list) == 1 else system_list
+                fullinput[ig('ams')][ig('system')] = system
+
+            else:
+                fullinput[ig('ams')][ig('system')] = more_systems[0] if len(more_systems) == 1 else more_systems
+
+        txtinp = ''
+        ams = fullinput.find_case('ams')
+
+        #contents of the 'ams' block (AMS input) go first
         for item in fullinput[ams]:
             txtinp += serialize(item, fullinput[ams][item], 0) + '\n'
 
+        #and then engines
         for engine in fullinput:
             if engine != ams:
                 txtinp += serialize('engine '+engine, fullinput[engine], 0, end='endengine') + '\n'
@@ -475,50 +507,43 @@ class AMSJob(SingleJob):
 
 
     def _serialize_molecule(self):
-        """Return a |Settings| instance containing the information about the |Molecule| stored in the ``molecule`` attribute.
-
-        If ``settings.input.ams`` contains ``loadsystem`` key or if``settings.input.ams.system`` contains ``geometryfile`` key, the ``molecule`` attribute is completely ignored and this method returns an empty |Settings| instance. If ``settings.input.ams.system`` already contains ``atoms``, ``lattice``, or ``charge`` entries, the corresponding information from the ``molecule`` attribute is ignored.
+        """Return a list of |Settings| instances containing the information about one or more |Molecule| instances stored in the ``molecule`` attribute.
 
         Molecular charge is taken from ``molecule.properties.charge``, if present. Additional, atom-specific information to be put in ``atoms`` block after XYZ coordinates can be supplied with ``atom.properties.suffix``.
 
-        The returned |Settings| instance has the structure allowing it to be merged with ``settings.input`` branch (keys like ``ams`` or ``system`` have the same case as the ones present in ``settings.input``).
+        If the ``molecule`` attribute is a dictionary, the returned list is of the same length as the size of the dictionary. Keys from the dictionary are used as headers of returned ``system`` blocks.
         """
-        ams = self.settings.input.find_case('ams')
-        loadsystem = self.settings.input[ams].find_case('loadsystem')
-        if loadsystem in self.settings.input[ams]:
+
+        if self.molecule is None:
             return Settings()
 
-        system = self.settings.input[ams].find_case('system')
-        s = self.settings.input[ams][system]
-        atoms = s.find_case('atoms')
-        lattice = s.find_case('lattice')
-        charge = s.find_case('charge')
-        geometryfile = s.find_case('geometryfile')
+        moldict = {}
+        if isinstance(self.molecule, Molecule):
+            moldict = {'':self.molecule}
+        elif isinstance(self.molecule, dict):
+            moldict = self.molecule
+        else:
+            raise JobError("Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a dictionary or None".format(self.name))
 
-        if geometryfile in s:
-            return Settings()
+        ret = []
+        for name, molecule in moldict.items():
+            newsystem = Settings()
+            if name:
+                newsystem._h = name
 
-        if self.molecule is None and atoms not in s:
-            log("ERROR: It looks like job {} was not given any geometry. You can do it by supplying a Molecule object as 'thisjob.molecule', by using an external xyz file as 'thisjob.settings.input.ams.system.geometryfile', by using a previous KF file as 'thisjob.settings.input.ams.loadsystem' or by directly manipulating entries in 'thisjob.settings.input.ams.system.atoms'".format(self.name), 1)
-            return Settings()
+            if len(molecule.lattice) in [1,2] and molecule.align_lattice():
+                log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self.name), 3)
 
-        if self.molecule and len(self.molecule.lattice) in [1,2] and self.molecule.align_lattice():
-            log("The lattice of Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(self.name), 3)
+            newsystem.atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
+                    suffix=(atom.properties.suffix if 'suffix' in atom.properties else '')) for atom in molecule]
 
-        ret = Settings()
-        if atoms not in s and self.molecule:
-            for i,atom in enumerate(self.molecule):
-                ret[ams][system][atoms]['_'+str(i+1)] = atom.str(
-                    symbol=self._atom_symbol(atom),
-                    space=18, decimal=10,
-                    suffix=(atom.properties.suffix if 'suffix' in atom.properties else ''))
+            if molecule.lattice:
+                newsystem.lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
 
-        if lattice not in s and self.molecule:
-            for i,vec in enumerate(self.molecule.lattice):
-                ret[ams][system][lattice]['_'+str(i+1)] = '{:16.10f} {:16.10f} {:16.10f}'.format(*vec)
+            if ig('charge') in molecule.properties:
+                newsystem.charge = molecule.properties[ig('charge')]
 
-        if charge not in s and self.molecule and 'charge' in self.molecule.properties:
-            ret[ams][system][charge] = self.molecule.properties.charge
+            ret.append(newsystem)
 
         return ret
 

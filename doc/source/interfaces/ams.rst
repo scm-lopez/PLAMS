@@ -205,7 +205,7 @@ or::
 A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`_ for details).
 Various details of this process can be adjusted based on attributes of the supplied |Molecule|.
 If ``mol.lattice`` is nonempty, the information about periodicity vectors is printed to the ``lattice`` subblock of the ``system`` block.
-If the supplied lattice consists of 1 or 2 vectors that do not follow the convention requied by AMS (first vector aligned with X axis, second vector aligned with XY plane) the whole system is rotated to meet these criteria.
+If the supplied lattice consists of 1 or 2 vectors that do not follow the convention requied by AMS (1D -- vector aligned with X axis; 2D -- vectors aligned with XY plane) the whole system is rotated to meet these criteria.
 If ``mol.properties.charge`` exists, it is used as the ``charge`` key in the ``system`` block.
 
 Moreover, each |Atom| present in the supplied |Molecule| has its own ``properties`` attribute that can be used to adjust the details of the line generated for this atom in the ``atoms`` block:
@@ -250,7 +250,7 @@ The corresponding fragment of the input file produced by the above code:
       end
     end
 
-Another, much more cumbersome way to provide the system information to |AMSJob| is to manually populate the ``system`` block in job settings::
+Another, more cumbersome way to provide the system information to |AMSJob| is to manually populate the ``system`` block in job settings::
 
     s = Settings()
     s.input.ams.system.atoms._1 = 'H     0.0    0.0     0.0'
@@ -259,9 +259,6 @@ Another, much more cumbersome way to provide the system information to |AMSJob| 
     #other settings adjustments
     myjob = AMSJob(settings=s)
 
-It is worth noting here that both methods mentioned above can be mixed and the contents of |Settings| take precedence over the |Molecule|.
-In other words, if ``myjob.settings.input.ams.system`` already contains ``atoms``, ``lattice``, or ``charge`` entries, the corresponding information from ``myjob.molecule`` is ignored.
-
 An alternative way of supplying molecular coordinates is to use the ``GeometryFile`` key in the ``system`` block::
 
     s = Settings()
@@ -269,8 +266,48 @@ An alternative way of supplying molecular coordinates is to use the ``GeometryFi
     #other settings adjustments
     myjob = AMSJob(settings=s)
 
-In such a case the contents of ``myjob.molecule`` attribute are completely ignored and the geoemtry from the given file is used.
-Currently only the `extended XYZ format <../../AMS/Appendices.html#extendedxyz>`_ for details) is supported.
+(Currently only the `extended XYZ format <../../AMS/Appendices.html#extendedxyz>`_ for details) is supported.)
+
+Finally, one could use the ``LoadSystem`` top-level key and point to an existing ``.rkf`` file with results of some previous calculation::
+
+    s = Settings()
+    s.input.loadsystem = '/path/to/some/ams.rkf'
+    #other settings adjustments
+    myjob = AMSJob(settings=s)
+
+
+Multiple molecules
+++++++++++++++++++
+
+The AMS driver allows multiple occurences of the ``system`` block in the input file.
+Different ``system`` blocks are distinguished by their names defined in the header of the block::
+
+    system protein
+        atoms
+        ...
+        end
+    end
+    system ligand
+        atoms
+        ...
+        end
+    end
+
+The system without such a name is considered the main system.
+
+Multiple systems can be used in |AMSJob| by setting the ``molecule`` attribute to a dictionary, instead of a single |Molecule|.
+Such a dictionary should have strings as keys and |Molecule| instances as values.
+The main system should have ``''`` (an empty string) as a key.
+
+Other methods of providing the contents of the ``system`` block mentioned above can also be used to provide multiple ``system`` blocks.
+``myjob.settings.input.ams.system`` can be a list containg multiple |Settings| instances, one for each system.
+Each such instance can be have manually filled ``atoms`` block or use the ``geometryfile`` key.
+Special header ``_h`` key can be used to set headers and hence names of different ``system`` blocks.
+Multiple instances of the ``LoadSystem`` key (also provided as a list, also with ``_h`` headers) can also be used.
+
+All the methods mentioned above (``molecule`` attribute, ``GeometryFile``, ``LoadSystem``, manual ``system`` block preparation) can be combined in any configuration.
+In case of a conflict, the data stored in ``settings.input.ams.system`` takes precedence over ``molecule``.
+It is, however, the user's responsibility to make sure that among all the systems provided there is exactly one main system (without a name).
 
 
 

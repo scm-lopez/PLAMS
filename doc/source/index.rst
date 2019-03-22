@@ -7,7 +7,7 @@ Python Library for Automating Molecular Simulations
 ---------------------------------------------------
 
 
-.. image:: _static/plams_logo.*
+.. image:: _static/plams_logo.png
 
 
 .. toctree::

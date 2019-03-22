@@ -215,8 +215,14 @@ The only adjustable option (apart from usual ``pre``, ``post``, ``shebang`` and 
 API
 ~~~
 
-.. autoclass:: ADFJob(molecule=None, name='plamsjob', settings=None, depend=None)
-    :exclude-members: _result_type
-
 .. autoclass:: ADFResults
+
+Parent abstract classes:
+
+.. currentmodule:: scm.plams.interfaces.adfsuite.scmjob
+
+.. autoclass:: SCMJob(molecule=None, name='plamsjob', settings=None, depend=None)
+    :exclude-members: _result_type
+.. autoclass:: SCMResults
+
 

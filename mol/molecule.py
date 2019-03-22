@@ -5,11 +5,6 @@ import math
 import numpy as np
 import os
 
-try:
-    from scipy.spatial.distance import cdist
-except ModuleNotFoundError:
-    pass
-
 from .atom import Atom
 from .bond import Bond
 from .pdbtools import PDBHandler, PDBRecord
@@ -19,7 +14,7 @@ from ..core.functions import log
 from ..core.private import smart_copy
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix
+from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array
 from ..tools.units import Units
 
 __all__ = ['Molecule']
@@ -150,6 +145,24 @@ class Molecule:
             del at._bro
 
         return ret
+
+
+    def add_molecule(self, other, copy=False):
+        """Add some *other* molecule to this one::
+
+            protein += water
+
+        If *copy* is ``True, *other* molecule is copied and the copy is added to this molecule. Otherwise, *other* molecule is directly merged with this one
+        The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
+        """
+        other = other.copy() if copy else other
+        self.atoms += other.atoms
+        self.bonds += other.bonds
+        for atom in self.atoms:
+            atom.mol = self
+        for bond in self.bonds:
+            bond.mol = self
+        self.properties.soft_update(other.properties)
 
 
     def add_atom(self, atom, adjacent=None):
@@ -297,6 +310,17 @@ class Molecule:
         if atom.mol != self:
             raise MoleculeError('neighbors: passed atom should belong to the molecule')
         return [b.other_end(atom) for b in atom.bonds]
+
+
+    def bond_matrix(self):
+        """Return a square numpy array with bond orders. The size of the array is equal to the number of atoms."""
+        ret = np.zeros((len(self), len(self)))
+        self.set_atoms_id()
+        for b in self.bonds:
+            i,j = b.atom1.id-1, b.atom2.id-1
+            ret[i][j] = ret[j][i] = b.order
+        self.unset_atoms_id()
+        return ret
 
 
     def separate(self):
@@ -571,14 +595,13 @@ class Molecule:
         *unit* is the unit of length, the cube of which will be used as the unit of volume.
         """
         if len(self.lattice) != 3:
-            raise MoleculeError('unit_cell_volume: ')
+            raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
         return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
 
 
 #===========================================================================
 #==== Geometry operations ==================================================
 #===========================================================================
-
 
 
     def translate(self, vector, unit='angstrom'):
@@ -622,15 +645,15 @@ class Molecule:
             self.rotate_lattice(matrix)
 
 
-    def align_lattice(self, convention='x', zero=1e-10):
+    def align_lattice(self, convention='AMS', zero=1e-10):
         """Rotate the molecule in such a way that lattice vectors are aligned with the coordinate system.
 
         This method is meant to be used with periodic systems only. Using it on a |Molecule| instance with an empty ``lattice`` attribute has no effect.
 
         Possible values of the *convention* argument are:
 
-        *   ``x`` (default) -- first lattice vector aligned with X axis. Second vector (if present) aligned with XY plane.
-        *   ``z`` (convention used by `ReaxFF <https://www.scm.com/product/reaxff>`_) -- second lattice vector (if present) aligned with YZ plane. Third vector (if present) aligned with Z axis.
+        *   ``AMS`` (default) -- for 1D systems the lattice vector aligned with X axis. For 2D systems both lattice vectors aligned with XY plane. No constraints for 3D systems
+        *   ``reax`` (convention used by `ReaxFF <https://www.scm.com/product/reaxff>`_) -- second lattice vector (if present) aligned with YZ plane. Third vector (if present) aligned with Z axis.
 
         *zero* argument can be used to specify the numerical tolerance for zero (used to determine if some vector is already aligned with a particular axis or plane).
 
@@ -643,18 +666,21 @@ class Molecule:
             return False
 
         rotated = False
-        if convention == 'x':
-            if abs(self.lattice[0][1]) > zero or abs(self.lattice[0][2]) > zero:
+        if convention == 'AMS':
+            if dim == 1 and (abs(self.lattice[0][1]) > zero or abs(self.lattice[0][2]) > zero):
                 mat = rotation_matrix(self.lattice[0], [1.0, 0.0, 0.0])
                 self.rotate(mat, lattice=True)
                 rotated = True
 
-            if dim >= 2 and abs(self.lattice[1][2]) > zero:
-                mat = rotation_matrix([0.0, self.lattice[1][1], self.lattice[1][2]], [0.0, 1.0, 0.0])
+            if dim == 2 and (abs(self.lattice[0][2]) > zero or abs(self.lattice[1][2]) > zero):
+                mat = rotation_matrix(self.lattice[0], [1.0, 0.0, 0.0])
                 self.rotate(mat, lattice=True)
+                if abs(self.lattice[1][2]) > zero:
+                    mat = rotation_matrix([0.0, self.lattice[1][1], self.lattice[1][2]], [0.0, 1.0, 0.0])
+                    self.rotate(mat, lattice=True)
                 rotated = True
 
-        elif convention == 'z':
+        elif convention == 'reax':
             if dim == 3 and (abs(self.lattice[2][0]) > zero or abs(self.lattice[2][1]) > zero):
                 mat = rotation_matrix(self.lattice[2], [0.0, 0.0, 1.0])
                 self.rotate(mat, lattice=True)
@@ -666,7 +692,7 @@ class Molecule:
                 rotated = True
 
         else:
-            raise MoleculeError("align_lattice: unknown convention: {}. Possible values are 'x' or 'z'".format(convention))
+            raise MoleculeError("align_lattice: unknown convention: {}. Possible values are 'AMS' or 'reax'".format(convention))
         return rotated
 
 
@@ -691,22 +717,11 @@ class Molecule:
         dfs(moving_atom)
 
         if len(atoms_to_rotate) == len(self):
-            raise MoleculeError('rotate_bond: chosen bond does not divide molecule')
+            raise MoleculeError('rotate_bond: chosen bond does not divide the molecule')
 
         other_end = bond.other_end(moving_atom)
         v = np.array(other_end.vector_to(moving_atom))
-        v /= np.linalg.norm(v)
-
-        W = np.array([[0, -v[2], v[1]],
-                      [v[2], 0, -v[0]],
-                      [-v[1], v[0], 0]])
-
-        angle = Units.convert(angle, unit, 'radian')
-        a1 = math.sin(angle)
-        a2 = 2 * math.pow(math.sin(0.5 * angle), 2)
-
-        rotmat = np.identity(3) + a1 * W + a2 * W@W
-
+        rotmat = axis_rotation_matrix(v, angle, unit)
         trans = np.array(other_end.vector_to((0,0,0)))
 
         xyz_array = self.as_array(atom_subset=atoms_to_rotate)
@@ -783,11 +798,7 @@ class Molecule:
         xyz_array1 = self.as_array()
         xyz_array2 = other.as_array()
 
-        # Try to use the faster cdist function if scipy is installed
-        try:
-            dist_array = cdist(xyz_array1, xyz_array2)
-        except NameError:
-            dist_array = np.array([np.linalg.norm(i - xyz_array2, axis=1) for i in xyz_array1])
+        dist_array = distance_array(xyz_array1, xyz_array2)
 
         res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:
@@ -907,6 +918,148 @@ class Molecule:
         self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
 
 
+    def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
+        """Randomly perturb the coordinates of the atoms in the molecule.
+
+        Each Cartesian coordinate is displaced by a random value picked out of a uniform distribution in the interval *[-max_displacement, +max_displacement]* (converted to requested *unit*).
+
+        By default, all atoms are perturbed. It is also possible to perturb only part of the molecule, indicated by *atoms* argument. It should be a list of atoms belonging to the molecule.
+        """
+        s = Units.convert(max_displacement, 'angstrom', unit)
+
+        if atoms is None:
+            atoms = self.atoms
+
+        for atom in atoms:
+            atom.translate(np.random.uniform(-s, s, 3))
+
+
+    def perturb_lattice(self, max_displacement=0.01, unit='angstrom', ams_convention=True):
+        """Randomly perturb the lattice vectors.
+
+        The Cartesian components of the lattice vectors are changed by a random value picked out of a uniform distribution in the interval *[-max_displacement, +max_displacement]* (converted to requested *unit*).
+
+        If *ams_convention=True* then for 1D-periodic systems only the x-component of the lattice vector is perturbed, and for 2D-periodic systems only the xy-components of the lattice vectors are perturbed.
+        """
+        s = Units.convert(max_displacement, 'angstrom', unit)
+        n = len(self.lattice)
+
+        if n == 0:
+            raise MoleculeError('perturb_lattice can only be applied to periodic systems')
+
+        for i,vec in enumerate(self.lattice):
+            if ams_convention:
+                # For 1D systems we only want to perturb the first number. For 2D systems only the first 2 numbers of each vector.
+                perturbed_vec = np.array(vec) + np.concatenate((np.random.uniform(-s, s, n), np.zeros(3-n)))
+            else:
+                perturbed_vec = np.array(vec) + np.random.uniform(-s, s, 3)
+            self.lattice[i] = tuple(perturbed_vec)
+
+
+    def substitute(self, connector, ligand, ligand_connector, bond_length=None, steps=12, cost_func_mol=None, cost_func_array=None):
+        """Substitute a part of this molecule with *ligand*.
+
+        *connector* should be a pair of atoms that belong to this molecule and form a bond. The first atom of *connector* is the atom to which the  ligand will be connected. The second atom of *connector* is removed from the molecule, together with all "further" atoms connected to it (that allows, for example, to substitute the whole functional group with another). Using *connector* that is a part or a ring triggers an exception.
+
+        *ligand_connector* is a *connector* analogue, but for *ligand*. IT describes the bond in the *ligand* that will be connected with the bond in this molecule descibed by *connector*.
+
+        If this molecule or *ligand* don't have any bonds, :meth:`guess_bonds` is used.
+
+        After removing all unneeded atoms, the *ligand* is translated to a new position, rotated, and connected by bond with the core molecule. The new |Bond| is added between the first atom of *connector* and the first atom of *ligand_connector*. The length of that bond can be adjusted with *bond_length* argument, otherwise the default is the sum of atomic radii taken from |PeriodicTable|.
+
+        Then the *ligand* is rotated along newly created bond to find the optimal position. The full 360 degrees angle is divided into *steps* equidistant rotations and each such rotation is evaluated using a cost function. The orientation with the minimal cost is chosen.
+
+        The default cost function is:
+
+        .. math::
+
+            \sum_{i \in mol, j\in lig} e^{-R_{ij}}
+
+        A different cost function can be also supplied by the user, using one of the two remaining arguments: *cost_func_mol* or *cost_func_array*. *cost_func_mol* should be a function that takes two |Molecule| instances: this molecule (after removing unneeded atoms) and ligand in a particular orientation (also without unneeded atoms) and returns a single number (the lower the number, the better the fit). *cost_func_array* is analogous, but instead of |Molecule| instances it takes two numpy arrays (with dimensions: number of atoms x 3) with coordinates of this molecule and the ligand. If both are supplied, *cost_func_mol* takes precedence over *cost_func_array*.
+
+        """
+
+        if not (isinstance(connector, tuple) and len(connector) == 2 and all(isinstance(i, Atom) and i.mol is self for i in connector)):
+            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule')
+
+        if not (isinstance(ligand_connector, tuple) and len(ligand_connector) == 2 and all(isinstance(i, Atom) and i.mol is ligand for i in ligand_connector)):
+            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand')
+
+        if len(self.bonds) == 0:
+            self.guess_bonds()
+        if len(ligand.bonds) == 0:
+            ligand.guess_bonds()
+
+        def dfs(atom, stay, go, delete, msg):
+            for N in atom.neighbors():
+                if N is stay:
+                    if atom is go:
+                        continue
+                    raise MoleculeError('substitute: {} is a part of a cycle'.format(msg))
+                if N not in delete:
+                    delete.add(N)
+                    dfs(N, stay, go, delete, msg)
+
+        stay, go = connector
+        stay_lig, go_lig = ligand_connector
+
+        #remove 'go' and all connected atoms from self
+        atoms_to_delete = {go}
+        dfs(go, stay, go, atoms_to_delete, 'connector')
+        for atom in atoms_to_delete:
+            self.delete_atom(atom)
+
+        #remove 'go_lig' and all connected atoms from ligand
+        atoms_to_delete = {go_lig}
+        dfs(go, stay_lig, go_lig, atoms_to_delete, 'ligand_connector')
+        for atom in atoms_to_delete:
+            ligand.delete_atom(atom)
+
+        #move the ligand such that 'go_lig' is in (0,0,0) and rotate it to its desired position
+        vec = np.array(stay.vector_to(go))
+        vec_lig = np.array(go_lig.vector_to(stay_lig))
+
+        ligand.translate(go_lig.vector_to((0,0,0)))
+        ligand.rotate(rotation_matrix(vec_lig, vec))
+
+        #rotate the ligand along the bond to create 'steps' copies
+        angles = [i*(2*np.pi/steps) for i in range(1, steps)]
+        axis_matrices = [axis_rotation_matrix(vec, angle) for angle in angles]
+        xyz_ligand = ligand.as_array()
+        xyz_ligands = np.array([xyz_ligand] + [xyz_ligand@matrix for matrix in axis_matrices])
+
+        #move all the ligand copies to the right position
+        if bond_length is None:
+            bond_length = stay.radius + stay_lig.radius
+        vec *= bond_length / np.linalg.norm(vec)
+        position = np.array(stay.coords) + vec
+        trans_vec =  np.array(stay_lig.vector_to(position))
+        xyz_ligands += trans_vec
+
+        #find the best ligand orientation
+        if cost_func_mol:
+            best_score = np.inf
+            for lig in xyz_ligands:
+                ligand.from_array(lig)
+                score = cost_func_mol(self, ligand)
+                if score < best_score:
+                    best_score = score
+                    best_lig = lig
+        else:
+            xyz_self = self.as_array()
+            if cost_func_array:
+                best = np.argmin([cost_func_array(xyz_self, i) for i in xyz_ligands])
+            else:
+                a,b,c = xyz_ligands.shape
+                dist_matrix = distance_array(xyz_ligands.reshape(a*b,c), xyz_self)
+                dist_matrix.shape = a,b,-1
+                best = np.sum(np.exp(-dist_matrix), axis=(1, 2)).argmin()
+            best_lig = xyz_ligands[best]
+
+        #add the best ligand to the molecule
+        ligand.from_array(best_lig)
+        self.add_molecule(ligand)
+        self.add_bond(stay, stay_lig)
 
 
 #===========================================================================
@@ -992,20 +1145,8 @@ class Molecule:
 
 
     def __iadd__(self, other):
-        """Add some *other* molecule to this one::
-
-            protein += water
-
-        All atoms and bonds present in *other* are copied and copies are added to this molecule. The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
-        """
-        othercopy = other.copy()
-        self.atoms += othercopy.atoms
-        self.bonds += othercopy.bonds
-        for atom in self.atoms:
-            atom.mol = self
-        for bond in self.bonds:
-            bond.mol = self
-        self.properties.soft_update(othercopy.properties)
+        """Copy *other* molecule and add the copy to this one."""
+        self.add_molecule(other, copy=True)
         return self
 
 
@@ -1102,12 +1243,12 @@ class Molecule:
 
 
 
-    def readxyz(self, f, frame=0):
+    def readxyz(self, f, geometry=1, **other):
         """XYZ Reader:
 
             The xyz format allows to store more than one geometry of a particular molecule within a single file.
-            In such cases the *frame* argument can be used to indicate which (in order of appearance in the file) geometry to import.
-            Default is the first one (frame=0).
+            In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import.
+            Default is the first one (*geometry* = 1).
         """
 
         def newatom(line):
@@ -1122,7 +1263,7 @@ class Molecule:
             lst = line.split()
             self.lattice.append((float(lst[1]),float(lst[2]),float(lst[3])))
 
-        fr = frame + 1
+        fr = geometry
         begin, first, nohead = True, True, False
         for line in f:
             if first:
@@ -1161,10 +1302,10 @@ class Molecule:
                     else:
                         break
         if not nohead and fr > 0:
-            raise FileError('readxyz: There are only %i frames in %s' % (frame + 1 - fr, f.name))
+            raise FileError('readxyz: There are only %i geometries in %s' % (geometry - fr, f.name))
 
 
-    def writexyz(self, f):
+    def writexyz(self, f, **other):
         f.write(str(len(self)) + '\n')
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -1178,7 +1319,7 @@ class Molecule:
             f.write('VEC'+str(i+1) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
 
 
-    def readmol(self, f):
+    def readmol(self, f, **other):
 
         comment = []
         for i in range(4):
@@ -1230,7 +1371,7 @@ class Molecule:
 
 
 
-    def writemol(self, f):
+    def writemol(self, f, **other):
         commentblock = ['\n']*3
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -1258,7 +1399,7 @@ class Molecule:
 
 
 
-    def readmol2(self, f):
+    def readmol2(self, f, **other):
 
         bondorders = {'1':1, '2':2, '3':3, 'am':1, 'ar':Bond.AR, 'du':0, 'un':1, 'nc':0}
         mode = ('', 0)
@@ -1324,7 +1465,7 @@ class Molecule:
                 self.add_bond(newbond)
 
 
-    def writemol2(self, f):
+    def writemol2(self, f, **other):
 
         def write_prop(name, obj, separator, space=0, replacement=None):
             form_str = '%-' + str(space) + 's'
@@ -1362,20 +1503,20 @@ class Molecule:
         self.unset_atoms_id()
 
 
-    def readpdb(self, f, frame=0):
+    def readpdb(self, f, geometry=1, **other):
         """PDB Reader:
 
             The pdb format allows to store more than one geometry of a particular molecule within a single file.
-            In such cases the *frame* argument can be used to indicate which (in order of appearance in the file) geometry to import.
-            Default is the first one (frame=0).
+            In such cases the *geometry* argument can be used to indicate which (in order of appearance in the file) geometry to import.
+            The default is the first one (*geometry* = 1).
         """
         pdb = PDBHandler(f)
         models = pdb.get_models()
-        if frame > len(models)-1:
-            raise FileError('readpdb: There are only %i frames in %s' % (len(models), f.name))
+        if geometry > len(models):
+            raise FileError('readpdb: There are only %i geometries in %s' % (len(models), f.name))
 
         symbol_columns = [70,6,7,8]
-        for i in models[frame]:
+        for i in models[geometry-1]:
             if i.name in ['ATOM  ','HETATM']:
                 x = float(i.value[0][24:32])
                 y = float(i.value[0][32:40])
@@ -1393,7 +1534,7 @@ class Molecule:
         return pdb
 
 
-    def writepdb(self, f):
+    def writepdb(self, f, **other):
         pdb = PDBHandler()
         pdb.add_record(PDBRecord('HEADER'))
         model = []

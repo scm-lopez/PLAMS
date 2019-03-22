@@ -4,7 +4,7 @@ from scm.plams import *
 
 plams_namespace = globals().copy()
 
-VERSION = 1.3
+VERSION = 1.4
 
 import argparse
 import os

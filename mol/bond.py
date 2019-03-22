@@ -79,7 +79,7 @@ class Bond:
     def resize(self, moving_atom, length, unit='angstrom'):
         """Change the length of this bond to *length* expressed in *unit* by moving *moving_atom*.
 
-        *moving_atom* should be one of the atoms that form this bond. This atom is moved along the bond axis in such a way that new bond length equals *length. If this bond is a part of a |Molecule| the whole part connected to *moving_atom* is moved.
+        *moving_atom* should be one of the atoms that form this bond. This atom is moved along the bond axis in such a way that new bond length equals *length*. If this bond is a part of a |Molecule| the whole part connected to *moving_atom* is moved.
 
         .. note::
 
