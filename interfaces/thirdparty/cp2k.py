@@ -1,11 +1,13 @@
 import subprocess
 import shutil
+import numpy as np
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
 from ...core.results import Results
 from ...core.errors import ResultsError
+from ...tools.units import Units
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 
@@ -137,25 +139,72 @@ class Cp2kResults(Results):
         diff = endTime - startTime
         return diff.total_seconds()
 
-    def _get_energy_type(self, search='Total', index=0):
+    def _get_energy_type(self, search='Total', index=-1, unit='a.u.'):
         if index:
             select = index
         else:
-            select = -1
-        s = self.grep_output(search+' energy:')[select].split()[-1]
-        return float(s)
+            select = slice(0,None)
 
-    def get_energy(self, index=0):
-        """Returns last occurence of 'Total energy:' in the output."""
-        return self._get_energy_type('Total', index=index)
+        s = self.grep_output(search+' energy:')[select]
+        if isinstance(select, int):
+            s = [s]
+        return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
 
-    def get_dispersion(self, index=0):
-        """Returns last occurence of 'Dispersion energy:' in the output."""
-        return self._get_energy_type('Dispersion', index=index)
+    def get_energy(self, index=-1, unit='a.u.'):
+        """Returns 'Total energy:' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Also supports slices.
+        Set to *None* to return all as a list.
+        Defaults to the last occurence.
+
+        Returns a List of Energies.
+        """
+        return self._get_energy_type('Total', index=index, unit=unit)
+
+    def get_dispersion(self, index=-1, unit='a.u.'):
+        """Returns 'Dispersion energy:' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Also supports slices.
+        Set to *None* to return all as a list.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('Dispersion', index=index, unit=unit)
+
+    def get_forces(self, file=None, index=-1):
+        """Returns list of ndarrays with forces for each atom.
+
+        Set ``file`` to use other than the main output file.
+
+        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Set to *None* to return all as a list.
+        Defaults to the last occurence.
+        """
+        if not file:
+            file = self.job._filename('out')
+        searchBegin = "ATOMIC FORCES in"
+        searchEnd = "SUM OF ATOMIC FORCES"
+        n = len(self.grep_file(file, searchBegin))
+        match = self._idx_to_match(n, index)
+        block = self.get_file_chunk(file, begin=searchBegin, end=searchEnd, match=match)
+        ret = []
+        for line in block:
+            line = line.strip().split()
+            if len(line) == 0:
+                continue
+            #new forces block
+            if line[0] == '#':
+                ret.append([])
+                continue
+            ret[-1].append([ float(x) for x in line[-3:]])
+        return [ np.asarray(item) for item in ret ]
 
     def _idx_to_match(self, nTotal, idx):
         if idx is None:
             return 0
+        elif isinstance(idx, slice):
+            raise RuntimeError("Passing a slice here is not supported!")
         elif idx >= 0 and idx < nTotal:
             return idx + 1
         elif idx < -nTotal or idx >= nTotal:
@@ -245,6 +294,79 @@ class Cp2kResults(Results):
 
         return dic
 
+    def get_md_infos(self, file=None, cache=False):
+        """Read the MD-info sections.
+
+        Returns a list with descriptors and a nested list containing the values for each timestep.
+
+        Set ``cache`` to save the results in ``self.md_infos`` to speed up analysis by avoiding I/O.
+        """
+        if hasattr(self, 'md_infos'):
+            return self.md_infos
+        if not file:
+            file = self.job._filename('out')
+        delimiter = '*'*10
+        chunk = self.get_file_chunk(file, begin=delimiter, end=delimiter, match=0, inc_begin=True)
+        frames = [[]]
+        for line in chunk:
+            if not line:
+                continue
+            if delimiter in line:
+                if len(frames[-1]) == 0:
+                    continue
+                frames.append([])
+                continue
+            if not '=' in line:
+                continue
+            l = line.strip().split('=')
+            l = [ x.strip() for x in l ]
+            frames[-1].append(l)
+
+        ret = []
+        for frame in frames:
+            if any('INITIAL' in x[0].upper() for x in frame):
+                continue
+            elif len(frame) == 0:
+                continue
+            else:
+                ret.append(frame)
+
+        names = [ x[0] for x in ret[0] ]
+        for i, frame in enumerate(ret):
+            assert names == [ x[0] for x in frame ], ("Namings in output not constant?")
+            assert len(frame) == len(names), ("{:}".format(frame))
+            assert set([len(x) for x in frame]) == set([2])
+            ret[i] = [ l[1] for l in frame ]
+        if cache:
+            self.md_infos = [names, ret]
+        return names, ret
+
+    def get_md_cell_volumes(self, file=None, unit='angstrom'):
+        """Get cell Volumes using the :func:get_md_infos function."""
+        if not file:
+            file = self.job._filename('out')
+        if not hasattr(self, 'md_infos'):
+            n, data = self.get_md_infos(file=file)
+        else:
+            n, data = self.md_infos
+        idx = n.index("VOLUME[bohr^3]")
+        ret = [ float(x[idx].split()[0]) for x in data ]
+        conv = Units.convert(1.0, 'bohr', unit)**3
+        ret = np.multiply(ret, conv)
+        return ret
+
+
+    def get_md_pressure(self, file=None):
+        """Get pressures using the :func:get_md_infos function."""
+        if not file:
+            file = self.job._filename('out')
+        if not hasattr(self, 'md_infos'):
+            n, data = self.get_md_infos(file=file)
+        else:
+            n, data = self.md_infos
+        idx = n.index("PRESSURE [bar]")
+        ret = [ float(x[idx].split()[0]) for x in data ]
+        return ret
 
 
 class Cp2kJob(SingleJob):
