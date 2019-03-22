@@ -15,16 +15,20 @@ class CSHessianADFResults(Results):
     def get_hessian(self):
         return self.hessians[-1]
 
+    def get_all_hessians(self):
+        return self.hessians
+
 
 class CSHessianADFJob(MultiJob):
     _result_type = CSHessianADFResults
 
-    def __init__(self, molecule, basistype, displacement=0.01, start=0.2, step=1, **kwargs):
+    def __init__(self, molecule, basistype, displacement=0.01, start=0.2, step=1, conv_threshold=1e-2, **kwargs):
         MultiJob.__init__(self, children={}, **kwargs)
         self.molecule = molecule
         self.basistype = basistype
         self.disp = displacement
         self.start = start
+        self.threshold = conv_threshold
         self.step = step
 
 
@@ -35,7 +39,7 @@ class CSHessianADFJob(MultiJob):
 
         self.N = 3 * len(self.molecule)
         self.perm = np.random.permutation(self.N)
-        self.pick = int(self.N * self.start)
+        self.pick = max(int(self.N * self.start), 1)
         self.batch = self.perm[:self.pick]
 
         self.basis = self.get_basis(self.basistype)
@@ -97,9 +101,14 @@ class CSHessianADFJob(MultiJob):
         return evecs
 
 
+    def compare(self, x, y):
+        return np.linalg.norm(x-y) < self.threshold
+
+
     def new_batch(self):
-        self.pick += self.step
-        return self.perm[self.pick-self.step : self.pick]
+        previous = self.pick
+        self.pick = min(self.pick + self.step, self.N)
+        return self.perm[previous:self.pick]
 
 
     def new_children(self):
@@ -109,8 +118,12 @@ class CSHessianADFJob(MultiJob):
             grad_cart = Units.convert(v2 - v1, 'bohr', 'angstrom') / (2*self.scaling[i])
             grad_samp = np.dot(self.samp.T, grad_cart)
             self.csh.add_column(i, grad_samp)
-        self.results.hessians.append(self.csh.estimate())
 
+        new_hessian = self.csh.estimate()
+        if self.results.hessians and self.compare(self.results.hessians[-1], new_hessian):
+            return {}
+
+        self.results.hessians.append(new_hessian)
         self.batch = self.new_batch()
         ret = {}
         for i in self.batch:
