@@ -1,5 +1,4 @@
 import numpy as np
-from scm.csh import CSHessian
 
 from ..core.basejob import MultiJob
 from ..core.errors import JobError
@@ -7,8 +6,12 @@ from ..core.results import Results
 from ..interfaces.adfsuite.adf import ADFJob
 from ..tools.units import Units
 
-
 __all__ = ['CSHessianADFJob', 'CSHessianADFResults']
+
+try:
+    from scm.csh import CSHessian
+except ImportError:
+    __all__ = []
 
 
 class CSHessianADFResults(Results):
