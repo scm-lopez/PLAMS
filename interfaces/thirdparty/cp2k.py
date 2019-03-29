@@ -369,6 +369,26 @@ class Cp2kResults(Results):
         return ret
 
 
+    def check_scf(self, file=None, return_n=False):
+        """Returns False if the string 'SCF run NOT converged' appears in *file*, otherwise True.
+
+        *file* defaults to `self.job._filename('out')`.
+
+        Set *return_n* to recieve the number of occurences instead of a bool.
+        """
+        if not file:
+            file = self.job._filename('out')
+        search = "SCF run NOT converged"
+        n = len(self.grep_file(file, search))
+        if return_n:
+            return n
+        elif n > 0:
+            return False
+        else:
+            return True
+
+
+
 class Cp2kJob(SingleJob):
     """
     A class representing a single computational job with `CP2K <https://www.cp2k.org/>`_
