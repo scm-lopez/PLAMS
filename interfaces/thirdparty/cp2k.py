@@ -358,8 +358,6 @@ class Cp2kJob(SingleJob):
             coord_sec += (" {:}"*4).format(atom.symbol, *atom.coords)
         inp.coord._h = coord_sec
 
-
-
     def get_runscript(self):
         """
         Run parallel version of Cp2k using srun.
