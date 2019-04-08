@@ -369,6 +369,7 @@ class Cp2kJob(SingleJob):
             try:
                 subprocess.run([command, "--help"], stdout=subprocess.DEVNULL)
                 ret = command + 'cp2k.popt'
+                break
             except OSError:
                 pass
 
