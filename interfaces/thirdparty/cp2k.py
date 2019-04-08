@@ -364,15 +364,17 @@ class Cp2kJob(SingleJob):
         """
         Run parallel version of Cp2k using srun.
         """
-        # try to cp2k using srun
-        try:
-            subprocess.run(["srun", "--help"], stdout=subprocess.DEVNULL)
-            ret = 'srun cp2k.popt'
-        except OSError:
-            ret = 'cp2k.popt'
+        # Try to run cp2k using mpirun and otherwise srun (if available)
+        command_tuple = ('mpirun', 'srun')
+        ret = 'cp2k.popt'
+        for command in command_tuple:
+            try:
+                subprocess.run([command, "--help"], stdout=subprocess.DEVNULL)
+                ret = command + 'cp2k.popt'
+            except OSError:
+                pass
 
         ret += ' -i {} -o {}'.format(self._filename('inp'), self._filename('out'))
-
         return ret
 
     def check(self):
