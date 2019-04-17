@@ -808,3 +808,58 @@ def get_backbone_atoms(mol):
     backbone = ['N', 'CA', 'C', 'O']
     return [a for a in range(1, len(mol) + 1)
             if str(mol[a].properties.pdb_info.Name).strip() in backbone]
+
+
+def get_substructure(mol, func_list):
+    """
+    Search for functional groups within a molecule based on a list of reference functional groups.
+    SMILES strings, PLAMS and/or RDKit molecules can be used interchangeably in "func_list".
+
+    Example:
+
+    .. code:: python
+
+        >>> mol = from_smiles('OCCO')  # Ethylene glycol
+        >>> func_list = ['[H]O', 'C[N+]', 'O=PO']
+        >>> get_substructure(mol, func_list)
+
+        {'[H]O': [(<scm.plams.mol.atom.Atom at 0x125183518>,
+                   <scm.plams.mol.atom.Atom at 0x1251836a0>),
+                  (<scm.plams.mol.atom.Atom at 0x125183550>,
+                   <scm.plams.mol.atom.Atom at 0x125183240>)]}
+
+    :parameter mol: A PLAMS molecule.
+    :type mol: |Molecule|
+    :parameter list func_list: A list of functional groups.
+        Functional groups can be represented by SMILES strings, PLAMS and/or RDKit molecules.
+    :return: A dictionary with functional groups from "func_list" as keys and a list of n-tuples
+        with matching PLAMS |Atom| as values.
+    """
+    def _to_rdmol(functional_group):
+        """ Turn a SMILES strings, RDKit or PLAMS molecules into an RDKit molecule. """
+        if isinstance(functional_group, str):
+            # RDKit tends to remove explicit hydrogens if SANITIZE_ADJUSTHS is enabled
+            sanitize = Chem.SanitizeFlags.SANITIZE_ALL^Chem.SanitizeFlags.SANITIZE_ADJUSTHS
+            ret = Chem.MolFromSmiles(functional_group, sanitize=False)
+            Chem.rdmolops.SanitizeMol(ret, sanitizeOps=sanitize)
+            return ret
+        elif isinstance(functional_group, Molecule):
+            return to_rdmol(functional_group)
+        elif isinstance(functional_group, Chem.Mol):
+            return functional_group
+        raise TypeError('get_substructure: ' + str(type(functional_group)) + ' is not a supported \
+                        object type')
+
+    def _get_match(mol, rdmol, functional_group):
+        """ Perform a substructure match on "mol".
+        If a match is found, return a list of n-tuples consisting PLAMS |Atom|.
+        Otherwise return False. """
+        matches = rdmol.GetSubstructMatches(functional_group)
+        if matches:
+            return [tuple(mol[j+1] for j in idx_tup) for idx_tup in matches]
+        return False
+
+    rdmol = to_rdmol(mol)
+    rdmol_func_list = [_to_rdmol(i) for i in func_list]
+    gen = (_get_match(mol, rdmol, i) for i in rdmol_func_list)
+    return {key: value for key, value in zip(func_list, gen) if value}
