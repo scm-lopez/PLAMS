@@ -81,7 +81,7 @@ class ADFResults(SCMResults):
 
     def _extract_hessian(self, section, variable, internal_order):
         """_extract_hessian(section, variable, internal_order)
-        Extract Hessian from *section*/*variable* of the TAPE21 file. Reorder from internal to input order, if *internal_order* is ``True.
+        Extract Hessian from *section*/*variable* of the TAPE21 file. Reorder from internal to input order, if *internal_order* is ``True``.
         """
         hess_int = np.array(self.readkf(section, variable))
         n = int((len(hess_int)/9 + 1)**0.5)
