@@ -152,7 +152,7 @@ class Molecule:
 
             protein += water
 
-        If *copy* is ``True, *other* molecule is copied and the copy is added to this molecule. Otherwise, *other* molecule is directly merged with this one
+        If *copy* is ``True``, *other* molecule is copied and the copy is added to this molecule. Otherwise, *other* molecule is directly merged with this one
         The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
         """
         other = other.copy() if copy else other

@@ -34,4 +34,4 @@ Geometry tools
 
 A small module with simple functions related to 3D geometry operations.
 
-.. autofunction:: scm.plams.tools.geometry.rotation_matrix
+.. automodule:: scm.plams.tools.geometry
