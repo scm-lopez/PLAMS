@@ -257,6 +257,11 @@ def label(self, level=1, keep_labels=False, flags=None):
 
     if len(self.bonds) == 0:
         self.guess_bonds()
+        
+    if len(self.separate()) > 1:
+        names = [i.label(level=level,keep_labels=keep_labels,flags=flags) for i in self.separate()]
+        names.sort()
+        return sha256(' '.join(names))
 
     clear(self)
     label_atoms(self, **flags)
