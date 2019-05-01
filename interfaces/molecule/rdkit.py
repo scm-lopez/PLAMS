@@ -13,8 +13,11 @@ This is a series of functions that apply RDKit functionality on PLAMS molecules
 
 import sys
 import random
-import pickle
 from warnings import warn
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
 
 try:
     from rdkit import Chem, Geometry
