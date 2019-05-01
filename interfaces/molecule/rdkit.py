@@ -236,6 +236,8 @@ def prop_from_rdmol(pl_obj, rd_obj):
     """
     prop_dict = rd_obj.GetPropsAsDict()
     for propname in prop_dict.keys():
+        if propname == '__computedProps':
+            continue
         if '_pickled' not in propname:
             pl_obj.properties[propname] = prop_dict[propname]
         else:
