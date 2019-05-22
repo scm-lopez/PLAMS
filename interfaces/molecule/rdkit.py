@@ -2,7 +2,7 @@
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
-           'partition_protein', 'readpdb', 'writepdb',]
+           'partition_protein', 'readpdb', 'writepdb', 'get_substructure']
 
 """
 @author: Lars Ridder
