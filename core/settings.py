@@ -216,12 +216,53 @@ class Settings(dict):
         """
         d = {}
         for k, v in self.items():
-            if not isinstance(v, Settings):
-                d[k] = v
-            else:
+            if isinstance(v, Settings):
                 d[k] = v.as_dict()
+            elif isinstance(v, list):
+                d[k] = [i.as_dict() if isinstance(i, Settings) else i for i in v]
+            else:
+                d[k] = v
+
 
         return d
+
+
+
+    def get_nested(self, key_tuple):
+        """Retrieve a nested value by recusively iterating through this instance using the keys in *key_tuple*.
+
+        The :meth:`__getitem__` method is called recusively on this instance until all keys in key_tuple are exhausted.
+
+        Given a |Settings| instance ``s``, the following expressions are equivalent:
+
+        .. code:: python
+
+            >>> s.a.b.c
+            >>> s.get_nested_value(('a', 'b', 'c'))
+        """
+        s = self
+        for i in key_tuple:
+            s = s[i]
+        return s
+
+
+
+    def set_nested(self, key_tuple, value):
+        """Set a nested value by recusively iterating through this instance using the keys in *key_tuple*.
+
+        The :meth:`__getitem__` method is called recusively on this instance, followed by :meth:`Settings.__setitem__`, until all keys in key_tuple are exhausted.
+
+        Given a |Settings| instance ``s``, the following expressions are equivalent:
+
+        .. code:: python
+
+            >>> s.a.b.c = True
+            >>> s.set_nested_value(('a', 'b', 'c'), True)
+        """
+        s = self
+        for i in key_tuple[:-1]:
+            s = s[i]
+        s[key_tuple[-1]] = value
 
 
     #=======================================================================
@@ -229,7 +270,10 @@ class Settings(dict):
 
     def __iter__(self):
         """Iteration through keys follows lexicographical order."""
-        return iter(sorted(self.keys()))
+        try:
+            return iter(sorted(self.keys()))
+        except TypeError:  # Plan b: One or more keys do not consist of strings
+            return iter(sorted(self.keys(), key=str))
 
 
     def __missing__(self, name):
@@ -279,7 +323,7 @@ class Settings(dict):
     def __getattr__(self, name):
         """If name is not a magic method, redirect it to ``__getitem__``."""
         if (name.startswith('__') and name.endswith('__')):
-            return dict.__getattr__(self, name)
+            return dict.__getattribute__(self, name)
         return self[name]
 
 
@@ -323,5 +367,3 @@ class Settings(dict):
 class ig(str):
     """Special string that makes |Settings| work case-insensitive. Behaves exactly like the built-in `str` type. Usage: ``s = ig('abcdef')``."""
     pass
-
-
