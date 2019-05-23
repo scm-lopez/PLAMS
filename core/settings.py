@@ -234,8 +234,6 @@ class Settings(dict):
 
         Setting *ignore_missing* to ``False`` will raise a ``KeyError`` if a key in *key_tuple* is absent.
 
-        Given a |Settings| instance ``s``, the following expressions are equivalent:
-
         .. code:: python
 
             >>> s = Settings()
@@ -264,8 +262,6 @@ class Settings(dict):
         The :meth:`Settings.__getitem__` method is called recursively on this instance, followed by :meth:`Settings.__setitem__`, until all keys in key_tuple are exhausted.
 
         Setting *ignore_missing* to ``False`` will raise a ``KeyError`` if a key in *key_tuple* is absent.
-
-        Given a |Settings| instance ``s``, the following expressions are equivalent:
 
         .. code:: python
 
