@@ -227,40 +227,66 @@ class Settings(dict):
 
 
 
-    def get_nested(self, key_tuple):
+    def get_nested(self, key_tuple, ignore_missing=True):
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
         The :meth:`Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
 
+        Setting *ignore_missing* to ``False`` will raise a ``KeyError`` if a key in *key_tuple* is absent.
+
         Given a |Settings| instance ``s``, the following expressions are equivalent:
 
         .. code:: python
 
-            >>> s.a.b.c
-            >>> s.get_nested_value(('a', 'b', 'c'))
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = s.get_nested(('a', 'b', 'c'))
+            >>> print(value)
+            True
         """
         s = self
-        for k in key_tuple:
-            s = s[k]
+        if ignore_missing:
+            for k in key_tuple:
+                s = s[k]
+        else:  # Ignore Settings.__missing__ and raise a KeyError if a key is missing
+            for k in key_tuple:
+                if k not in s:
+                    err = 'Settings().' + '.'.join('{}'.format(str(key)) for key in key_tuple[:key_tuple.index(k)])
+                    raise KeyError("set_nested: No key '{}' in {}".format(str(k), (err)))
+                s = s[k]
         return s
 
 
 
-    def set_nested(self, key_tuple, value):
+    def set_nested(self, key_tuple, value, ignore_missing=True):
         """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
         The :meth:`Settings.__getitem__` method is called recursively on this instance, followed by :meth:`Settings.__setitem__`, until all keys in key_tuple are exhausted.
+
+        Setting *ignore_missing* to ``False`` will raise a ``KeyError`` if a key in *key_tuple* is absent.
 
         Given a |Settings| instance ``s``, the following expressions are equivalent:
 
         .. code:: python
 
-            >>> s.a.b.c = True
-            >>> s.set_nested_value(('a', 'b', 'c'), True)
+            >>> s = Settings()
+            >>> s.set_nested(('a', 'b', 'c'), True)
+            >>> print(s)
+            a:
+              b:
+                c: 	True
         """
         s = self
-        for k in key_tuple[:-1]:
-            s = s[k]
+        if ignore_missing:
+            for k in key_tuple[:-1]:
+                s = s[k]
+        else:  # Ignore Settings.__missing__ and raise a KeyError if a key is missing
+            for k in key_tuple[:-1]:
+                if k not in s:
+                    err = 'Settings().' + '.'.join('{}'.format(str(key)) for key in key_tuple[:key_tuple.index(k)])
+                    raise KeyError("set_nested: No key '{}' in {}".format(str(k), (err)))
+                s = s[k]
+
         s[key_tuple[-1]] = value
 
 
@@ -276,7 +302,7 @@ class Settings(dict):
 
         .. code-block:: python
 
-            >>> s = Settings({'a': {'b': {'c': True}}})
+            >>> s = Settings()
             >>> s.a.b.c = True
             >>> print(s)
             a:
@@ -315,7 +341,8 @@ class Settings(dict):
 
         .. code-block:: python
 
-            >>> s = Settings({('a', 'b', 'c'): True})
+            >>> s = Settings()
+            >>> s[('a', 'b', 'c')] = True
             >>> print(s)
             ('a', 'b', 'c'): 	True
 
@@ -344,10 +371,7 @@ class Settings(dict):
 
     def __iter__(self):
         """Iteration through keys follows lexicographical order."""
-        try:
-            return iter(sorted(self.keys()))
-        except TypeError:  # Plan b: One or more keys do not consist of strings
-            return iter(sorted(self.keys(), key=str))
+        return iter(sorted(self.keys(), key=str))
 
 
     def __missing__(self, name):
