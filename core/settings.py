@@ -252,7 +252,7 @@ class Settings(dict):
             for k in key_tuple:
                 if k not in s:
                     err = 'Settings().' + '.'.join('{}'.format(str(key)) for key in key_tuple[:key_tuple.index(k)])
-                    raise KeyError("set_nested: No key '{}' in {}".format(str(k), (err)))
+                    raise KeyError("get_nested: No key '{}' in {}".format(str(k), (err)))
                 s = s[k]
         return s
 
