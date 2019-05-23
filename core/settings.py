@@ -223,15 +223,14 @@ class Settings(dict):
             else:
                 d[k] = v
 
-
         return d
 
 
 
     def get_nested(self, key_tuple):
-        """Retrieve a nested value by recusively iterating through this instance using the keys in *key_tuple*.
+        """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`__getitem__` method is called recusively on this instance until all keys in key_tuple are exhausted.
+        The :meth:`Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
 
         Given a |Settings| instance ``s``, the following expressions are equivalent:
 
@@ -241,16 +240,16 @@ class Settings(dict):
             >>> s.get_nested_value(('a', 'b', 'c'))
         """
         s = self
-        for i in key_tuple:
-            s = s[i]
+        for k in key_tuple:
+            s = s[k]
         return s
 
 
 
     def set_nested(self, key_tuple, value):
-        """Set a nested value by recusively iterating through this instance using the keys in *key_tuple*.
+        """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`__getitem__` method is called recusively on this instance, followed by :meth:`Settings.__setitem__`, until all keys in key_tuple are exhausted.
+        The :meth:`Settings.__getitem__` method is called recursively on this instance, followed by :meth:`Settings.__setitem__`, until all keys in key_tuple are exhausted.
 
         Given a |Settings| instance ``s``, the following expressions are equivalent:
 
@@ -260,9 +259,85 @@ class Settings(dict):
             >>> s.set_nested_value(('a', 'b', 'c'), True)
         """
         s = self
-        for i in key_tuple[:-1]:
-            s = s[i]
+        for k in key_tuple[:-1]:
+            s = s[k]
         s[key_tuple[-1]] = value
+
+
+
+    def flatten(self):
+        """Return a flattened copy of this instance.
+
+        New keys are constructed by concatenating the (nested) keys of this instance into tuples.
+
+        Nested lists will be flattened as well; dictionary keys being replaced with list indices in such case.
+
+        Opposite of the :meth:`Settings.unflatten` method.
+
+        .. code-block:: python
+
+            >>> s = Settings({'a': {'b': {'c': True}}})
+            >>> s.a.b.c = True
+            >>> print(s)
+            a:
+              b:
+                c: 	True
+
+            >>> s_flat = s.flatten()
+            >>> print(s_flat)
+            ('a', 'b', 'c'): 	True
+        """
+        def _concatenate(key_ret, sequence):
+            # Switch from Settings.items() to enumerate() if a non-Settings object is encountered
+            iterator = sequence.items() if isinstance(sequence, Settings) else enumerate(sequence)
+            for k, v in iterator:
+                k = key_ret + (k, )
+                if isinstance(v, (Settings, list)):
+                    _concatenate(k, v)
+                else:
+                    ret[k] = v
+
+        # Changes keys into tuples
+        ret = Settings()
+        _concatenate((), self)
+        return ret
+
+
+
+    def unflatten(self):
+        """Return a nested copy of this instance.
+
+        New keys are constructed by expanding the keys of this instance (*e.g.* tuples) into new nested |Settings| instances.
+
+        Integers are interpretted as list indices and will be used for creating nested lists.
+
+        Opposite of the :meth:`Settings.flatten` method.
+
+        .. code-block:: python
+
+            >>> s = Settings({('a', 'b', 'c'): True})
+            >>> print(s)
+            ('a', 'b', 'c'): 	True
+
+            >>> s_nested = s.unflatten()
+            >>> print(s_nested)
+            a:
+              b:
+                c: 	True
+        """
+        ret = Settings()
+        for k1, v in self.items():
+            s = ret
+            for k2, k3 in zip(k1[:-1], k1[1:]):
+                if isinstance(k3, int):
+                    if not isinstance(s[k2], list):
+                        s[k2] = []
+                if isinstance(k2, int):
+                    s += [None] * (k2 - len(s) + 1)
+                s = s[k2]
+            s[k1[-1]] = v
+
+        return ret
 
 
     #=======================================================================
