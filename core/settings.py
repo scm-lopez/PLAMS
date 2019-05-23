@@ -288,7 +288,7 @@ class Settings(dict):
             ('a', 'b', 'c'): 	True
         """
         def _concatenate(key_ret, sequence):
-            # Switch from Settings.items() to enumerate() if a non-Settings object is encountered
+            # Switch from Settings.items() to enumerate() if a list is encountered
             iterator = sequence.items() if isinstance(sequence, Settings) else enumerate(sequence)
             for k, v in iterator:
                 k = key_ret + (k, )
@@ -326,16 +326,15 @@ class Settings(dict):
                 c: 	True
         """
         ret = Settings()
-        for k1, v in self.items():
+        for key, value in self.items():
             s = ret
-            for k2, k3 in zip(k1[:-1], k1[1:]):
-                if isinstance(k3, int):
-                    if not isinstance(s[k2], list):
-                        s[k2] = []
-                if isinstance(k2, int):
-                    s += [None] * (k2 - len(s) + 1)
-                s = s[k2]
-            s[k1[-1]] = v
+            for k1, k2 in zip(key[:-1], key[1:]):
+                if isinstance(k2, int) and not isinstance(s[k1], list):
+                    s[k1] = []
+                if isinstance(k1, int):  # Apply padding to s
+                    s += [None] * (k1 - len(s) + 1)
+                s = s[k1]
+            s[key[-1]] = value
 
         return ret
 
