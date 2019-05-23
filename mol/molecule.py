@@ -409,7 +409,7 @@ class Molecule:
 
         The algorithm used scales as *n log n* where *n* is the number of atoms.
 
-        *atom_subset* argument can be used to limit the bond guessing to only a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
+        The *atom_subset* argument can be used to limit the bond guessing to a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
 
         .. warning::
 
