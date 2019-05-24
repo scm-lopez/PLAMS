@@ -8,7 +8,6 @@ from ...core.results import Results
 from ...core.errors import ResultsError
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
-from ...tools.units import Units
 
 __all__ = ['Cp2kJob', 'Cp2kResults', 'Cp2kSettings2Mol']
 
@@ -146,15 +145,13 @@ class Cp2kResults(Results):
         s = self.grep_output(search+' energy:')[select].split()[-1]
         return float(s)
 
-    def get_energy(self, index=0, unit='au'):
+    def get_energy(self, index=0):
         """Returns last occurence of 'Total energy:' in the output."""
-        ret = self._get_energy_type('Total', index=index)
-        return Units.convert(ret, 'au', unit)
+        return self._get_energy_type('Total', index=index)
 
-    def get_dispersion(self, index=0, unit='au'):
+    def get_dispersion(self, index=0):
         """Returns last occurence of 'Dispersion energy:' in the output."""
-        ret = self._get_energy_type('Dispersion', index=index)
-        return Units.convert(ret, 'au', unit)
+        return self._get_energy_type('Dispersion', index=index)
 
     def _idx_to_match(self, nTotal, idx):
         if idx is None:
