@@ -122,6 +122,7 @@ class JobManager:
             del self.hashes[h]
 
 
+
     def _register_name(self, job):
         """Register the name of the *job*.
 

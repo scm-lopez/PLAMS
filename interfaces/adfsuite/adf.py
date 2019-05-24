@@ -71,12 +71,41 @@ class ADFResults(SCMResults):
 
     def get_gradients(self, eUnit='au', lUnit='bohr'):
         """get_gradients(eUnit='au', lUnit='bohr')
-        Returns the cartesian gradients from the 'Gradients_InputOrder' field of the 'GeoOpt' Section in the kf-file, expressed in given units. Returned value is a numpy array with shape (nAtoms,3).
+        Return the cartesian gradients from the 'Gradients_InputOrder' field of the 'GeoOpt' Section in the kf-file, expressed in given units. Returned value is a numpy array with shape (nAtoms,3).
         """
         gradients = np.array(self.readkf('GeoOpt','Gradients_InputOrder'))
         gradients.shape = (-1,3)
         gradients *= (Units.conversion_ratio('au',eUnit) / Units.conversion_ratio('bohr',lUnit))
         return gradients
+
+
+    def _extract_hessian(self, section, variable, internal_order):
+        """_extract_hessian(section, variable, internal_order)
+        Extract Hessian from *section*/*variable* of the TAPE21 file. Reorder from internal to input order, if *internal_order* is ``True``.
+        """
+        hess_int = np.array(self.readkf(section, variable))
+        n = int((len(hess_int)/9 + 1)**0.5)
+        hess_int.shape = (3*n,3*n)
+        if internal_order:
+            hess_inp = np.zeros(hess_int.shape)
+            mapping = self._int2inp()
+            for i in range(n):
+                for j in range(n):
+                    ii,jj = mapping[i]-1, mapping[j]-1
+                    hess_inp[3*i:3*i+3, 3*j:3*j+3] = hess_int[3*ii:3*ii+3, 3*jj:3*jj+3]
+            return hess_inp
+        return hess_int
+
+
+    def get_hessian(self):
+        """get_hessian()
+        Try extracting Hessian, either analytical or numerical, whichever is present in the TAPE21 file, in the input order. Returned value is a square numpy array of size 3*nAtoms.
+        """
+        if ('Hessian', 'Analytical Hessian') in self._kf:
+            return self._extract_hessian('Hessian', 'Analytical Hessian', True)
+        if ('Freq', 'Hessian_complete') in self._kf:
+            return self._extract_hessian('Freq', 'Hessian_complete', True)
+        raise ResultsError('auto_hessian: Hessian does not seem to be present in t21 file.')
 
 
     def get_energy_decomposition(self, unit='au'):

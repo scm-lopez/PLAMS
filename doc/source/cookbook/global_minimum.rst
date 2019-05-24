@@ -29,13 +29,8 @@ See below for an exampling using |ADFJob| (DFT level)::
     mol_out = global_minimum(mol_in, job_type=ADFJob, **job_kwarg)
 
 
-Depending on the |Job| class, it may be necessary to manually bind the :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_energy` and :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_main_molecule` functions to the jobs matching |Results| class, these two functions being used for reading energies and geometries, respectively. For |ADFJob| this is unnecessary, but |AMSJob| for example does not have the :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_energy` function assigned by default.
+Depending on the |Job| class, it may be necessary to manually bind the :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_energy` and :meth:`~scm.plams.interfaces.adfsuide.adf.ADFResults.get_main_molecule` functions to the jobs matching |Results| class, these two functions being used for reading energies and geometries, respectively.
 See below for an exampling using |AMSJob| (DFTB level)::
-
-    @add_to_class(AMSResults)
-    def get_energy(self, unit='au'):
-        energy = self.readrkf('AMSResults', 'Energy', file='dftb')
-        return Units.convert(energy, 'Hartree', unit)
 
     s = Settings()
     s.input.ams.Task = 'GeometryOptimization'

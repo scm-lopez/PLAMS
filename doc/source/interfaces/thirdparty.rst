@@ -8,3 +8,4 @@ Other programs
     dftbplus
     cp2k
     orca
+    mopac

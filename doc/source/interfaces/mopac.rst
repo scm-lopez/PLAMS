@@ -1,24 +1,27 @@
-MOPAC
--------------------------
+MOPAC (standalone program)
+--------------------------
+
+.. important:: 
+
+   Starting from AMS2019, MOPAC is fully integrated as an AMS engine. If you want to use the MOPAC engine in AMS2019, you should use |AMSJob| (and not |MOPACJob|). This page documents the interface to the standalone MOPAC program.
+
 
 .. currentmodule:: scm.plams.interfaces.adfsuite.mopac
 
 
 MOPAC (Molecular Orbital PACkage) is a semiempirical quantum chemistry program based on NDDO approximation.
-More information about MOPAC can be found on its `official website <http://openmopac.net/>`_.
-MOPAC is also distributed as a part of Amsterdam Modeling Suite, where it is integrated with suite's graphical interface.
+More information about the standalone MOPAC program can be found on its `official website <http://openmopac.net/>`_.
 
-PLAMS features a basic MOPAC interface defined with classes |MOPACJob| and |MOPACResults|.
-
+PLAMS features a basic interface to standalone MOPAC program via the classes |MOPACJob| and |MOPACResults|.
 
 Preparing input
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 Preparing an instance of |MOPACJob| follows general principles for |SingleJob|.
 Information adjusting input file is stored in ``myjob.settings.input`` branch, whereas a runscript is created based on contents of ``myjob.settings.runscript``.
 The geometry of your system is supplied in the standard way: with the ``molecule`` attribute.
 
-The input format of MOPAC is simple and straightforward: all the keywords adjusting parameters of your calculation are placed in the first line of the input file.
+The input format of the standalone MOPAC program is simple and straightforward: all the keywords adjusting parameters of your calculation are placed in the first line of the input file.
 Next two lines are left for user's comments and then geometry of the system follows.
 
 Since blocks and subblocks are not present in MOPAC's input, the ```myjob.settings.input`` branch needs to have a flat structure, just like a regular dictionary, without any nested |Settings| instances.
@@ -31,7 +34,7 @@ The value of a particular key adjusts the way in which keywords are printed in t
 
 Moreover, if the keyword ``AUX`` is not supplied by the user, it is automatically inserted in the form ``AUX(0,PRECISSION=9)`` (for compatibility with AMSSuite GUI).
 
-MOPAC allows to freeze each coordinate of each atom separately.
+The standalone MOPAC program allows to freeze each coordinate of each atom separately.
 This information is extracted from ``mopac_freeze`` key in each atom's properties.
 If present, this key should contain a string with all axes that you wish to freeze for a particular atom::
 
@@ -41,9 +44,8 @@ If present, this key should contain a string with all axes that you wish to free
     mol[3].properties.mopac_freeze = 'xyz'  #freeze atom 3
 
 
-
 API
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~
 
 .. autoclass:: MOPACJob(molecule=None, name='plamsjob', settings=None, depend=None)
     :exclude-members: _result_type

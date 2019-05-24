@@ -475,9 +475,10 @@ class AMSJob(SingleJob):
 
         #prepare contents of 'system' block(s)
         more_systems = self._serialize_molecule()
-        system = fullinput[ig('ams')][ig('system')]
         if more_systems:
-            if system: #nonempty system block was already present in input.ams
+            if ig('system') in fullinput[ig('ams')]:
+                #nonempty system block was already present in input.ams
+                system = fullinput[ig('ams')][ig('system')]
                 system_list = system if isinstance(system, list) else [system]
 
                 system_list_set = Settings({(s._h if '_h' in s else ''):s   for s in system_list})
