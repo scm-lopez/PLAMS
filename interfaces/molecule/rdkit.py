@@ -601,7 +601,7 @@ def write_molblock(plams_mol, file=sys.stdout):
     file.write(Chem.MolToMolBlock(to_rdmol(plams_mol)))
 
 
-def readpdb(pdb_file, removeHs=False, proximityBonding=True, return_rdmol=False):
+def readpdb(pdb_file, removeHs=False, proximityBonding=False, return_rdmol=False):
     """
     Generate a molecule from a PDB file
 
