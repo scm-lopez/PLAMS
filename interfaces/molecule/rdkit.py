@@ -334,15 +334,23 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
 
     if name:
         rdkit_mol.SetProp('name', name)
-    cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1))
+    cids = list(AllChem.EmbedMultipleConfs(
+        rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1, useRandomCoords=True
+    ))  # ``useRandomCoords = True`` prevents (poorly documented) crashed for large systems
+
     if forcefield:
+        # Select the forcefield (UFF or MMFF)
         optimize_molecule, energy = {
             'uff': [AllChem.UFFOptimizeMolecule, UFFenergy],
             'mmff': [AllChem.MMFFOptimizeMolecule, MMFFenergy],
         }[forcefield]
+
+        # Optimize and sort conformations
         for cid in cids:
             optimize_molecule(rdkit_mol, confId=cid)
         cids.sort(key=energy)
+
+        # Remove duplicate conformations based on RMS
         if rms > 0:
             keep = [cids[0]]
             for cid in cids[1:]:
@@ -360,6 +368,7 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
                 else:
                     keep.append(cid)
             cids = keep
+
     if nconfs == 1:
         return from_rdmol(rdkit_mol)
     else:
