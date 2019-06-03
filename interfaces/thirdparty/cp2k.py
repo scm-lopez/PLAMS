@@ -387,6 +387,21 @@ class Cp2kResults(Results):
         else:
             return True
 
+    def check_go(self, file=None):
+        """Returns False if the string 'GEOMETRY OPTIMIZATION COMPLETED' does not appear in *file*
+
+        *file* defaults to `self.job._filename('out')`.
+        """
+        if not file:
+            file = self.job._filename('out')
+        search = "GEOMETRY OPTIMIZATION COMPLETED"
+        n = len(self.grep_file(file, search))
+        if n > 0:
+            return True
+        else:
+            return False
+
+
 
 
 class Cp2kJob(SingleJob):
