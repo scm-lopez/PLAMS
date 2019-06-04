@@ -287,14 +287,14 @@ class Settings(dict):
 
 
 
-    def flatten(self):
+    def flatten(self, flatten_list=True):
         """Return a flattened copy of this instance.
 
         New keys are constructed by concatenating the (nested) keys of this instance into tuples.
 
-        Nested lists will be flattened as well; dictionary keys being replaced with list indices in such case.
-
         Opposite of the :meth:`Settings.unflatten` method.
+
+        If *flatten_list* is ``True``, all nested lists will be flattened as well. Dictionary keys are replaced with list indices in such case.
 
         .. code-block:: python
 
@@ -309,12 +309,18 @@ class Settings(dict):
             >>> print(s_flat)
             ('a', 'b', 'c'): 	True
         """
+        if flatten_list:
+            nested_type = (Settings, list)
+            iter_type = lambda x: x.items() if isinstance(x, Settings) else enumerate(x)
+        else:
+            nested_type = Settings
+            iter_type = Settings.items
+
         def _concatenate(key_ret, sequence):
             # Switch from Settings.items() to enumerate() if a list is encountered
-            iterator = sequence.items() if isinstance(sequence, Settings) else enumerate(sequence)
-            for k, v in iterator:
+            for k, v in iter_type(sequence):
                 k = key_ret + (k, )
-                if isinstance(v, (Settings, list)):
+                if isinstance(v, nested_type):
                     _concatenate(k, v)
                 else:
                     ret[k] = v
@@ -326,12 +332,12 @@ class Settings(dict):
 
 
 
-    def unflatten(self):
+    def unflatten(self, unflatten_list=True):
         """Return a nested copy of this instance.
 
         New keys are constructed by expanding the keys of this instance (*e.g.* tuples) into new nested |Settings| instances.
 
-        Integers are interpretted as list indices and will be used for creating nested lists.
+        If *unflatten_list* is ``True``, integers will be interpretted as list indices and are used for creating nested lists.
 
         Opposite of the :meth:`Settings.flatten` method.
 
@@ -352,6 +358,10 @@ class Settings(dict):
         for key, value in self.items():
             s = ret
             for k1, k2 in zip(key[:-1], key[1:]):
+                if not unflatten_list:
+                    s = s[k1]
+                    continue
+
                 if isinstance(k2, int) and not isinstance(s[k1], list):
                     s[k1] = []
                 if isinstance(k1, int):  # Apply padding to s
