@@ -365,7 +365,7 @@ class Settings(dict):
                 if isinstance(k2, int) and not isinstance(s[k1], list):
                     s[k1] = []
                 if isinstance(k1, int):  # Apply padding to s
-                    s += [None] * (k1 - len(s) + 1)
+                    s += [Settings()] * (k1 - len(s) + 1)
                 s = s[k1]
             s[key[-1]] = value
 
