@@ -320,7 +320,7 @@ class Settings(dict):
             # Switch from Settings.items() to enumerate() if a list is encountered
             for k, v in iter_type(sequence):
                 k = key_ret + (k, )
-                if isinstance(v, nested_type):
+                if isinstance(v, nested_type) and v:  # Empty lists or Settings instances will return ``False`` 
                     _concatenate(k, v)
                 else:
                     ret[k] = v
