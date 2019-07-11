@@ -227,12 +227,47 @@ class Settings(dict):
 
 
 
+    class EnableMissing:
+        """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method.
+
+        As a results, attempting to access keys absent from a particular |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
+
+        .. code:: python
+
+             >>> s = Settings()
+
+             >>> with s.EnableMissing():
+             >>>     s.a.b.c = True
+             KeyError: 'a'
+
+             >>> s.a.b.c = True
+             >>> print(s.a.b.c)
+             True
+
+        """
+
+        def __init__(self):
+            try:
+                self.missing = Settings.__missing__
+            except AttributeError:  # Precaution against onpening multiple EnableMissing instances
+                raise TypeError("type object 'Settings' has no attribute '__missing__'; "
+                                "initiating multiple (nested) 'Settings.EnableMissing' "
+                                "instances is prohibited")
+
+        def __enter__(self):
+            delattr(Settings, '__missing__')
+
+        def __exit__(self, *args):
+            setattr(Settings, '__missing__', self.missing)
+
+
+
     def get_nested(self, key_tuple, ignore_missing=True):
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
+        The :meth:`.Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
 
-        Setting *ignore_missing* to ``False`` will raise a ``KeyError`` if a key in *key_tuple* is absent.
+        Setting *ignore_missing* to ``False`` will internally open the :class:`.Settings.EnableMissing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from tihs instance.
 
         .. code:: python
 
@@ -247,11 +282,9 @@ class Settings(dict):
             for k in key_tuple:
                 s = s[k]
         else:  # Ignore Settings.__missing__ and raise a KeyError if a key is missing
-            for k in key_tuple:
-                if k not in s:
-                    err = 'Settings().' + '.'.join('{}'.format(str(key)) for key in key_tuple[:key_tuple.index(k)])
-                    raise KeyError("get_nested: No key '{}' in {}".format(str(k), (err)))
-                s = s[k]
+            with s.EnableMissing():
+                for k in key_tuple:
+                    s = s[k]
         return s
 
 
@@ -259,10 +292,10 @@ class Settings(dict):
     def set_nested(self, key_tuple, value, ignore_missing=True):
         """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`Settings.__getitem__` method is called recursively on this instance, followed by :meth:`Settings.__setitem__`, until all keys in key_tuple are exhausted.
+        The :meth:`.Settings.__getitem__` method is called recursively on this instance, followed by :meth:`.Settings.__setitem__`, until all keys in key_tuple are exhausted.
 
-        Setting *ignore_missing* to ``False`` will raise a ``KeyError`` if a key in *key_tuple* is absent.
 
+        Setting *ignore_missing* to ``False`` will internally open the :class:`.Settings.EnableMissing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
         .. code:: python
 
             >>> s = Settings()
@@ -277,11 +310,9 @@ class Settings(dict):
             for k in key_tuple[:-1]:
                 s = s[k]
         else:  # Ignore Settings.__missing__ and raise a KeyError if a key is missing
-            for k in key_tuple[:-1]:
-                if k not in s:
-                    err = 'Settings().' + '.'.join('{}'.format(str(key)) for key in key_tuple[:key_tuple.index(k)])
-                    raise KeyError("set_nested: No key '{}' in {}".format(str(k), (err)))
-                s = s[k]
+            with s.EnableMissing():
+                for k in key_tuple[:-1]:
+                    s = s[k]
 
         s[key_tuple[-1]] = value
 
@@ -292,7 +323,7 @@ class Settings(dict):
 
         New keys are constructed by concatenating the (nested) keys of this instance into tuples.
 
-        Opposite of the :meth:`Settings.unflatten` method.
+        Opposite of the :meth:`.Settings.unflatten` method.
 
         If *flatten_list* is ``True``, all nested lists will be flattened as well. Dictionary keys are replaced with list indices in such case.
 
@@ -320,7 +351,7 @@ class Settings(dict):
             # Switch from Settings.items() to enumerate() if a list is encountered
             for k, v in iter_type(sequence):
                 k = key_ret + (k, )
-                if isinstance(v, nested_type) and v:  # Empty lists or Settings instances will return ``False`` 
+                if isinstance(v, nested_type) and v:  # Empty lists or Settings instances will return ``False``
                     _concatenate(k, v)
                 else:
                     ret[k] = v
@@ -339,7 +370,7 @@ class Settings(dict):
 
         If *unflatten_list* is ``True``, integers will be interpretted as list indices and are used for creating nested lists.
 
-        Opposite of the :meth:`Settings.flatten` method.
+        Opposite of the :meth:`.Settings.flatten` method.
 
         .. code-block:: python
 
@@ -376,7 +407,7 @@ class Settings(dict):
 
 
     def __iter__(self):
-        """Iteration through keys follows lexicographical order."""
+        """Iteration through keys follows lexicographical order. All keys are sorted as if they were strings."""
         return iter(sorted(self.keys(), key=str))
 
 
@@ -389,6 +420,8 @@ class Settings(dict):
             >>> s.a.b.c = 12
 
         will not work.
+
+        The behaviour of this method can be supressed by initializing the :class:`.Settings.EnableMissing` context manager.
         """
         self[name] = Settings()
         return self[name]
