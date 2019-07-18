@@ -74,16 +74,18 @@ class CRSResults(SCMResults):
 
         def _sigma_y(section, subsection, unit) -> dict:
             """Construct all values for the y-axis"""
+            # Use filenames as keys
             _filenames = self.readkf(section, 'filename').split()
             filenames = [_filenames] if not isinstance(_filenames, list) else _filenames
             keys = [os.path.split(key)[-1] for key in filenames]
 
+            # Use sigma profiles/potentials as values
             values = np.array(self.readkf(section, subsection))
             values *= Units.conversion_ratio('kcal/mol', unit)
             values.shape = len(keys), len(values) // len(keys)
 
             ret = dict(zip(keys, values))
-            if 'PURE' not in section:
+            if 'PURE' not in section:  # Add a final key for the solvent mixture
                 ret['Total'] = np.array(self.readkf(section, subsection + 'tot'))
             return ret
 
@@ -103,7 +105,7 @@ class CRSResults(SCMResults):
             df.columns.name = section.lower()
             return df
         except ModuleNotFoundError:
-            raise ModuleNotFoundError("get_sigma: as_df=True requires the 'pandas' package")
+            raise ModuleNotFoundError("get_sigma: as_df=True requires the 'Pandas' package")
 
 
 class CRSJob(SCMJob):
