@@ -11,7 +11,7 @@ __all__ = ['CRSResults', 'CRSJob']
 
 
 class CRSResults(SCMResults):
-    """A class for accessing results of COSMO-RS jobs."""
+    """A |SCMResults| subclass for accessing results of |CRSJob|."""
     _kfext = '.crskf'
     _rename_map = {'CRSKF': '$JN.crskf'}
 
@@ -109,7 +109,7 @@ class CRSResults(SCMResults):
 
 
 class CRSJob(SCMJob):
-    """A class for running COSMO-RS jobs."""
+    """A |SCMJob| subclass intended for running COSMO-RS jobs."""
     _command = 'crs'
     _result_type = CRSResults
 
@@ -137,7 +137,8 @@ class CRSJob(SCMJob):
                 path = results.job.path
                 ret = os.path.join(path, file)
                 if ext == '.cos':
-                    return self._cos_to_coskf(ret)  # Convert .cos into .coskf
+                    self._cos_to_coskf(ret)
+                    ret += 'kf'  # Convert .cos into .coskf
                 return ret
 
         # No .crskf, .coskf, .cos or .t21 file found, raise a ResultsError
@@ -151,7 +152,6 @@ class CRSJob(SCMJob):
         adfbin = os.environ['ADFBIN']
         args = [os.path.join(adfbin, 'cosmo2kf'), filename, output]
         subprocess.run(args)
-        return output
 
     def run(self, jobrunner=None, jobmanager=None, **kwargs) -> CRSResults:
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
@@ -179,7 +179,7 @@ class CRSJob(SCMJob):
                 item._h = self._unpack_results(item._h)
 
         # Value is Results instance; convert it into a string
-        elif isinstance(value, Results):
+        elif isinstance(value._h, Results):
             value._h = self._unpack_results(value._h)
 
         return Job.run(self, jobrunner=None, jobmanager=None, **kwargs)

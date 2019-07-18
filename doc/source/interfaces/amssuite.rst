@@ -9,14 +9,15 @@ All possible input keywords and options are covered, as well as extraction of ar
 
     How do I run X using PLAMS?
 
-    * ADF   : |ADFJob|
-    * BAND  : |AMSJob| with BAND engine
-    * DFTB  : |AMSJob| with DFTB engine
-    * ReaxFF: |ReaxFFJob| **or** |AMSJob| with ReaxFF engine (incomplete functionality)
-    * MOPAC : |AMSJob| with MOPAC engine
-    * UFF   : |AMSJob| with UFF engine
-    * Densf : |DensfJob|
-    * FCF   : |FCFJob|
+    * ADF      : |ADFJob|
+    * BAND     : |AMSJob| with BAND engine
+    * DFTB     : |AMSJob| with DFTB engine
+    * ReaxFF   : |ReaxFFJob| **or** |AMSJob| with ReaxFF engine (incomplete functionality)
+    * MOPAC    : |AMSJob| with MOPAC engine
+    * UFF      : |AMSJob| with UFF engine
+    * Densf    : |DensfJob|
+    * FCF      : |FCFJob|
+    * COSMO-RS : |CRSJob|
 
 
 .. toctree::
@@ -26,4 +27,4 @@ All possible input keywords and options are covered, as well as extraction of ar
     reaxff
     postadf
     kffiles
-
+    crs
