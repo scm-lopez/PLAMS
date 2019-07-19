@@ -288,8 +288,8 @@ rst_epilog = """
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`
 
-.. |CRSJob| replace:: :class:`CRSJob<scm.plams.interfaces.adf.crs.CRSJob>`
-.. |CRSResults| replace:: :class:`CRSResults<scm.plams.interfaces.adf.crs.CRSResults>`
+.. |CRSJob| replace:: :class:`CRSJob<scm.plams.interfaces.adfsuite.crs.CRSJob>`
+.. |CRSResults| replace:: :class:`CRSResults<scm.plams.interfaces.adfsuite.crs.CRSResults>`
 
 .. |VibrationsJob| replace:: :class:`~scm.plams.recipes.vibration.VibrationsJob`
 .. |IRJob| replace:: :class:`~scm.plams.recipes.vibration.IRJob`
