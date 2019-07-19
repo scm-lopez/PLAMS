@@ -104,8 +104,8 @@ class CRSResults(SCMResults):
             df = pd.DataFrame(ret, index=index)
             df.columns.name = section.lower()
             return df
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError("get_sigma: as_df=True requires the 'Pandas' package")
+        except ImportError as ex:
+            raise ex.__class__("get_sigma: as_df=True requires the 'Pandas' package")
 
 
 class CRSJob(SCMJob):
@@ -146,7 +146,7 @@ class CRSJob(SCMJob):
                            ' which does not contain any .cos, .crskf, .coskf or .t21 files')
 
     @staticmethod
-    def _cos_to_coskf(filename) -> str:
+    def _cos_to_coskf(filename) -> None:
         """Convert a .cos file into a .coskf file with the :code:`$ADFBIN/cosmo2kf` command."""
         output = filename + 'kf'
         adfbin = os.environ['ADFBIN']
