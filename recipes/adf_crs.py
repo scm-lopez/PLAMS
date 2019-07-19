@@ -14,6 +14,49 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
         3. Perform a COSMO-RS calculation using the surface charges produced in step 2
            (see *settings_crs*).
 
+    .. _`activity coefficient`: https://www.scm.com/doc/COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
+
+    .. admonition:: Examples
+
+
+        An example value for *settings_adf*:
+
+        .. code:: python
+
+            >>> from scm.plams import Settings
+
+            >>> settings_adf = Settings()
+            >>> settings_adf.input.basis.type = 'TZ2P'
+            >>> settings_adf.input.xc.gga = 'BP86'
+            >>> settings_adf.input.scf.converge = '1.0e-06'
+
+            # COSMO-related settings
+            >>> settings_adf.input.solvation.solv = 'name=CRS'
+            >>> settings_adf.input.solvation['C-Mat'] = 'Exact'
+            >>> settings_adf.input.solvation.charged = 'method=CONJ corr'
+
+            # Klamt radii for H, C, N and O
+            >>> settings_adf.input.solvation.radii.H = 1.30
+            >>> settings_adf.input.solvation.radii.C = 2.00
+            >>> settings_adf.input.solvation.radii.N = 1.83
+            >>> settings_adf.input.solvation.radii.O = 1.73
+
+        An example value for *settings_crs* with settings fora `activity coefficient`_ calculation:
+
+        .. code:: python
+
+            >>> from scm.plams import Settings
+
+            >>> solvent, solute = Settings(), Settings()
+            >>> solvent._h = '/path/to/solvent.t21'
+            >>> solvent.frac1 = 1.0
+            >>> solute._h = None
+
+            >>> settings_crs = Settings()
+            >>> settings_crs.input.compound = [solvent, solute]
+            >>> settings_crs.input.temperature = 298.15
+            >>> settings_crs.input.property._h = 'activitycoef'
+
     :type mol: :class:`.Molecule`
     :parameter mol: A PLAMS Molecule.
 
@@ -27,7 +70,7 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
 
     :parameter \**kwargs:
         Optional keyword arguments that will be passed to all calls of the :meth:`.Job.run` method.
-        For example, one could pass a custom *jobrunner* or *jobmanager*.
+        For example, one could consider passing a custom *jobrunner* or *jobmanager*.
 
     :returns: A :class:`.CRSResults` instance.
 
