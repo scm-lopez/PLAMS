@@ -2,22 +2,21 @@ from scm.plams import Settings, JobError, ADFJob, CRSJob
 
 
 def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
-    """A workflow for running COSMO-RS calculations using ADF COSMO surface charges.
+    """A workflow for running COSMO-RS calculations using COSMO surface charges produced by ADF.
 
     The workflow consists of three distinct steps:
 
         1. Perform a gas-phase |ADFJob| calculation (see *settings_adf*).
         2. Perform a COSMO |ADFJob| calculation using the .t21 file from step 1. as molecular
            fragment (see *settings_adf*).
-           This ensures that the total bonding energy produced in step 1. is used as zero-point,
-           *i.e.* the energy reported in step 2. is the actual solvation energy.
+           This ensures that zero-point is the gas-phase energy of *mol* rather than the gas-phase
+           energy of all atomic fragments in *mol*.
         3. Perform a COSMO-RS calculation using the surface charges produced in step 2
            (see *settings_crs*).
 
     .. _`activity coefficient`: https://www.scm.com/doc/COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
 
     .. admonition:: Examples
-
 
         An example value for *settings_adf*:
 
@@ -50,6 +49,8 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
             >>> solvent, solute = Settings(), Settings()
             >>> solvent._h = '/path/to/solvent.t21'
             >>> solvent.frac1 = 1.0
+
+            # run_crs_adf() will automatically replace None with the to-be created solute .t21 file
             >>> solute._h = None
 
             >>> settings_crs = Settings()
@@ -62,11 +63,11 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
 
     :type settings_adf: :class:`.Settings`
     :parameter settings_adf:
-        A Settings instance with settings for :class:`.ADFJob`.
+        A Settings instance with settings for :class:`.ADFJob` (see Examples).
 
     :type settings_crs: :class:`.Settings`
     :parameter settings_crs:
-        A Settings instance with settings for :class:`.CRSJob`.
+        A Settings instance with settings for :class:`.CRSJob` (see Examples).
 
     :parameter \**kwargs:
         Optional keyword arguments that will be passed to all calls of the :meth:`.Job.run` method.
