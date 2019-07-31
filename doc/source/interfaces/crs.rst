@@ -166,7 +166,7 @@ An example is provided below with the default COSMO-RS paramaters (*i.e.* ADF Co
     >>> print([s.input == adf_combi2005 for s in s_list])
     [True, True, True]
 
-.. _paramaters: https://www.scm.com/doc/COSMO-RS/COSMO-RS_and_COSMO-SAC_parameters.html
+.. _parameters: https://www.scm.com/doc/COSMO-RS/COSMO-RS_and_COSMO-SAC_parameters.html
 
 
 API
