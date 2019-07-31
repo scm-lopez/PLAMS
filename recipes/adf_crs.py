@@ -1,20 +1,30 @@
 from scm.plams import Settings, JobError, ADFJob, CRSJob
 
+__all__ = ['run_crs_adf']
+
 
 def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
-    """A workflow for running COSMO-RS calculations using COSMO surface charges produced by ADF.
+    """A workflow for running COSMO-RS calculations with ADF (*i.e.* DFT) COSMO surface charges.
 
     The workflow consists of three distinct steps:
 
         1. Perform a gas-phase |ADFJob| calculation (see *settings_adf*).
         2. Perform a COSMO |ADFJob| calculation using the .t21 file from step 1. as molecular
            fragment (see *settings_adf*).
-           This ensures that zero-point is the gas-phase energy of *mol* rather than the gas-phase
-           energy of all atomic fragments in *mol*.
-        3. Perform a COSMO-RS calculation using the surface charges produced in step 2
+           This ensures that zero-point is defined by the gas-phase molecule than the gas-phase
+           atomic fragments.
+        3. Perform a COSMO-RS calculation with the COSMO surface charges produced in step 2
            (see *settings_crs*).
 
-    .. _`activity coefficient`: https://www.scm.com/doc/COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
+    If the calculation involves multiple components (*e.g.* a solvent and solute),
+    than the compound header (``"_h"``) of the solute will be recognized by its value: ``None``
+    (see the *settings_crs* example below).
+    A :exc:`.JobError` is raised if no such value is specified.
+
+    The adf solvation block (*adf_settings.input.solvation*) is soft updated with suitable
+    settings for constructing COSMO-RS compatible surface charges
+    (see :func:`.add_solvation_block`).
+    No user-specified values are overwritten during this process.
 
     .. admonition:: Examples
 
@@ -29,18 +39,7 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
             >>> settings_adf.input.xc.gga = 'BP86'
             >>> settings_adf.input.scf.converge = '1.0e-06'
 
-            # COSMO-related settings
-            >>> settings_adf.input.solvation.solv = 'name=CRS'
-            >>> settings_adf.input.solvation['C-Mat'] = 'Exact'
-            >>> settings_adf.input.solvation.charged = 'method=CONJ corr'
-
-            # Klamt radii for H, C, N and O
-            >>> settings_adf.input.solvation.radii.H = 1.30
-            >>> settings_adf.input.solvation.radii.C = 2.00
-            >>> settings_adf.input.solvation.radii.N = 1.83
-            >>> settings_adf.input.solvation.radii.O = 1.73
-
-        An example value for *settings_crs* with settings fora `activity coefficient`_ calculation:
+        An example value for *settings_crs* (`activity coefficient`_ calculation):
 
         .. code:: python
 
@@ -70,26 +69,35 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
         A Settings instance with settings for :class:`.CRSJob` (see Examples).
 
     :parameter \**kwargs:
-        Optional keyword arguments that will be passed to all calls of the :meth:`.Job.run` method.
-        For example, one could consider passing a custom *jobrunner* or *jobmanager*.
+        Optional keyword arguments that will be passed to all calls of :meth:`.Job.run`.
+        For example, one could consider passing a custom jobrunner_ or jobmanager_.
 
-    :returns: A :class:`.CRSResults` instance.
+    :returns: The resulting COSMO-RS output.
+    :rtype: :class:`.CRSResults`
+
+    .. _`activity coefficient`: https://www.scm.com/doc/COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
+    .. _jobmanager: ../components/jobmanager.html
+    .. _jobrunner: ../components/runners.html
 
     """  # noqa
-    _validate_settings_adf(settings_adf)
+    # Validate arguments
+    _settings_adf = add_solvation_block(settings_adf)
+    _validate_settings_adf(_settings_adf)
     _validate_settings_crs(settings_crs)
-    solvation = settings_adf.input.find_case('solvation')
-    allpoints = settings_adf.input.find_case('allpoints')
+
+    # Identify the "solvation" and "allpoints" keys
+    solvation = _settings_adf.input.find_case('solvation')
+    allpoints = _settings_adf.input.find_case('allpoints')
 
     # Create the gas-phase molecular fragment
-    adf_job1 = ADFJob(mol, settings=settings_adf)
+    adf_job1 = ADFJob(mol, settings=_settings_adf)
     adf_job1.settings.input[allpoints] = ''
     del adf_job1.settings.input[solvation]
     adf_results1 = adf_job1.run(**kwargs)
     adf_restart1 = adf_results1['$JN.t21']
 
     # Construct the ADF COSMO surface
-    adf_job2 = ADFJob(mol, settings=settings_adf, depend=adf_job1)
+    adf_job2 = ADFJob(mol, settings=_settings_adf, depend=adf_job1)
     adf_job2.settings.input[allpoints] = ''
     adf_job2.settings.input.fragments.gas = adf_restart1
     for at in adf_job2.molecule:
@@ -105,7 +113,7 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
     return ret
 
 
-def set_header(s, value):
+def set_header(s: Settings, value: str) -> None:
     """Assign *value* to the ``["_h"]`` key in *s.input.compound*."""
     compound = s.input.find_case('compound')
 
@@ -119,7 +127,70 @@ def set_header(s, value):
                 break
 
 
-def _validate_settings_adf(s):
+def add_solvation_block(adf_settings: Settings) -> None:
+    """Add the solvation block to *adf_settings*, returning a copy of the new settings.
+
+    The solvation block (*adf_settings.input.solvation*) is soft updated
+    with the following Settings:
+
+    .. code::
+
+        c-mat:  Exact
+        charged:        method=Conj
+        radii:
+            Br:       2.16
+            C:        2.0
+            Cl:       2.05
+            F:        1.72
+            H:        1.3
+            I:        2.32
+            N:        1.83
+            O:        1.72
+            P:        2.13
+            S:        2.16
+            Si:       2.48
+        scf:    Var All
+        solv:   name=CRS cav0=0.0 cav1=0.0
+        surf:   Delley
+
+    """
+    # Find the solvation key
+    solvation = adf_settings.input.find_case('solvation')
+    solvation_block = adf_settings.input[solvation]
+
+    # Find all keys for within the solvation block
+    keys = ('surf', 'solv', 'charged', 'c-mat', 'scf', 'radii')
+    surf, solv, charged, cmat, scf, radii = [solvation_block.find_case(item) for item in keys]
+
+    # Construct the default solvation block
+    solvation_block_new = {
+        surf: 'Delley',
+        solv: 'name=CRS cav0=0.0 cav1=0.0',
+        charged: 'method=Conj',
+        cmat: 'Exact',
+        scf: 'Var All',
+        radii: {
+            'H': 1.30,
+            'C': 2.00,
+            'N': 1.83,
+            'O': 1.72,
+            'F': 1.72,
+            'Si': 2.48,
+            'P': 2.13,
+            'S': 2.16,
+            'Cl': 2.05,
+            'Br': 2.16,
+            'I': 2.32
+        }
+    }
+
+    # Copy adf_settings and perform a soft update
+    ret = adf_settings.copy()
+    ret.input[solvation].soft_update(solvation_block_new)
+    return ret
+
+
+def _validate_settings_adf(s: Settings) -> None:
     """Validate the *settings_adf* argument in :func:`run_crs_adf`."""
     solvation = s.input.find_case('solvation')
     solv = s.input[solvation].find_case('solv')
@@ -130,14 +201,14 @@ def _validate_settings_adf(s):
 
     if solv not in s.input[solvation]:
         raise JobError("run_crs_adf: The 'solv' key is absent"
-                       " from settings_adf.input.solvation'")
+                       " from settings_adf.input.solvation")
 
     if 'name=crs' not in s.input[solvation][solv].lower():
         raise JobError("run_crs_adf: The 'name=CRS' value is absent"
                        " from settings_adf.input.solvation.solv")
 
 
-def _validate_settings_crs(s):
+def _validate_settings_crs(s: Settings) -> None:
     """Validate the *settings_crs* argument in :func:`run_crs_adf`."""
     compound = s.input.find_case('compound')
     value = s.input[compound]

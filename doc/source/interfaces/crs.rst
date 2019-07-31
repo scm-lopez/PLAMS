@@ -99,56 +99,18 @@ The job specified above corresponds to the following input file:
     end
 
 
-Passing Results object
-~~~~~~~~~~~~~~~~~~~~~~
-
-COSMO-RS is somewhat unique among the
-For this reason |Results| instances created by previous jobs can be directly
-passed to the ``_h`` key in the ``compound`` block.
-The :meth:`CRSJob.run` method will internally attempt to extract any .coskf,
-.cos, .crskf or .t21 files from the passed |Results| instance and substitute
-itself for the matching path+filename.
-
-.. note::
-    :meth:`CRSJob.run` will not check if the extracted file contains
-    valid COSMO surface charges.
-
-An example is provided below.
-In this example the ``adf_results`` represents a |Results| instance
-from a previous calculation, like those from a COSMO single point
-calculation with |ADFJob|.
-
-.. code:: python
-
-    >>> from scm.plams import Settings, CRSJob
-
-    >>> print(adf_results)  # Results from a random previous job
-    <scm.plams.interfaces.adfsuite.adf.ADFResults object at 0x115444ac8>
-
-    >>> s = Settings()
-    >>> s.input.compound._h = adf_results
-    >>> my_job = CRSJob(settings=s)
-
-    >>> print(my_job.settings.compound._h)
-    <scm.plams.interfaces.adfsuite.adf.ADFResults object at 0x115444ac8>
-
-    >>> my_job.run()
-    >>> print(my_job.settings.compound._h)
-    /path/to/adf/results.t21
-
-
 ADFJob and CRSJob
 ~~~~~~~~~~~~~~~~~
 
-.. code:: python
+By default all COSMO-RS solvation energies produced with ADF (*i.e.* DFT) surface charges
+are with respect to gas-phase atomic fragments, rather than the gas-phase molecule.
+To alleviate this issue a new workflow is presented in the PLAMS cookbook_.
+In summary: the construction of the DFT COSMO surface is herein preceded by a restart from
+a gas-phase single point. Consequently, the energy of the gas-phase molecule is used as zero point,
+rather than the usual gas-phase atomic fragments.
 
-    >>> from scm.plams import ADFJob, CRSJob, Settings
+.. _cookbook: ../cookbook/adf_crs.html
 
-    >>> s_adf = Settings()
-    ...
-
-    >>> adf_job1 = ADFJob(settings=s_adf)
-    >>> results1 = adf_job1.run()
 
 API
 ~~~
