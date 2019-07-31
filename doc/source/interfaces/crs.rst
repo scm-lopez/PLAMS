@@ -62,7 +62,7 @@ from a |Settings| instance into a list of multiple |Settings| instances.
 Each item within this list is expanded into its own ``compound`` block
 once :meth:`CRSJob.run` creates the actual input file.
 
-Example |Settings| with two compounds:
+Example |Settings| with three compounds:
 
 .. code:: python
 
@@ -82,7 +82,7 @@ Example |Settings| with two compounds:
 
     >>> my_job = CRSJob(settings=s)
 
-The job specified above corresponds to the following input file:
+Which yields the following input:
 
 .. code::
 
@@ -110,6 +110,63 @@ a gas-phase single point. Consequently, the energy of the gas-phase molecule is 
 rather than the usual gas-phase atomic fragments.
 
 .. _cookbook: ../cookbook/adf_crs.html
+
+
+COSMO-RS Parameters
+~~~~~~~~~~~~~~~~~~~
+
+A large number of configurable parameters_ is available for COSMO-RS.
+If one is interested in running multiple jobs it can be usefull to store the paramaters
+in seperate dictionary / |Settings| instance and update the Job settings as needed,
+double so if one wants to use multiple different paramater sets.
+
+An example is provided below with the default COSMO-RS paramaters (*i.e.* ADF Combi2005):
+
+.. code:: python
+
+    >>> from scm.plams import Settings
+
+    # ADF Combi2005 COSMO-RS parameters
+    >>> adf_combi2005 = {
+    ...     'crsparameters': {
+    ...         '_1': 'HB_HNOF',
+    ...         '_2': 'HB_TEMP',
+    ...         '_3': 'FAST',
+    ...         '_4': 'COMBI2005',
+    ...         'rav': 0.400,
+    ...         'aprime': 1510.0,
+    ...         'fcorr': 2.802,
+    ...         'chb': 8850.0,
+    ...         'sigmahbond': 0.00854,
+    ...         'aeff': 6.94,
+    ...         'lambda': 0.130,
+    ...         'omega': -0.212,
+    ...         'eta': -9.65,
+    ...         'chortf': 0.816
+    ...     },
+    ...     'dispersion': {
+    ...         'H': -0.0340,
+    ...         'C': -0.0356,
+    ...         'N': -0.0224,
+    ...         'O': -0.0333,
+    ...         'F': -0.026,
+    ...         'Si': -0.04,
+    ...         'P': -0.045,
+    ...         'S': -0.052,
+    ...         'Cl': -0.0485,
+    ...         'Br': -0.055,
+    ...         'I': -0.062
+    ...     }
+    ... }
+
+    >>> s_list = [Settings(), Settings(), Settings()]
+    >>> for s in s_list:
+    ...     s.input.update(adf_combi2005)
+
+    >>> print([s.input == adf_combi2005 for s in s_list])
+    [True, True, True]
+
+.. _paramaters: https://www.scm.com/doc/COSMO-RS/COSMO-RS_and_COSMO-SAC_parameters.html
 
 
 API
