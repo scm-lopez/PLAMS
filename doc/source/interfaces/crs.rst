@@ -29,7 +29,7 @@ sigma-profile calculation [`1 <https://www.scm.com/doc/COSMO-RS/Analysis.html#si
 
     temperature 298.15
 
-The input file displayed above can be re
+The input file displayed above corresponds to the following settings:
 
 .. code:: python
 
