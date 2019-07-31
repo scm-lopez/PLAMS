@@ -90,14 +90,14 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
     allpoints = _settings_adf.input.find_case('allpoints')
 
     # Create the gas-phase molecular fragment
-    adf_job1 = ADFJob(mol, settings=_settings_adf)
+    adf_job1 = ADFJob(molecule=mol, settings=_settings_adf)
     adf_job1.settings.input[allpoints] = ''
     del adf_job1.settings.input[solvation]
     adf_results1 = adf_job1.run(**kwargs)
     adf_restart1 = adf_results1['$JN.t21']
 
     # Construct the ADF COSMO surface
-    adf_job2 = ADFJob(mol, settings=_settings_adf, depend=adf_job1)
+    adf_job2 = ADFJob(molecule=mol, settings=_settings_adf, depend=[adf_job1])
     adf_job2.settings.input[allpoints] = ''
     adf_job2.settings.input.fragments.gas = adf_restart1
     for at in adf_job2.molecule:
@@ -106,7 +106,7 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
     adf_restart2 = adf_results2['$JN.t21']
 
     # Start the and return the COSMO-RS job
-    crs_job = CRSJob(settings=settings_crs, depend=adf_job2)
+    crs_job = CRSJob(settings=settings_crs, depend=[adf_job1, adf_job2])
     set_header(crs_job.settings, adf_restart2)
     ret = crs_job.run(**kwargs)
     ret.wait()
@@ -116,12 +116,13 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
 def set_header(s: Settings, value: str) -> None:
     """Assign *value* to the ``["_h"]`` key in *s.input.compound*."""
     compound = s.input.find_case('compound')
+    compound_block = s.input[compound]
 
-    if isinstance(s, Settings):
-        s.input[compound]._h = value
+    if isinstance(compound_block, Settings):
+        compound_block._h = value
     else:
         # Find the first element where the _h key is None
-        for item in s.input[compound]:
+        for item in compound_block:
             if item._h is None:
                 item._h = value
                 break
