@@ -65,6 +65,15 @@ class CRSResults(SCMResults):
         except KeyError:
             return self._get_sigma('PURESIGMAPOTENTIAL', unit=unit, as_df=as_df)
 
+    def readarray(self, section: str, subsection: str, **kwargs) -> np.ndarray:
+        """Read data from *section*/*subsection* of the main KF file and return as NumPy array.
+
+        All additional provided keyword arguments will be passed onto the numpy.array_ function.
+
+        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
+        """
+        return np.array(self.readkf(section, subsection), **kwargs)
+
     def _get_sigma(self, section: str, unit: str = 'kcal/mol', as_df: bool = False) -> dict:
         """Grab all values of sigma and the sigmapotential/profile;
         combine them into a dictionary or pandas dataframe.
@@ -72,7 +81,7 @@ class CRSResults(SCMResults):
         """
         subsection = 'mu' if 'POTENTIAL' in section else 'profil'
         ret = self._sigma_y(section, subsection, unit)
-        ret['σ (e/A**2)'] = np.array(self.readkf(section, 'chdval'))
+        ret['σ (e/A**2)'] = self.readarray(section, 'chdval')
 
         # Return the dictionary of sigma profiles/potentials
         if not as_df:
@@ -88,8 +97,8 @@ class CRSResults(SCMResults):
         keys = [os.path.split(key)[-1] for key in filenames]
 
         # Use sigma profiles/potentials as values
-        values = np.array(self.readkf(section, subsection))
-        values *= Units.conversion_ratio('kcal/mol', unit)
+        ratio = Units.conversion_ratio('kcal/mol', unit)
+        values = self.readarray(section, subsection) * ratio
         values.shape = len(keys), len(values) // len(keys)
 
         ret = dict(zip(keys, values))
