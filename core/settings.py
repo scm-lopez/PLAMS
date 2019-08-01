@@ -1,3 +1,5 @@
+from contextlib import AbstractContextManager
+
 __all__ = ['Settings', 'ig']
 
 
@@ -227,38 +229,49 @@ class Settings(dict):
 
 
 
-    class EnableMissing:
+    class EnableMissing(AbstractContextManager):
         """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method.
 
-        As a results, attempting to access keys absent from a particular |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
+        As a results, attempting to access keys absent from an arbitrary |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
+
+        .. note::
+            The :meth:`.Settings.__missing__` method is (temporary) deleted at the class level to ensure consistent invokation by the Python interpreter.
+            See also `special method lookup`_.
+
+        Example:
 
         .. code:: python
 
-             >>> s = Settings()
+            >>> s = Settings()
 
-             >>> with s.EnableMissing():
-             >>>     s.a.b.c = True
-             KeyError: 'a'
+            >>> with s.EnableMissing():
+            ...     s.a.b.c = True
+            KeyError: 'a'
 
-             >>> s.a.b.c = True
-             >>> print(s.a.b.c)
-             True
+            >>> s.a.b.c = True
+            >>> print(s.a.b.c)
+            True
+
+        .. _`special method lookup`: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
 
         """
 
         def __init__(self):
+            """Initialize the :class:`EnableMissing` context manager."""
             try:
                 self.missing = Settings.__missing__
-            except AttributeError:  # Precaution against onpening multiple EnableMissing instances
-                raise TypeError("type object 'Settings' has no attribute '__missing__'; "
-                                "initiating multiple (nested) 'Settings.EnableMissing' "
-                                "instances is prohibited")
+            except AttributeError:  # Precaution against opening multiple EnableMissing instances
+                self.missing = None
 
         def __enter__(self):
-            delattr(Settings, '__missing__')
+            """Enter the :class:`EnableMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
+            if self.missing is not None:
+                delattr(Settings, '__missing__')
 
-        def __exit__(self, *args):
-            setattr(Settings, '__missing__', self.missing)
+        def __exit__(self, exc_type, exc_value, traceback):
+            """Exit the :class:`EnableMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
+            if self.missing is not None:
+                setattr(Settings, '__missing__', self.missing)
 
 
 
@@ -468,14 +481,16 @@ class Settings(dict):
         """If name is not a magic method, redirect it to ``__setitem__``."""
         if name.startswith('__') and name.endswith('__'):
             dict.__setattr__(self, name, value)
-        self[name] = value
+        else:
+            self[name] = value
 
 
     def __delattr__(self, name):
         """If name is not a magic method, redirect it to ``__delitem__``."""
         if name.startswith('__') and name.endswith('__'):
             dict.__delattr__(self, name)
-        del self[name]
+        else:
+            del self[name]
 
 
     def _str(self, indent):
