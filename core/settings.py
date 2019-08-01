@@ -496,13 +496,14 @@ class Settings(dict):
     def _str(self, indent):
         """Print contents with *indent* spaces of indentation. Recursively used for printing nested |Settings| instances with proper indentation."""
         ret = ''
-        for name in self:
-            value = self[name]
-            ret += ' '*indent + str(name) + ': \t'
+        for key, value in self.items():
+            ret += ' '*indent + str(key) + ': \t'
             if isinstance(value, Settings):
-                ret += '\n' + value._str(indent+len(str(name))+1)
-            else:
-                ret += str(value) + '\n'
+                ret += '\n' + value._str(indent+len(str(key))+1)
+            else:  # Apply consistent indentation at every '\n' character
+                str_list = str(value).split('\n')
+                joiner = '\n' + ' ' * (indent+len(str(key))+2) + '\t'
+                ret += joiner.join(i for i in str_list) + '\n'
         return ret
 
 
