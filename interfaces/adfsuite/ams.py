@@ -179,6 +179,10 @@ class AMSResults(Results):
             for at, c in zip(mol, coords):
                 at.move_to(c, unit='bohr')
 
+            if ('History', f'LatticeVectors('+str(step)+')') in main:
+                lattice = Units.convert(main.read('History', f'LatticeVectors('+str(step)+')'), 'bohr', 'angstrom')
+                mol.lattice = [tuple(lattice[j:j+3]) for j in range(0,len(lattice),3)]
+
             if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
                 index = main.read('History', f'Bonds.Index({step})')
                 atoms = main.read('History', f'Bonds.Atoms({step})')
