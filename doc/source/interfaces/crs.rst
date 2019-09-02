@@ -41,11 +41,12 @@ The input file displayed above corresponds to the following settings:
     >>> s.input.compound.frac1 = 1.0
     >>> s.input.property._h = 'puresigmaprofile'
     >>> s.input.property.nprofile = 50
-    >>> s.input.property.sigmamax = 0.25
+    >>> s.input.property.sigmamax = 0.025
     >>> s.input.property.pure = ''
     >>> s.input.temperature = 298.15
 
     >>> my_job = CRSJob(settings=s)
+    >>> my_results = my_job.run()
 
 
 Settings with multiple compound
@@ -81,6 +82,7 @@ Example |Settings| with three compounds:
     >>> s.input.compound = [compound1, compound2, compound3]
 
     >>> my_job = CRSJob(settings=s)
+    >>> my_results = my_job.run()
 
 Which yields the following input:
 
@@ -167,6 +169,70 @@ An example is provided below with the default COSMO-RS paramaters (*i.e.* ADF Co
     [True, True, True]
 
 .. _parameters: https://www.scm.com/doc/COSMO-RS/COSMO-RS_and_COSMO-SAC_parameters.html
+
+
+Data analyses and plotting
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As COSMO-RS can produce a large variety of data series,
+a number of specialized methods are available in the :class:`CRSResults` for their extraction and analysis.
+The resulting data is stored in either a dictionary of Numpy arrays or (optionally) a `Pandas DataFrame`_.
+
+============================ =======================================
+Quantity                     Method for data extraction
+============================ =======================================
+`Sigma profile`_             :meth:`CRSResults.get_sigma_profile`
+`Sigma potential`_           :meth:`CRSResults.get_sigma_potential`
+`Vapor pressure`_            :meth:`CRSResults.get_vapor_pressure`
+`Boiling point`_             :meth:`CRSResults.get_boiling_point`
+`Solubility`_                :meth:`CRSResults.get_solubility`
+`Binary mixture`_            :meth:`CRSResults.get_bi_mixture`
+`Ternary mixtures`_          :meth:`CRSResults.get_tri_mixture`
+`Solvents composition line`_ :meth:`CRSResults.get_composition_line`
+============================ =======================================
+
+If the `Matplotlib <https://matplotlib.org/>`_ package is installed than the resulting data can easily plotted by passing
+it to the :meth:`CRSResults.plot` method:
+
+.. code:: python
+
+    >>> from scm.plams import Settings, CRSJob
+    >>> import numpy as np
+
+    >>> s = Settings()
+
+    >>> s.input.compound._h = '/path/to/Water.coskf'
+    >>> s.input.compound.frac1 = 1.0
+    >>> s.input.property._h = 'puresigmaprofile'
+    >>> s.input.property.nprofile = 50
+    >>> s.input.property.sigmamax = 0.025
+    >>> s.input.property.pure = ''
+    >>> s.input.temperature = 298.15
+
+    >>> my_job = CRSJob(settings=s)
+    >>> my_results = my_job.run()
+
+    >>> sigma_profile = my_results.get_sigma_profile()
+    >>> with np.printoptions(threshold=0, edgeitems=5):
+    ...     print(sigma_profile)
+    {'Water.coskf': array([0., 0., 0., 0., 0., ..., 0., 0., 0., 0., 0.]),
+     'σ (e/A**2)': array([-0.25, -0.24, -0.23, -0.22, -0.21, ...,  0.21,  0.22,  0.23,  0.24, 0.25])}
+
+    >>> my_results.plot(sigma_profile)
+
+.. image:: ../_static/sigma_profile.png
+
+
+.. _`Sigma profile`: https://www.scm.com/doc/COSMO-RS/Analysis.html#sigma-profile
+.. _`Sigma potential`: https://www.scm.com/doc/COSMO-RS/Analysis.html#sigma-potential
+.. _`Vapor pressure`: https://www.scm.com/doc/COSMO-RS/Properties.html#vapor-pressure
+.. _`Boiling point`: https://www.scm.com/doc/COSMO-RS/Properties.html#boiling-point
+.. _`Solubility`: https://www.scm.com/doc/COSMO-RS/Properties.html#solubility
+.. _`Binary mixture`: https://www.scm.com/doc/COSMO-RS/Properties.html#binary-mixture-vle-lle
+.. _`Ternary mixtures`: https://www.scm.com/doc/COSMO-RS/Properties.html#ternary-mixture-vle-lle
+.. _`Solvents composition line`: https://www.scm.com/doc/COSMO-RS/Properties.html#solvents-s1-s2-composition-line
+
+.. _`Pandas DataFrame`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
 
 API
