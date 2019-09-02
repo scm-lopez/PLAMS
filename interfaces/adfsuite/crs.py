@@ -81,7 +81,7 @@ class CRSResults(SCMResults):
         except KeyError:
             return self._get_array_dict('PURESIGMAPOTENTIAL', *args, unit=unit, as_df=as_df)
 
-    def get_solubility(self, subsection: str = 'mol_per_L_solvent', as_df: bool = True) -> dict:
+    def get_solubility(self, subsection: str = 'mol_per_L_solvent', as_df: bool = False) -> dict:
         r""""Grab all (temperature dependant) solubilities, returning a dictionary of Numpy Arrays.
 
         The temperature is stored under the ``"T (K)"`` key.
@@ -103,7 +103,7 @@ class CRSResults(SCMResults):
         except KeyError:
             return self._get_array_dict('PURESOLUBILITY', *args, as_df=as_df)
 
-    def get_boiling_point(self, subsection: str = 'temperature', as_df: bool = True) -> dict:
+    def get_boiling_point(self, subsection: str = 'temperature', as_df: bool = False) -> dict:
         r""""Grab all (pressure dependant) boiling points, returning a dictionary of Numpy Arrays.
 
         The pressure is stored under the ``"P (bar)"`` key.
@@ -125,7 +125,7 @@ class CRSResults(SCMResults):
         except KeyError:
             return self._get_array_dict('PUREBOILINGPOINT', *args, as_df=as_df)
 
-    def get_vapor_pressure(self, subsection: str = 'vapor pressure', as_df: bool = True) -> dict:
+    def get_vapor_pressure(self, subsection: str = 'vapor pressure', as_df: bool = False) -> dict:
         r""""Grab all (temperature dependant) solubillities, returning a dictionary of Numpy Arrays.
 
         The pressure is stored under the ``"T (K)"`` key.
@@ -148,7 +148,7 @@ class CRSResults(SCMResults):
             return self._get_array_dict('PUREVAPORPRESSURE', *args, as_df=as_df)
 
     def get_bi_mixture(self, subsection: str = 'gamma', unit: str = 'kcal/mol',
-                       as_df: bool = True) -> dict:
+                       as_df: bool = False) -> dict:
         r""""Grab all (ratio dependant) activity coefficients of a binary mixture, returning a dictionary of Numpy Arrays.
 
         The component ratio is stored under the ``"molar ratio"`` key.
@@ -168,7 +168,7 @@ class CRSResults(SCMResults):
         return self._get_array_dict('BINMIXCOEF', *args, unit=unit, as_df=as_df)
 
     def get_tri_mixture(self, subsection: str = 'gamma', unit: str = 'kcal/mol',
-                        as_df: bool = True) -> dict:
+                        as_df: bool = False) -> dict:
         r""""Grab all (ratio dependant) activity coefficients of a ternary mixture, returning a dictionary of Numpy Arrays.
 
         The component ratio is stored under the ``"molar ratio"`` key.
@@ -188,7 +188,7 @@ class CRSResults(SCMResults):
         return self._get_array_dict('TERNARYMIX', *args, unit=unit, as_df=as_df)
 
     def get_composition_line(self, subsection: str = 'gamma', unit: str = 'kcal/mol',
-                             as_df: bool = True) -> dict:
+                             as_df: bool = False) -> dict:
         r""""Perform a linear interpolation between the activity coefficients of two components, returning a dictionary of Numpy Arrays.
 
         The component ratio is stored under the ``"molar ratio"`` key.
@@ -208,7 +208,7 @@ class CRSResults(SCMResults):
         return self._get_array_dict('COMPOSITIONLINE', *args, unit=unit, as_df=as_df)
 
     @classmethod
-    def plot(cls, array_dict: dict, plot_fig: bool = True) -> 'matplotlib.figure.Figure':
+    def plot(cls, array_dict: dict, index_name: str = None, plot_fig: bool = True) -> 'matplotlib.figure.Figure':
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
 
         Accepts the output of, *e.g.*, :meth:`CRSResults.get_sigma_profile`:
@@ -220,20 +220,36 @@ class CRSResults(SCMResults):
         .. note::
             This method requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
 
+        .. note::
+            The name of the dictionary/DataFrame key containing the index (*i.e.* the x-axis) can,
+            and should, be manually specified in *index_name* if a custom *index_name* is passed
+            to :meth:`CRSResults._get_array_dict`.
+            This argument can be ignored otherwise.
+
         .. _Figure: https://matplotlib.org/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure
 
         """  # noqa
+        def get_index_name(array_dict, index_name):
+            """Find and return the index and its name."""
+            if index_name is not None:
+                return array_dict[index_name], index_name
+
+            if not isinstance(array_dict, dict):
+                # *array_dict* is a dataframe instead of a dictionary
+                return array_dict.index, array_dict.index.name
+
+            idx_tups = ('σ (e/A**2)', 'T (K)', 'P (bar)', 'molar ratio')
+            for k, v in array_dict.items():
+                if k in idx_tups:
+                    return v, k
+
+        # Check if matplotlib is installed
         if not MATPLOTLIB:
             method = cls.__name__ + '.plot'
             raise ImportError("{}: this method requires the 'matplotlib' package".format(method))
 
-        # Retrieve the index
-        idx_tups = ('σ (e/A**2)', 'T (K)', 'P (bar)')
-        for k, v in array_dict.items():
-            if k in idx_tups:
-                index = v
-                index_name = k
-                break
+        # Retrieve the index and its name
+        index, index_name = get_index_name(array_dict, index_name)
 
         # Assign various series to the plot
         fig, ax = plt.subplots()
