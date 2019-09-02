@@ -27,15 +27,6 @@ class CRSResults(SCMResults):
     _kfext = '.crskf'
     _rename_map = {'CRSKF': '$JN.crskf'}
 
-    def readarray(self, section: str, subsection: str, **kwargs) -> np.ndarray:
-        """Read data from *section*/*subsection* of the main KF file and return as NumPy array.
-
-        All additional provided keyword arguments will be passed onto the numpy.array_ function.
-
-        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
-        """
-        return np.array(self.readkf(section, subsection), **kwargs)
-
     def get_energy(self, unit: str = 'kcal/mol') -> float:
         """Returns the solute solvation energy from an Activity Coefficients calculation."""
         E = self.readkf('ACTIVITYCOEF', 'deltag')[0]
@@ -157,7 +148,7 @@ class CRSResults(SCMResults):
             return self._get_array_dict('PUREVAPORPRESSURE', *args, as_df=as_df)
 
     def get_bi_mixture(self, subsection: str = 'gamma', unit: str = 'kcal/mol',
-                        as_df: bool = True) -> dict:
+                       as_df: bool = True) -> dict:
         r""""Grab all (ratio dependant) activity coefficients of a binary mixture, returning a dictionary of Numpy Arrays.
 
         The component ratio is stored under the ``"molar ratio"`` key.
@@ -213,7 +204,7 @@ class CRSResults(SCMResults):
         .. _Pandas: https://pandas.pydata.org/
 
         """  # noqa
-        args = (subsection, 'solvent ratio', 'solvent fraction')
+        args = (subsection, 'molar ratio', 'solvent fraction')
         return self._get_array_dict('COMPOSITIONLINE', *args, unit=unit, as_df=as_df)
 
     @classmethod

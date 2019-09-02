@@ -175,6 +175,16 @@ class SCMResults(Results):
         return t([data[mapping[i]-1] for i in range(len(mapping))])
 
 
+    def readarray(self, section: str, subsection: str, **kwargs) -> np.ndarray:
+        """Read data from *section*/*subsection* of the main KF file and return as NumPy array.
+
+        All additional provided keyword arguments will be passed onto the numpy.array_ function.
+
+        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
+        """
+        return np.array(self.readkf(section, subsection), **kwargs)
+
+
 
 class SCMJob(SingleJob):
     """Abstract class gathering common mechanisms for jobs with ADF Suite programs."""

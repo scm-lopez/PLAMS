@@ -178,6 +178,13 @@ As COSMO-RS can produce a large variety of data series,
 a number of specialized methods are available in the :class:`CRSResults` for their extraction and analysis.
 The resulting data is stored in either a dictionary of Numpy arrays or (optionally) a `Pandas DataFrame`_.
 
+The extracted data can be further customized by altering the ``subsection`` argument.
+For example, by default :meth:`CRSResults.get_solubility` will extract the solubility in mol solute
+per liter solvent (``"subsection=mol_per_L_solvent"``). This can be changed in, for example,
+gram per liter solvent (``"subsection=m_per_L_solvent"``) or the solute mass fraction (``"massfrac"``).
+A complete overview of all available subsections can be acquired by calling the :meth:`.KFFile.get_skeleton` method of
+the KF binary file (*e.g.* :code:`print(my_results._kf.get_skeleton()`).
+
 ============================ =======================================
 Quantity                     Method for data extraction
 ============================ =======================================
