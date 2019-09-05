@@ -374,7 +374,7 @@ class SCMJob(SingleJob):
         def validate_filename(filename: str, heredoc_delimit: str) -> bool:
             """Check if *filename* is just an input file or an entire runscript."""
             with open(filename, 'r') as f:
-                if heredoc_delimit in f.read().lower():
+                if heredoc_delimit in f.read():
                     return False  # It's an entire runscript + input file
             return True  # It's just an input file
 
@@ -389,11 +389,11 @@ class SCMJob(SingleJob):
                 else:
                     ret = ''
                     for item in f:
-                        if heredoc_delimit in item.lower():
+                        if heredoc_delimit in item:
                             break  # Ignore the part preceding the first *heredoc_delimit*
 
                     for item in f:
-                        if heredoc_delimit in item.lower():
+                        if heredoc_delimit in item:
                             break  # Ignore the part succeeding the second *heredoc_delimit*
                         ret += item
 
