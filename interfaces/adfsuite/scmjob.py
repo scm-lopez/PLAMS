@@ -1,7 +1,9 @@
 import os
+import sys
 import numpy as np
 
 from os.path import join as opj
+from tempfile import NamedTemporaryFile
 
 from ...core.basejob import SingleJob
 from ...core.errors import PlamsError, ResultsError, FileError
@@ -355,3 +357,56 @@ class SCMJob(SingleJob):
             smb = (smb+'.'+str(atom.properties.name)).lstrip('.')
         return smb
 
+
+    @classmethod
+    def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'SCMJob':
+        """Construct a :class:`SCMJob` instance from an ADF inputfile."""
+        def load_parser() -> None:
+            """Load the SCM input parser; raise a :exc:`EnvironmentError` if it cannot be found."""
+            try:
+                parser_path = opj(os.environ['ADFHOME'], 'scripting')
+                if parser_path not in sys.path:
+                    sys.path.append(parser_path)
+            except KeyError:
+                err = "{}.from_inputfile: the 'ADFHOME' environment variable has not been set"
+                raise EnvironmentError(err.format(cls.__name__))
+
+        def validate_filename(filename: str, heredoc_delimit: str) -> bool:
+            """Check if *filename* is just an input file or an entire runscript."""
+            with open(filename, 'r') as f:
+                if heredoc_delimit in f.read().lower():
+                    return False  # It's an entire runscript + input file
+            return True  # It's just an input file
+
+        def create_settings(filename: str, heredoc_delimit: str, is_inputfile: bool) -> Settings:
+            """Convert *filename* into a |Settings| instance."""
+            with open(filename, 'r') as f:
+                # *filename* is just an input file
+                if is_inputfile:
+                    ret = f.read()
+
+                # *filename* is an entire runscript; extract the ADF input file
+                else:
+                    ret = ''
+                    for item in f:
+                        if heredoc_delimit in item.lower():
+                            break  # Ignore the part preceding the first *heredoc_delimit*
+
+                    for item in f:
+                        if heredoc_delimit in item.lower():
+                            break  # Ignore the part succeeding the second *heredoc_delimit*
+                        ret += item
+
+            return input_to_settings(ret, cls._command)
+
+        try:
+            from scm.input_parser.parse import input_to_settings
+        except ImportError:  # Try to load the parser from $ADFHOME/scripting
+            load_parser()
+            from scm.input_parser.parse import input_to_settings
+
+        is_inputfile = validate_filename(filename, heredoc_delimit)
+        s = Settings()
+        s.input = create_settings(filename, heredoc_delimit, is_inputfile)
+
+        return cls(settings=s, **kwargs)

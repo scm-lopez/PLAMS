@@ -48,6 +48,17 @@ The input file displayed above corresponds to the following settings:
     >>> my_job = CRSJob(settings=s)
     >>> my_results = my_job.run()
 
+Alternatively one can create a :class:`CRSJob` instance from a runscript created by,
+for example, the ADF GUI (``File -> Save as``).
+
+.. code:: python
+
+    >>> from scm.plams import CRSJob
+
+    >>> filename = 'path/to/my/crs/inputfile.run'
+    >>> my_job = CRSJob.from_inputfile(filename)
+    >>> my_results = my_job.run()
+
 
 Settings with multiple compound
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -182,8 +193,10 @@ The extracted data can be further customized by altering the ``subsection`` argu
 For example, by default :meth:`CRSResults.get_solubility` will extract the solubility in mol solute
 per liter solvent (``"subsection=mol_per_L_solvent"``). This can be changed in, for example,
 gram per liter solvent (``"subsection=m_per_L_solvent"``) or the solute mass fraction (``"massfrac"``).
-A complete overview of all available subsections can be acquired by calling the :meth:`.KFFile.get_skeleton` method of
-the KF binary file (*e.g.* :code:`print(my_results._kf.get_skeleton()`).
+
+A complete overview of all available sections and subsections can be acquired
+by calling the :meth:`.KFFile.get_skeleton` method of the KF binary file
+(*e.g.* :code:`print(my_results._kf.get_skeleton())`).
 
 ============================ =======================================
 Quantity                     Method for data extraction
@@ -199,7 +212,7 @@ Quantity                     Method for data extraction
 ============================ =======================================
 
 If the `Matplotlib <https://matplotlib.org/>`_ package is installed than the resulting data can easily plotted by passing
-it to the :meth:`CRSResults.plot` method:
+it to the :meth:`CRSResults.plot` method (*e.g.* :code:`CRSResults.plot(my_sigma_profile)`):
 
 .. code:: python
 
@@ -219,13 +232,13 @@ it to the :meth:`CRSResults.plot` method:
     >>> my_job = CRSJob(settings=s)
     >>> my_results = my_job.run()
 
-    >>> sigma_profile = my_results.get_sigma_profile()
+    >>> my_sigma_profile = my_results.get_sigma_profile()
     >>> with np.printoptions(threshold=0, edgeitems=5):
     ...     print(sigma_profile)
     {'Water.coskf': array([0., 0., 0., 0., 0., ..., 0., 0., 0., 0., 0.]),
      'σ (e/A**2)': array([-0.25, -0.24, -0.23, -0.22, -0.21, ...,  0.21,  0.22,  0.23,  0.24, 0.25])}
 
-    >>> my_results.plot(sigma_profile)
+    >>> my_results.plot(my_sigma_profile)
 
 .. image:: ../_static/sigma_profile.png
 

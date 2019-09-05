@@ -16,8 +16,8 @@ try:
 except ImportError:
     MATPLOTLIB = False
 
-from ...tools.units import Units
 from .scmjob import (SCMJob, SCMResults)
+from ...tools.units import Units
 
 __all__ = ['CRSResults', 'CRSJob']
 
@@ -357,9 +357,8 @@ class CRSJob(SCMJob):
         try:
             adfbin = os.environ['ADFBIN']
         except KeyError:
-            method = cls.__name__ + '.cos_to_coskf'
-            err = '{}: the "ADFBIN" environment variable was not found'.format(method)
-            raise EnvironmentError(err)
+            err = "{}.cos_to_coskf: the 'ADFBIN' environment variable has not been set"
+            raise EnvironmentError(err.format(cls.__name__))
 
         args = [os.path.join(adfbin, 'cosmo2kf'), filename, filename_out]
         subprocess.run(args)
