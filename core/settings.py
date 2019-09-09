@@ -1,3 +1,4 @@
+import textwrap
 from contextlib import AbstractContextManager
 
 __all__ = ['Settings', 'ig']
@@ -501,9 +502,8 @@ class Settings(dict):
             if isinstance(value, Settings):
                 ret += '\n' + value._str(indent+len(str(key))+1)
             else:  # Apply consistent indentation at every '\n' character
-                str_list = str(value).split('\n')
-                joiner = '\n' + ' ' * (indent+len(str(key))+2) + '\t'
-                ret += joiner.join(i for i in str_list) + '\n'
+                indent = ' ' * (2 + indent + len(str(key))) + '\t'
+                ret += textwrap.indent(str(value), indent)[len(indent):] + '\n'
         return ret
 
 
