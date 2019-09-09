@@ -502,8 +502,8 @@ class Settings(dict):
             if isinstance(value, Settings):
                 ret += '\n' + value._str(indent+len(str(key))+1)
             else:  # Apply consistent indentation at every '\n' character
-                indent = ' ' * (2 + indent + len(str(key))) + '\t'
-                ret += textwrap.indent(str(value), indent)[len(indent):] + '\n'
+                indent_str = ' ' * (2 + indent + len(str(key))) + '\t'
+                ret += textwrap.indent(str(value), indent_str)[len(indent_str):] + '\n'
         return ret
 
 
