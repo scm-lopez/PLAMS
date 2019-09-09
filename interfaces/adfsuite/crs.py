@@ -323,11 +323,11 @@ class CRSResults(SCMResults):
             pass
         return ret
 
-    @classmethod
-    def _dict_to_df(cls, array_dict: dict, section: str, index_name: str) -> 'pandas.DataFrame':
+    @staticmethod
+    def _dict_to_df(array_dict: dict, section: str, index_name: str) -> 'pandas.DataFrame':
         """Attempt to convert a dictionary into a DataFrame."""
         if not PANDAS:
-            method = cls.__name__ + '.' + inspect.stack()[2][3]
+            method = inspect.stack()[2][3]
             raise ImportError("{}: as_df=True requires the 'pandas' package".format(method))
 
         index = pd.Index(array_dict.pop(index_name), name=index_name)
@@ -346,8 +346,8 @@ class CRSJob(SCMJob):
         super().__init__(**kwargs)
         self.settings.ignore_molecule = True
 
-    @classmethod
-    def cos_to_coskf(cls, filename: str) -> str:
+    @staticmethod
+    def cos_to_coskf(filename: str) -> str:
         """Convert a .cos file into a .coskf file with the :code:`$ADFBIN/cosmo2kf` command.
 
         Returns the filename of the new .coskf file.
@@ -357,8 +357,8 @@ class CRSJob(SCMJob):
         try:
             adfbin = os.environ['ADFBIN']
         except KeyError:
-            err = "{}.cos_to_coskf: the 'ADFBIN' environment variable has not been set"
-            raise EnvironmentError(err.format(cls.__name__))
+            raise EnvironmentError("cos_to_coskf: Failed to load 'cosmo2kf' from '$ADFBIN/'; "
+                                   "the 'ADFBIN' environment variable has not been set")
 
         args = [os.path.join(adfbin, 'cosmo2kf'), filename, filename_out]
         subprocess.run(args)

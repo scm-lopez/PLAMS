@@ -582,17 +582,19 @@ class AMSJob(SingleJob):
     @classmethod
     def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
         """Construct an :class:`AMSJob` instance from an ADF inputfile."""
-        def load_parser() -> None:
+        def update_syspath() -> None:
             """Load the SCM input parser; raise a :exc:`EnvironmentError` if it cannot be found."""
             try:
                 parser_path = opj(os.environ['ADFHOME'], 'scripting')
                 if parser_path not in sys.path:
                     sys.path.append(parser_path)
             except KeyError:
-                err = "{}.from_inputfile: the 'ADFHOME' environment variable has not been set"
-                raise EnvironmentError(err.format(cls.__name__))
+                err = ("{}.from_inputfile: Failed to load the scm inputparser from '{}'; "
+                       "the 'ADFHOME' environment variable has not been set")
+                adfhome = opj('$ADFHOME', 'scripting', 'scm') + os.sep
+                raise EnvironmentError(err.format(adfhome, cls.__name__))
 
-        def validate_filename(filename: str, heredoc_delimit: str) -> bool:
+        def validate_file(filename: str, heredoc_delimit: str) -> bool:
             """Check if *filename* is just an input file or an entire runscript."""
             with open(filename, 'r') as f:
                 if heredoc_delimit in f.read():
@@ -600,7 +602,7 @@ class AMSJob(SingleJob):
             return True  # It's just an input file
 
         def create_settings(filename: str, heredoc_delimit: str, is_inputfile: bool) -> Settings:
-            """Convert *filename* into a |Settings| instance."""
+            """Convert *filename* into a |Settings| instance using the SCM inputparser."""
             with open(filename, 'r') as f:
                 # *filename* is just an input file
                 if is_inputfile:
@@ -623,11 +625,13 @@ class AMSJob(SingleJob):
         try:
             from scm.input_parser.parse import input_to_settings
         except ImportError:  # Try to load the parser from $ADFHOME/scripting
-            load_parser()
+            update_syspath()
             from scm.input_parser.parse import input_to_settings
 
-        is_inputfile = validate_filename(filename, heredoc_delimit)
+        is_inputfile = validate_file(filename, heredoc_delimit)
         s = Settings()
         s.input = create_settings(filename, heredoc_delimit, is_inputfile)
+        if not s.input:
+            raise JobError("{}.from_inputfile: failed to parse '{}'".format(cls.__name__, filename))
 
         return cls(settings=s, **kwargs)
