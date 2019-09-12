@@ -1241,6 +1241,19 @@ class Molecule:
             at.coords = (x, y, z)
 
 
+    def __array__(self, dtype=None):
+        """A magic method for constructing numpy arrays.
+
+        This method ensures that passing a |Molecule| instance to numpy.array_ produces an array of Cartesian coordinates (see :meth:`.Molecule.as_array`).
+        The array `data type`_ can, optionally, be specified in *dtype*.
+
+        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
+        .. _`data type`: https://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html
+        """
+        ret = self.as_array()
+        return ret.astype(dtype, copy=False)
+
+
 
 #===========================================================================
 #==== File/format IO =======================================================
