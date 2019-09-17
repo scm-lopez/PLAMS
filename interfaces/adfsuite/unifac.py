@@ -59,7 +59,7 @@ class UnifacResults(CRSResults):
                     break
             return ret
 
-        def _runfile2settings(s: Settings, arg_list: List[str]) -> Settings:
+        def _runfile2settings(arg_list: List[str]) -> Settings:
             """Parse the content of the extracted .run file."""
             iterator = iter(arg_list)
             key = None
