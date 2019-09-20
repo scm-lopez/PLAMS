@@ -1,4 +1,5 @@
 import textwrap
+from functools import wraps
 from contextlib import AbstractContextManager
 
 __all__ = ['Settings', 'ig']
@@ -229,9 +230,9 @@ class Settings(dict):
         return d
 
 
-
-    class EnableMissing(AbstractContextManager):
-        """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method.
+    @classmethod
+    def enable_missing(cls):
+        """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method: all calls now raising a :exc:`KeyError`.
 
         As a results, attempting to access keys absent from an arbitrary |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
 
@@ -245,7 +246,7 @@ class Settings(dict):
 
             >>> s = Settings()
 
-            >>> with s.EnableMissing():
+            >>> with s.enable_missing():
             ...     s.a.b.c = True
             KeyError: 'a'
 
@@ -256,24 +257,7 @@ class Settings(dict):
         .. _`special method lookup`: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
 
         """
-
-        def __init__(self):
-            """Initialize the :class:`EnableMissing` context manager."""
-            try:
-                self.missing = Settings.__missing__
-            except AttributeError:  # Precaution against opening multiple EnableMissing instances
-                self.missing = None
-
-        def __enter__(self):
-            """Enter the :class:`EnableMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
-            if self.missing is not None:
-                delattr(Settings, '__missing__')
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            """Exit the :class:`EnableMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
-            if self.missing is not None:
-                setattr(Settings, '__missing__', self.missing)
-
+        return EnableMissing(cls)
 
 
     def get_nested(self, key_tuple, ignore_missing=True):
@@ -281,7 +265,7 @@ class Settings(dict):
 
         The :meth:`.Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
 
-        Setting *ignore_missing* to ``False`` will internally open the :class:`.Settings.EnableMissing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from tihs instance.
+        Setting *ignore_missing* to ``False`` will internally open the :meth:`.Settings.enable_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from tihs instance.
 
         .. code:: python
 
@@ -296,7 +280,7 @@ class Settings(dict):
             for k in key_tuple:
                 s = s[k]
         else:  # Ignore Settings.__missing__ and raise a KeyError if a key is missing
-            with s.EnableMissing():
+            with s.enable_missing():
                 for k in key_tuple:
                     s = s[k]
         return s
@@ -309,7 +293,7 @@ class Settings(dict):
         The :meth:`.Settings.__getitem__` method is called recursively on this instance, followed by :meth:`.Settings.__setitem__`, until all keys in key_tuple are exhausted.
 
 
-        Setting *ignore_missing* to ``False`` will internally open the :class:`.Settings.EnableMissing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *ignore_missing* to ``False`` will internally open the :meth:`.Settings.enable_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
         .. code:: python
 
             >>> s = Settings()
@@ -324,7 +308,7 @@ class Settings(dict):
             for k in key_tuple[:-1]:
                 s = s[k]
         else:  # Ignore Settings.__missing__ and raise a KeyError if a key is missing
-            with s.EnableMissing():
+            with s.enable_missing():
                 for k in key_tuple[:-1]:
                     s = s[k]
 
@@ -435,7 +419,7 @@ class Settings(dict):
 
         will not work.
 
-        The behaviour of this method can be supressed by initializing the :class:`.Settings.EnableMissing` context manager.
+        The behaviour of this method can be supressed by initializing the :class:`.Settings.enable_missing` context manager.
         """
         self[name] = Settings()
         return self[name]
@@ -520,3 +504,34 @@ class Settings(dict):
 class ig(str):
     """Special string that makes |Settings| work case-insensitive. Behaves exactly like the built-in `str` type. Usage: ``s = ig('abcdef')``."""
     pass
+
+
+
+class EnableMissing(AbstractContextManager):
+    """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method. See :meth:`Settings.enable_missing` for more details."""
+    def __init__(self, obj: type):
+        """Initialize the :class:`EnableMissing` context manager."""
+        # Ensure that obj is a class, not a class instance
+        self.obj = obj if isinstance(obj, type) else type(obj)
+
+    @property
+    def missing(self):
+        """Return the ``__missing__`` method of :attr:`EnableMissing.obj`; return ``None`` if unavailable."""
+        try:
+            return self.obj.__missing__
+        except AttributeError:
+            return None
+
+    def __enter__(self):
+        """Enter the :class:`EnableMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
+        if self.missing is not None:
+            @wraps(self.missing)
+            def __missing__(self, name): raise KeyError(name)
+
+            # The __missing__ method is technically replaced; not deleted
+            setattr(self.obj, '__missing__', __missing__)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit the :class:`EnableMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
+        if self.missing is not None:
+            setattr(self.obj, '__missing__', self.missing)
