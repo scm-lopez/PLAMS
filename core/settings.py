@@ -260,12 +260,12 @@ class Settings(dict):
         return SupressMissing(cls)
 
 
-    def get_nested(self, key_tuple, ignore_missing=True):
+    def get_nested(self, key_tuple, supress_missing=False):
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
         The :meth:`.Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
 
-        Setting *ignore_missing* to ``False`` will internally open the :meth:`.Settings.supress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *supress_missing* to ``True`` will internally open the :meth:`.Settings.supress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
 
         .. code:: python
 
@@ -276,20 +276,21 @@ class Settings(dict):
             True
         """
         s = self
-        with contextlib.suppress() if ignore_missing else s.supress_missing():
+        with contextlib.suppress() if not supress_missing else s.supress_missing():
             for k in key_tuple:
                 s = s[k]
         return s
 
 
 
-    def set_nested(self, key_tuple, value, ignore_missing=True):
+    def set_nested(self, key_tuple, value, supress_missing=False):
         """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
         The :meth:`.Settings.__getitem__` method is called recursively on this instance, followed by :meth:`.Settings.__setitem__`, until all keys in key_tuple are exhausted.
 
 
-        Setting *ignore_missing* to ``False`` will internally open the :meth:`.Settings.supress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *supress_missing* to ``True`` will internally open the :meth:`.Settings.supress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+
         .. code:: python
 
             >>> s = Settings()
@@ -300,7 +301,7 @@ class Settings(dict):
                 c: 	True
         """
         s = self
-        with contextlib.suppress() if ignore_missing else s.supress_missing():
+        with contextlib.suppress() if not supress_missing else s.supress_missing():
             for k in key_tuple[:-1]:
                 s = s[k]
         s[key_tuple[-1]] = value
