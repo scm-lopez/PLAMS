@@ -287,10 +287,13 @@ class Molecule:
         return None
 
 
-    def set_atoms_id(self):
-        """Equip each atom of the molecule with the ``id`` attribute equal to its position within ``atoms`` list (numbering starts with 1)."""
-        for i,at in enumerate(self.atoms):
-            at.id = i+1
+    def set_atoms_id(self, start=1):
+        """Equip each atom of the molecule with the ``id`` attribute equal to its position within ``atoms`` list.
+
+        The starting value of the numbering can be set with *start* (starts at 1 by default).
+        """
+        for i,at in enumerate(self.atoms, start):
+            at.id = i
 
 
     def unset_atoms_id(self):
@@ -315,9 +318,9 @@ class Molecule:
     def bond_matrix(self):
         """Return a square numpy array with bond orders. The size of the array is equal to the number of atoms."""
         ret = np.zeros((len(self), len(self)))
-        self.set_atoms_id()
+        self.set_atoms_id(start=0)
         for b in self.bonds:
-            i,j = b.atom1.id-1, b.atom2.id-1
+            i,j = b.atom1.id, b.atom2.id
             ret[i][j] = ret[j][i] = b.order
         self.unset_atoms_id()
         return ret
@@ -397,7 +400,7 @@ class Molecule:
         return frags
 
 
-    def guess_bonds(self):
+    def guess_bonds(self, atom_subset=None):
         """Try to guess bonds in the molecule based on types and positions of atoms.
 
         All previously existing bonds are removed. New bonds are generated based on interatomic distances and information about maximal number of bonds for each atom type (``connectors`` property, taken from |PeriodicTable|).
@@ -406,12 +409,13 @@ class Molecule:
 
         The algorithm used scales as *n log n* where *n* is the number of atoms.
 
+        The *atom_subset* argument can be used to limit the bond guessing to a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
+
         .. warning::
 
             This method works reliably only for geometries representing complete molecules. If some atoms are missing (for example, a protein without hydrogens) the resulting set of bonds would usually contain more bonds or bonds with higher order than expected.
 
         """
-
         class HeapElement:
             def __init__(self, order, ratio, atom1, atom2):
                 eff_ord = order
@@ -437,11 +441,12 @@ class Molecule:
 
         dmax = 1.28
 
-        cubesize = dmax*2.1*max([at.radius for at in self.atoms])
+        atom_list = atom_subset or self.atoms
+        cubesize = dmax*2.1*max([at.radius for at in atom_list])
 
         cubes = {}
-        for i,at in enumerate(self.atoms):
-            at._id = i+1
+        for i,at in enumerate(atom_list, 1):
+            at._id = i
             at.free = at.connectors
             at.cube = tuple(map(lambda x: int(math.floor(x/cubesize)), at.coords))
             if at.cube in cubes:
@@ -459,7 +464,7 @@ class Molecule:
                             neighbors[cube] += cubes[(i,j,k)]
 
         heap = []
-        for at1 in self.atoms:
+        for at1 in atom_list:
             if at1.free > 0:
                 for at2 in neighbors[at1.cube]:
                     if (at2.free > 0) and (at1._id < at2._id):
@@ -477,7 +482,7 @@ class Molecule:
                                 at2.free += 1
         heapq.heapify(heap)
 
-        for at in self.atoms:
+        for at in atom_list:
             if at.atnum == 7:
                 if at.free > 6:
                     at.free = 4
@@ -514,14 +519,14 @@ class Molecule:
                         b.order = 1 + par
                         return True
 
-        for at in self.atoms:
+        for at in atom_list:
             at.arom = len(list(filter(Bond.is_aromatic, at.bonds)))
 
-        for at in self.atoms:
+        for at in atom_list:
             if at.arom == 1:
                 dfs(at, 1)
 
-        for at in self.atoms:
+        for at in atom_list:
             del at.cube,at.free,at._id,at.arom
 
 
@@ -1090,11 +1095,11 @@ class Molecule:
                     (1)----1----(4)
         """
         s = '  Atoms: \n'
-        for i,atom in enumerate(self.atoms):
-            s += ('%5i'%(i+1)) + str(atom) + '\n'
+        for i,atom in enumerate(self.atoms, 1):
+            s += ('%5i'%(i)) + str(atom) + '\n'
         if len(self.bonds) > 0:
-            for j,atom in enumerate(self.atoms):
-                atom._tmpid = j+1
+            for j,atom in enumerate(self.atoms, 1):
+                atom._tmpid = j
             s += '  Bonds: \n'
             for bond in self.bonds:
                 s += '   (%d)--%1.1f--(%d)\n'%(bond.atom1._tmpid, bond.order, bond.atom2._tmpid)
@@ -1236,6 +1241,19 @@ class Molecule:
             at.coords = (x, y, z)
 
 
+    def __array__(self, dtype=None):
+        """A magic method for constructing numpy arrays.
+
+        This method ensures that passing a |Molecule| instance to numpy.array_ produces an array of Cartesian coordinates (see :meth:`.Molecule.as_array`).
+        The array `data type`_ can, optionally, be specified in *dtype*.
+
+        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
+        .. _`data type`: https://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html
+        """
+        ret = self.as_array()
+        return ret.astype(dtype, copy=False)
+
+
 
 #===========================================================================
 #==== File/format IO =======================================================
@@ -1316,8 +1334,8 @@ class Molecule:
         f.write('\n')
         for at in self.atoms:
             f.write(str(at) + '\n')
-        for i,vec in enumerate(self.lattice):
-            f.write('VEC'+str(i+1) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
+        for i,vec in enumerate(self.lattice, 1):
+            f.write('VEC'+str(i) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
 
 
     def readmol(self, f, **other):
@@ -1485,8 +1503,8 @@ class Molecule:
         write_prop('comment', self, '\n')
 
         f.write('\n@<TRIPOS>ATOM\n')
-        for i,at in enumerate(self.atoms):
-            f.write('%5i ' % (i+1))
+        for i,at in enumerate(self.atoms, 1):
+            f.write('%5i ' % (i))
             write_prop('name', at, ' ', 5, at.symbol+str(i+1))
             f.write('%10.4f %10.4f %10.4f ' % at.coords)
             write_prop('type', at, ' ', 5, at.symbol)
@@ -1494,11 +1512,11 @@ class Molecule:
             write_prop('subst_name', at, ' ', 7)
             write_prop('charge', at, ' ', 6)
             write_prop('flags', at, '\n')
-            at.id = i+1
+            at.id = i
 
         f.write('\n@<TRIPOS>BOND\n')
-        for i,bo in enumerate(self.bonds):
-            f.write('%5i %5i %5i %4s' % (i+1, bo.atom1.id, bo.atom2.id, 'ar' if bo.is_aromatic() else bo.order))
+        for i,bo in enumerate(self.bonds, 1):
+            f.write('%5i %5i %5i %4s' % (i, bo.atom1.id, bo.atom2.id, 'ar' if bo.is_aromatic() else bo.order))
             write_prop('flags', bo, '\n')
 
         self.unset_atoms_id()
@@ -1539,8 +1557,8 @@ class Molecule:
         pdb = PDBHandler()
         pdb.add_record(PDBRecord('HEADER'))
         model = []
-        for i,at in enumerate(self.atoms):
-            s = 'ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  ' % (i+1,at.x,at.y,at.z,at.symbol.upper())
+        for i,at in enumerate(self.atoms, 1):
+            s = 'ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  ' % (i,at.x,at.y,at.z,at.symbol.upper())
             model.append(PDBRecord(s))
         pdb.add_model(model)
         pdb.add_record(pdb.calc_master())
@@ -1593,4 +1611,3 @@ class Molecule:
     #Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
-

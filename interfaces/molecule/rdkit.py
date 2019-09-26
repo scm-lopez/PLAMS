@@ -2,7 +2,7 @@
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
-           'partition_protein', 'readpdb', 'writepdb',]
+           'partition_protein', 'readpdb', 'writepdb', 'get_substructure']
 
 """
 @author: Lars Ridder
@@ -334,15 +334,23 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
 
     if name:
         rdkit_mol.SetProp('name', name)
-    cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1))
+    cids = list(AllChem.EmbedMultipleConfs(
+        rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1, useRandomCoords=True
+    ))  # ``useRandomCoords = True`` prevents (poorly documented) crashed for large systems
+
     if forcefield:
+        # Select the forcefield (UFF or MMFF)
         optimize_molecule, energy = {
             'uff': [AllChem.UFFOptimizeMolecule, UFFenergy],
             'mmff': [AllChem.MMFFOptimizeMolecule, MMFFenergy],
         }[forcefield]
+
+        # Optimize and sort conformations
         for cid in cids:
             optimize_molecule(rdkit_mol, confId=cid)
         cids.sort(key=energy)
+
+        # Remove duplicate conformations based on RMS
         if rms > 0:
             keep = [cids[0]]
             for cid in cids[1:]:
@@ -360,6 +368,7 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
                 else:
                     keep.append(cid)
             cids = keep
+
     if nconfs == 1:
         return from_rdmol(rdkit_mol)
     else:
@@ -592,7 +601,7 @@ def write_molblock(plams_mol, file=sys.stdout):
     file.write(Chem.MolToMolBlock(to_rdmol(plams_mol)))
 
 
-def readpdb(pdb_file, removeHs=False, proximityBonding=True, return_rdmol=False):
+def readpdb(pdb_file, removeHs=False, proximityBonding=False, return_rdmol=False):
     """
     Generate a molecule from a PDB file
 
