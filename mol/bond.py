@@ -91,7 +91,7 @@ class Bond:
             self.mol.resize_bond(self, moving_atom, length, unit)
         else:
             bond_v = np.array(self.as_vector(start=moving_atom))
-            trans_v = (1 - length/bond.length(unit)) * bond_v
+            trans_v = (1 - length/self.length(unit)) * bond_v
             moving_atom.translate(trans_v)
 
 
