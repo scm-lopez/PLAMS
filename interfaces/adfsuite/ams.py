@@ -1,11 +1,12 @@
 import os
+import re
 import sys
 import numpy as np
 
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import FileError, JobError, ResultsError
+from ...core.errors import FileError, JobError, ResultsError, PTError
 from ...core.functions import config, log
 from ...core.private import sha256
 from ...core.results import Results
@@ -581,57 +582,123 @@ class AMSJob(SingleJob):
 
     @classmethod
     def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
-        """Construct an :class:`AMSJob` instance from an ADF inputfile."""
+        """Construct an :class:`AMSJob` instance from an ADF inputfile or runfile.
+
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
         def update_syspath() -> None:
             """Load the SCM input parser; raise a :exc:`EnvironmentError` if it cannot be found."""
             try:
                 parser_path = opj(os.environ['ADFHOME'], 'scripting')
                 if parser_path not in sys.path:
                     sys.path.append(parser_path)
-            except KeyError:
-                err = ("{}.from_inputfile: Failed to load the scm inputparser from '{}'; "
-                       "the 'ADFHOME' environment variable has not been set")
+            except KeyError as ex:
                 adfhome = opj('$ADFHOME', 'scripting', 'scm') + os.sep
-                raise EnvironmentError(err.format(adfhome, cls.__name__))
+                err = (f"from_inputfile: Failed to load the scm inputparser from '{adfhome}'; "
+                       "the 'ADFHOME' environment variable has not been set")
+                raise EnvironmentError(err).with_traceback(ex.__traceback__)
 
-        def validate_file(filename: str, heredoc_delimit: str) -> bool:
-            """Check if *filename* is just an input file or an entire runscript."""
-            with open(filename, 'r') as f:
-                if heredoc_delimit in f.read():
-                    return False  # It's an entire runscript + input file
-            return True  # It's just an input file
-
-        def create_settings(filename: str, heredoc_delimit: str, is_inputfile: bool) -> Settings:
+        def file_to_settings(filename: str, heredoc_delimit: str = 'eor') -> Settings:
             """Convert *filename* into a |Settings| instance using the SCM inputparser."""
             with open(filename, 'r') as f:
-                # *filename* is just an input file
-                if is_inputfile:
-                    ret = f.read()
+                ret = f.read()
 
-                # *filename* is an entire runscript; extract the ADF input file
-                else:
-                    ret = ''
-                    for item in f:
-                        if heredoc_delimit in item:
-                            break  # Ignore the part preceding the first *heredoc_delimit*
+            # Find the start of the heredoc block
+            start_heredoc = re.search(rf'<<(-)?(\s+)?{heredoc_delimit}', ret)
+            if not start_heredoc:
+                return input_to_settings(ret, 'ams')
 
-                    for item in f:
-                        if heredoc_delimit in item:
-                            break  # Ignore the part succeeding the second *heredoc_delimit*
-                        ret += item
+            # Find the end of the heredoc block
+            end_heredoc = re.search(rf'\n(\s+){heredoc_delimit}', ret)
+            i, j = start_heredoc.end(), end_heredoc.start()
+            i += 1
 
-            return input_to_settings(ret, 'ams')
+            # Grab heredoced block and parse it
+            _, ret = ret[i:].split('\n', maxsplit=1)
+            return input_to_settings(ret[:j], 'ams')
 
+        # Load the SCM input parser
         try:
             from scm.input_parser.parse import input_to_settings
         except ImportError:  # Try to load the parser from $ADFHOME/scripting
             update_syspath()
             from scm.input_parser.parse import input_to_settings
 
-        is_inputfile = validate_file(filename, heredoc_delimit)
+        # Parse the settings
         s = Settings()
-        s.input = create_settings(filename, heredoc_delimit, is_inputfile)
+        s.input = file_to_settings(filename, heredoc_delimit)
         if not s.input:
-            raise JobError("{}.from_inputfile: failed to parse '{}'".format(cls.__name__, filename))
+            raise JobError(f"from_inputfile: failed to parse '{filename}'")
 
-        return cls(settings=s, **kwargs)
+        # Extract a molecule from the input settings
+        mol = ams_settings_to_mol(s)
+
+        # Create and return the Job instance
+        if mol is not None:
+            return cls(molecule=mol, settings=s, **kwargs)
+        else:
+            return cls(settings=s, **kwargs)
+
+
+def ams_settings_to_mol(s: Settings) -> dict:
+    """Pop the `s.input.ams.system` block from a settings instance and convert it into a dictionary of molecules.
+
+    The provided settings should be in the same style as the ones produced by the SCM input parser.
+    Dictionary keys are taken from the header of each system block.
+
+    """
+    def read_mol(settings_block: Settings) -> Molecule:
+        """Retrieve single molecule from a single `s.input.ams.system` block."""
+        mol = Molecule()
+        for atom in settings_block.atoms._1:
+            # Extract arguments for Atom()
+            symbol, x, y, z, *comment = atom.split(maxsplit=4)
+            kwargs = {} if not comment else {'suffix': comment[0]}
+            coords = float(x), float(y), float(z)
+
+            try:
+                at = Atom(symbol=symbol, coords=coords, **kwargs)
+            except PTError:  # It's either a ghost atom and/or an atom with a custom name
+                if symbol.startswith('Gh.'):  # Ghost atom
+                    kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
+                if '.' in symbol:  # Atom with a custom name
+                    symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
+                at = Atom(symbol=symbol, coords=coords, **kwargs)
+
+            mol.add_atom(at)
+
+        # Add bonds
+        for bond in settings_block.bondorders._1:
+            _at1, _at2, _order = bond.split()
+            at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
+            mol.add_bond(at1, at2, order)
+
+        # Set the lattice vector if applicable
+        if settings_block.lattice._1:
+            mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
+
+        # Set the moleculair charge
+        if settings_block.charge:
+            mol.properties.charge = float(settings_block.charge)
+
+        mol.properties.name = str(settings_block._h)
+        return mol
+
+    # Raises a KeyError if the `system` key is absent
+    with s.supress_missing():
+        try:
+            settings_list = s.input.ams.pop('system')
+        except KeyError:  # The block s.input.ams.system is absent
+            return None
+
+    # Create a new dictionary with system headers as keys and molecules as values
+    moldict = {}
+    for settings_block in settings_list:
+        key = str(settings_block._h)
+        if key in moldict:
+            raise KeyError(f"Duplicate system headers found in s.input.ams.system: {repr(key)}")
+        moldict[key] = read_mol(settings_block)
+
+    return moldict

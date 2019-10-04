@@ -25,7 +25,7 @@ __all__ = ['UnifacJob', 'UnifacResults']
 class UnifacResults(CRSResults):
     """The :class:`Results` subclass assigned to :class:`UnifacJob`."""
 
-    def recreate_molecule(self) -> List[Molecule]:
+    def recreate_molecule(self, geometry=-1) -> Molecule:
         """Reconstruct and return list with all input molecules.
 
         Molecules are extracted from the SMILES string(s) in the .run file.
@@ -36,8 +36,8 @@ class UnifacResults(CRSResults):
 
         s = self.recreate_settings()
         if isinstance(s.input.smiles, list):
-            return [from_smiles(smiles) for smiles in s.input.smiles]
-        return [from_smiles(s.input.smiles)]
+            from_smiles(s.input.smiles[geometry])
+        return from_smiles(s.input.smiles)
 
     def recreate_settings(self) -> Settings:
         """Reconstruct a :class:`Settings` instance from the .run file."""

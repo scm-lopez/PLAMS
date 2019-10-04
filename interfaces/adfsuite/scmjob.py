@@ -1,11 +1,11 @@
 import os
+import re
 import sys
 import numpy as np
 
 from os.path import join as opj
-from tempfile import NamedTemporaryFile
 
-from ...core.basejob import SingleJob
+from ...core.basejob import SingleJobs
 from ...core.errors import PlamsError, ResultsError, FileError, JobError
 from ...core.functions import log
 from ...core.private import sha256
@@ -360,47 +360,42 @@ class SCMJob(SingleJob):
 
     @classmethod
     def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'SCMJob':
-        """Construct a :class:`SCMJob` instance from an ADF inputfile."""
+        """Construct a :class:`SCMJob` instance from an ADF inputfile.
 
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
         def update_syspath() -> None:
             """Load the SCM input parser; raise a :exc:`EnvironmentError` if it cannot be found."""
             try:
                 parser_path = opj(os.environ['ADFHOME'], 'scripting')
                 if parser_path not in sys.path:
                     sys.path.append(parser_path)
-            except KeyError:
-                err = ("from_inputfile: Failed to load the scm inputparser from '{}'; "
-                       "the 'ADFHOME' environment variable has not been set")
+            except KeyError as ex:
                 adfhome = opj('$ADFHOME', 'scripting', 'scm') + os.sep
-                raise EnvironmentError(err.format(adfhome))
+                err = (f"from_inputfile: Failed to load the scm inputparser from '{adfhome}'; "
+                       "the 'ADFHOME' environment variable has not been set")
+                raise EnvironmentError(err).with_traceback(ex.__traceback__)
 
-        def validate_file(filename: str, heredoc_delimit: str) -> bool:
-            """Check if *filename* is just an input file or an entire runscript."""
-            with open(filename, 'r') as f:
-                if heredoc_delimit in f.read():
-                    return False  # It's an entire runscript + input file
-            return True  # It's just an input file
-
-        def create_settings(filename: str, heredoc_delimit: str, is_inputfile: bool) -> Settings:
+        def file_to_settings(filename: str, heredoc_delimit: str = 'eor') -> Settings:
             """Convert *filename* into a |Settings| instance using the SCM inputparser."""
             with open(filename, 'r') as f:
-                # *filename* is just an input file
-                if is_inputfile:
-                    ret = f.read()
+                ret = f.read()
 
-                # *filename* is an entire runscript; extract the ADF input file
-                else:
-                    ret = ''
-                    for item in f:
-                        if heredoc_delimit in item:
-                            break  # Ignore the part preceding the first *heredoc_delimit*
+            # Find the start of the heredoc block
+            start_heredoc = re.search(rf'<<(-)?(\s+)?{heredoc_delimit}', ret)
+            if not start_heredoc:
+                return input_to_settings(ret, 'ams')
 
-                    for item in f:
-                        if heredoc_delimit in item:
-                            break  # Ignore the part succeeding the second *heredoc_delimit*
-                        ret += item
+            # Find the end of the heredoc block
+            end_heredoc = re.search(rf'\n(\s+){heredoc_delimit}', ret)
+            i, j = start_heredoc.end(), end_heredoc.start()
+            i += 1
 
-            return input_to_settings(ret, cls._command)
+            # Grab heredoced block and parse it
+            _, ret = ret[i:].split('\n', maxsplit=1)
+            return input_to_settings(ret[:j], 'ams')
 
         try:
             from scm.input_parser.parse import input_to_settings
@@ -408,10 +403,10 @@ class SCMJob(SingleJob):
             update_syspath()
             from scm.input_parser.parse import input_to_settings
 
-        is_inputfile = validate_file(filename, heredoc_delimit)
         s = Settings()
-        s.input = create_settings(filename, heredoc_delimit, is_inputfile)
+        s.input = file_to_settings(filename, heredoc_delimit)
         if not s.input:
             raise JobError("from_inputfile: failed to parse '{}'".format(filename))
 
+        s.ignore_molecule = True
         return cls(settings=s, **kwargs)
