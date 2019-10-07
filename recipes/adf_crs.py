@@ -51,7 +51,7 @@ def run_crs_adf(settings_adf: Settings, settings_crs: Settings,
             >>> settings_crs.input.temperature = 298.15
             >>> settings_crs.input.property._h = 'activitycoef'
 
-        And finally the actual calculation with methanl, ethanol and propanol as solvents and
+        And finally the actual calculation with methanol, ethanol and propanol as solvents and
         acetic acid as solute:
 
         .. code:: python
