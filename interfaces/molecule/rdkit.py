@@ -334,9 +334,12 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
 
     if name:
         rdkit_mol.SetProp('name', name)
-    cids = list(AllChem.EmbedMultipleConfs(
-        rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1, useRandomCoords=True
-    ))  # ``useRandomCoords = True`` prevents (poorly documented) crashed for large systems
+
+    try:
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1))
+    except:
+         # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1, useRandomCoords=True)) 
 
     if forcefield:
         # Select the forcefield (UFF or MMFF)
