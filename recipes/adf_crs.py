@@ -88,7 +88,7 @@ def run_crs_adf(settings_adf: Settings, settings_crs: Settings,
 
     :returns: A dictionary with the resulting COSMO-RS output.
         The `name` of each :class:`.CRSResults` instance is used as key.
-        If ``return_adfresults=True``, return the COSMO-RS results and the solvent and solute results.
+        If ``return_adfresults=True``, return both the COSMO-RS and ADF solvent and solute results.
     :rtype: :class:`dict` or :class:`tuple` [:class:`dict`, :class:`list`, :class:`list`]
 
     .. _`activity coefficient`: https://www.scm.com/doc/COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
