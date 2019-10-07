@@ -15,24 +15,24 @@ from ...mol.molecule import Molecule
 try:
     from rdkit.Chem import MolToSmiles, RemoveHs
     from ..molecule.rdkit import from_smiles
-    _RD_EX = False
+    RDKIT_EX = None
 except ImportError as ex:
-    _RD_EX = ex
+    RDKIT_EX = ex
 
 __all__ = ['UnifacJob', 'UnifacResults']
 
 
 class UnifacResults(CRSResults):
-    """The :class:`Results` subclass assigned to :class:`UnifacJob`."""
+    """A :class:`.CRSResults` subclass assigned to :class:`UnifacJob`."""
 
     def recreate_molecule(self, geometry=-1) -> Molecule:
         """Reconstruct and return list with all input molecules.
 
         Molecules are extracted from the SMILES string(s) in the .run file.
         """
-        if _RD_EX:
-            err = f"SMILES to Molecule conversion requires the 'rdkit' package: {_RD_EX}"
-            raise ResultsError(err)
+        if RDKIT_EX is not None:
+            err = f"SMILES to Molecule conversion requires the 'rdkit' package: {RDKIT_EX}"
+            raise ResultsError(err).with_traceback(RDKIT_EX.__traceback__)
 
         s = self.recreate_settings()
         if isinstance(s.input.smiles, list):
@@ -52,7 +52,7 @@ class UnifacResults(CRSResults):
                     else:
                         continue
 
-                    while i.endswith('\\'):  # THe input might be spread over multiple lines
+                    while i.endswith('\\'):  # The input might be spread over multiple lines
                         i = next(f)
                         ret += i.split().rstrip('\\')
                     del ret[0]  # Delete ``"$ADFBIN"/unifac``
@@ -87,7 +87,7 @@ class UnifacResults(CRSResults):
         runfile = self['$JN.run']
         arg_list = _read_runfile(runfile)
         if arg_list is None:
-            raise FileError(f"recreate_settings: Failed to parse the content of '{runfile}'")
+            raise FileError(f"Failed to parse the content of '{runfile}'")
 
         # Reconstruct and return the job settings
         return _runfile2settings(arg_list)
@@ -110,19 +110,57 @@ class UnifacResults(CRSResults):
 class UnifacJob(SingleJob):
     """A :class:`Job` subclass for interfacing with ADFs' implementation of UNIFAC_.
 
+    .. note::
+        UNIFAC is generally sensitive towards the capitalization of its settings.
+
     .. _UNIFAC: https://www.scm.com/doc/COSMO-RS/The_UNIFAC_program.html
+    .. _RDKit: http://www.rdkit.org/
+
+    .. admonition:: Examples
+
+        An example activity coefficient calculation with propanol:
+
+        .. code:: python
+
+            >>> from scm.plams import Settings, UnifacJob
+
+            >>> s = Settings()
+            >>> s.input.t = 'ACTIVITYCOEF'
+            >>> s.input.x = 1.0
+            >>> s.input.temperature = 298.15
+            >>> s.input.smiles = 'CCCO'
+
+            >>> job = UnifacJob(settings=s)
+            >>> results = job.run()
+
+        The same example starting from a PLAMS Molecule (requires the RDKit_ package):
+
+        .. code:: python
+
+            >>> from scm.plams import Settings, UnifacJob, Molecule
+
+            >>> mol = Molecule(...)  # Propanol
+
+            >>> s = Settings()
+            >>> s.input.t = 'ACTIVITYCOEF'
+            >>> s.input.x = 1.0
+            >>> s.input.temperature = 298.15
+
+            >>> job = UnifacJob(molecule=mol, settings=s)
+            >>> results = job.run()
+
 
     """
 
     _result_type = UnifacResults
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
         # If supplied, convert self.molecule into a SMILES string
-        if self.molecule and _RD_EX:
-            err = f"Molecule to SMILES conversion requires the 'rdkit' package: {_RD_EX}"
-            raise JobError(err)
+        if self.molecule and RDKIT_EX is not None:
+            err = f"Molecule to SMILES conversion requires the 'rdkit' package: {RDKIT_EX}"
+            raise JobError(err).with_traceback(RDKIT_EX.__traceback__)
 
         elif self.molecule:
             mol_list = [self.molecule] if isinstance(self.molecule, Molecule) else self.molecule
@@ -134,8 +172,8 @@ class UnifacJob(SingleJob):
     def _get_ready(self) -> None:
         """Create the runfile."""
         runfile = opj(self.path, self._filename('run'))
-        with open(runfile, 'w') as run:
-            run.write(self.full_runscript())
+        with open(runfile, 'w') as f:
+            f.write(self.full_runscript())
         os.chmod(runfile, os.stat(runfile).st_mode | stat.S_IEXEC)
 
     def get_input(self) -> None: return None
@@ -156,8 +194,9 @@ class UnifacJob(SingleJob):
         """Lower *key* and prepended it with the ``"-"`` character."""
         try:
             ret = key if key.startswith('-') else f'-{key}'
-        except AttributeError:  # *key* is not a string
-            raise JobError(f"Key of invalid type encountered in Job settings: {repr(key)}")
+        except AttributeError as ex:  # *key* is not a string
+            err = f"Key of invalid type encountered in Job settings: {repr(key)}"
+            raise JobError(err).with_traceback(ex.__traceback__)
         return ret.lower()
 
     @staticmethod
