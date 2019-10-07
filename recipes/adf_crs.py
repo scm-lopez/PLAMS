@@ -10,15 +10,15 @@ def run_crs_adf(settings_adf, settings_crs,
 
     The workflow consists of three distinct steps:
 
-        1. Perform gas-phase |ADFJob| calculations on the solvents and solutes (see *settings_adf*).
-        2. Perform COSMO |ADFJob| calculations using the .t21 file from step 1. as molecular
-           fragment (see *settings_adf*).
-           This ensures that zero-point is defined by the gas-phase molecule than the gas-phase
-           atomic fragments.
-        3. Perform a COSMO-RS calculations with the COSMO surface charges produced in step 2
-           (see *settings_crs*).
-           This calculation is conducted for all possible solvent/solute pairs,
-           assuming solutes have been specified by the user.
+    1. Perform gas-phase |ADFJob| calculations on the solvents and solutes (see *settings_adf*).
+    2. Perform COSMO |ADFJob| calculations using the .t21 file from step 1. as molecular
+       fragment (see *settings_adf*).
+       This ensures that zero-point is defined by the gas-phase molecule than the gas-phase
+       atomic fragments.
+    3. Perform a COSMO-RS calculations with the COSMO surface charges produced in step 2
+       (see *settings_crs*).
+       This calculation is conducted for all possible solvent/solute pairs,
+       assuming solutes have been specified by the user.
 
 
     The adf solvation block (*adf_settings.input.solvation*) is soft updated with suitable
@@ -69,10 +69,10 @@ def run_crs_adf(settings_adf, settings_crs,
     :parameter settings_crs:
         A Settings instance with settings for :class:`.CRSJob` (see Examples).
 
-    :type solvents: :class:`.Molecule` or :class:`list` [:class:`.Molecule`]
+    :type solvents: |Molecule| or :class:`list` [|Molecule|]
     :parameter solvents: A Molecule or list of one or more Molecules representing solvents.
 
-    :type solutes: :class:`.Molecule` or :class:`list` [:class:`.Molecule`], optional
+    :type solutes: |Molecule| or :class:`list` [|Molecule|], optional
     :parameter solutes: An optional Molecule or list of one or more Molecules representing solutes.
 
     :type return_adfresults: :class:`bool`
@@ -87,7 +87,7 @@ def run_crs_adf(settings_adf, settings_crs,
         If ``return_adfresults=True``, return both the COSMO-RS and ADF solvent and solute results.
     :rtype: :class:`dict` or :class:`tuple` [:class:`dict`, :class:`list`, :class:`list`]
 
-    .. _`activity coefficient`: https://www.scm.com/doc/COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
+    .. _`activity coefficient`: ../../COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
     .. _jobmanager: ../components/jobmanager.html
     .. _jobrunner: ../components/runners.html
 

@@ -13,7 +13,7 @@ Settings
 ~~~~~~~~
 
 For example, considering the following input file for a COSMO-RS
-sigma-profile calculation [`1 <https://www.scm.com/doc/COSMO-RS/Analysis.html#sigma-profile>`_]:
+sigma-profile calculation [`1 <../../COSMO-RS/Analysis.html#sigma-profile>`_]:
 
 .. code::
 
@@ -179,7 +179,7 @@ An example is provided below with the default COSMO-RS paramaters (*i.e.* ADF Co
     >>> print([s.input == adf_combi2005 for s in s_list])
     [True, True, True]
 
-.. _parameters: https://www.scm.com/doc/COSMO-RS/COSMO-RS_and_COSMO-SAC_parameters.html
+.. _parameters: ../../COSMO-RS/COSMO-RS_and_COSMO-SAC_parameters.html
 
 
 Data analyses and plotting
@@ -243,14 +243,14 @@ it to the :meth:`CRSResults.plot` method (*e.g.* :code:`CRSResults.plot(my_sigma
 .. image:: ../_static/sigma_profile.png
 
 
-.. _`Sigma profile`: https://www.scm.com/doc/COSMO-RS/Analysis.html#sigma-profile
-.. _`Sigma potential`: https://www.scm.com/doc/COSMO-RS/Analysis.html#sigma-potential
-.. _`Vapor pressure`: https://www.scm.com/doc/COSMO-RS/Properties.html#vapor-pressure
-.. _`Boiling point`: https://www.scm.com/doc/COSMO-RS/Properties.html#boiling-point
-.. _`Solubility`: https://www.scm.com/doc/COSMO-RS/Properties.html#solubility
-.. _`Binary mixture`: https://www.scm.com/doc/COSMO-RS/Properties.html#binary-mixture-vle-lle
-.. _`Ternary mixtures`: https://www.scm.com/doc/COSMO-RS/Properties.html#ternary-mixture-vle-lle
-.. _`Solvents composition line`: https://www.scm.com/doc/COSMO-RS/Properties.html#solvents-s1-s2-composition-line
+.. _`Sigma profile`: ../../COSMO-RS/Analysis.html#sigma-profile
+.. _`Sigma potential`: ../../COSMO-RS/Analysis.html#sigma-potential
+.. _`Vapor pressure`: ../../COSMO-RS/Properties.html#vapor-pressure
+.. _`Boiling point`: ../../COSMO-RS/Properties.html#boiling-point
+.. _`Solubility`: ../../COSMO-RS/Properties.html#solubility
+.. _`Binary mixture`: ../../COSMO-RS/Properties.html#binary-mixture-vle-lle
+.. _`Ternary mixtures`: ../../COSMO-RS/Properties.html#ternary-mixture-vle-lle
+.. _`Solvents composition line`: ../../COSMO-RS/Properties.html#solvents-s1-s2-composition-line
 
 .. _`Pandas DataFrame`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 

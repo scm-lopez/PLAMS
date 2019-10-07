@@ -47,7 +47,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -70,7 +70,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -92,7 +92,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -114,7 +114,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -136,7 +136,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -159,7 +159,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -179,7 +179,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -199,7 +199,7 @@ class CRSResults(SCMResults):
 
         .. note::
             *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. _Pandas: https://pandas.pydata.org/
 
@@ -208,7 +208,7 @@ class CRSResults(SCMResults):
         return self._get_array_dict('COMPOSITIONLINE', *args, unit=unit, as_df=as_df)
 
     @classmethod
-    def plot(cls, array_dict: dict, index_name: str = None, plot_fig: bool = True) -> 'matplotlib.figure.Figure':
+    def plot(cls, array_dict: dict, index_name: str = None, plot_fig: bool = True):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
 
         Accepts the output of, *e.g.*, :meth:`CRSResults.get_sigma_profile`:
@@ -218,7 +218,7 @@ class CRSResults(SCMResults):
         Automatic plotting of the resulting figure can be disabled with the *plot_fig* argument.
 
         .. note::
-            This method requires the `matplotlib <https://matplotlib.org/index.html>`_ package.
+            This method requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
 
         .. note::
             The name of the dictionary/DataFrame key containing the index (*i.e.* the x-axis) can,
@@ -324,7 +324,7 @@ class CRSResults(SCMResults):
         return ret
 
     @staticmethod
-    def _dict_to_df(array_dict: dict, section: str, index_name: str) -> 'pandas.DataFrame':
+    def _dict_to_df(array_dict: dict, section: str, index_name: str):
         """Attempt to convert a dictionary into a DataFrame."""
         if not PANDAS:
             method = inspect.stack()[2][3]
