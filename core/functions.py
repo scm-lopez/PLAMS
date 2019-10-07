@@ -273,7 +273,7 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
 
         >>> filename: str = ...  # The bash input file
         >>> with open(filename, 'r') as f:
-        ...     output = parse_heredoc(f)
+        ...     output = parse_heredoc(f.read())
 
         >>> print(output)
         ATOMS
@@ -293,15 +293,18 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
 
     """
     # Find the start of the heredoc block
-    start_heredoc = re.search(rf'<<(-)?(\s+)?{heredoc_delimit}', bash_input)
+    start_pattern = r'<<(-)?(\s+)?{}'.format(heredoc_delimit)
+    start_heredoc = re.search(start_pattern, bash_input)
     if not start_heredoc:
         return bash_input
 
     # Find the end of the heredoc block
-    end_heredoc = re.search(rf'\n(\s+)?{heredoc_delimit}(\s+)?\n', bash_input)
-    i = 1 + start_heredoc.end()
+    end_pattern = r'\n(\s+)?{}(\s+)?\n'.format(heredoc_delimit)
+    end_heredoc = re.search(end_pattern, bash_input)
+
+    # Prepare the slices
     try:
-        j = end_heredoc.start()
+        i, j = start_heredoc.end(), end_heredoc.start()
     except AttributeError as ex:
         err = f"parse_heredoc: failed to find the final '{heredoc_delimit}' delimiter"
         raise ValueError(err).with_traceback(ex.__traceback__)

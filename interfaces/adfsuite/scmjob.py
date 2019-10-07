@@ -5,10 +5,10 @@ import numpy as np
 
 from os.path import join as opj
 
-from ...core.basejob import SingleJobs
+from ...core.basejob import SingleJob
 from ...core.errors import PlamsError, ResultsError, FileError, JobError
 from ...core.functions import log, parse_heredoc
-from ...core.private import sha256, UpdateSyspath
+from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
 from ...core.settings import Settings
 from ...mol.molecule import Molecule
@@ -369,16 +369,29 @@ class SCMJob(SingleJob):
         try:
             from scm.input_parser.parse import input_to_settings
         except ImportError:  # Try to load the parser from $ADFHOME/scripting
-            with UpdateSyspath():
+            with UpdateSysPath():
                 from scm.input_parser.parse import input_to_settings
 
         s = Settings()
         with open(filename, 'r') as f:
-            inp_file = parse_heredoc(f, heredoc_delimit)
+            inp_file = parse_heredoc(f.read(), heredoc_delimit)
 
         s.input = input_to_settings(inp_file, cls._command)
         if not s.input:
             raise JobError(f"from_inputfile: failed to parse '{filename}'")
 
-        s.ignore_molecule = True
-        return cls(settings=s, **kwargs)
+        # Extract a molecule from the input settings
+        mol = cls.settings_to_mol(s)
+
+        # Create and return the Job instance
+        if mol is not None:
+            return cls(molecule=mol, settings=s, **kwargs)
+        else:
+            s.ignore_molecule = True
+            return cls(settings=s, **kwargs)
+
+
+    @staticmethod
+    def settings_to_mol(s: Settings) -> None:
+        """An abstract method for extracting molecules from input settings (see :meth:`SCMJob.from_inputfile`)."""
+        return None
