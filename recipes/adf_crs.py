@@ -1,25 +1,29 @@
-from scm.plams import Settings, JobError, ADFJob, CRSJob
+from typing import List, Union
+
+from scm.plams import Settings, JobError, ADFJob, CRSJob, Molecule, ADFResults, ig, CRSResults
 
 __all__ = ['run_crs_adf']
 
 
-def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
+def run_crs_adf(settings_adf: Settings, settings_crs: Settings,
+                solvents: Union[Molecule, List[Molecule]],
+                solutes: Union[Molecule, List[Molecule], None] = None,
+                return_adfresults: bool = False,
+                **kwargs):
     """A workflow for running COSMO-RS calculations with ADF (*i.e.* DFT) COSMO surface charges.
 
     The workflow consists of three distinct steps:
 
-        1. Perform a gas-phase |ADFJob| calculation (see *settings_adf*).
-        2. Perform a COSMO |ADFJob| calculation using the .t21 file from step 1. as molecular
+        1. Perform gas-phase |ADFJob| calculations on the solvents and solutes (see *settings_adf*).
+        2. Perform COSMO |ADFJob| calculations using the .t21 file from step 1. as molecular
            fragment (see *settings_adf*).
            This ensures that zero-point is defined by the gas-phase molecule than the gas-phase
            atomic fragments.
-        3. Perform a COSMO-RS calculation with the COSMO surface charges produced in step 2
+        3. Perform a COSMO-RS calculations with the COSMO surface charges produced in step 2
            (see *settings_crs*).
+           This calculation is conducted for all possible solvent/solute pairs,
+           assuming solutes have been specified by the user.
 
-    If the calculation involves multiple components (*e.g.* a solvent and solute),
-    than the compound header (``"_h"``) of the solute will be recognized by its value: ``None``
-    (see the *settings_crs* example below).
-    A :exc:`.JobError` is raised if no such value is specified.
 
     The adf solvation block (*adf_settings.input.solvation*) is soft updated with suitable
     settings for constructing COSMO-RS compatible surface charges
@@ -43,22 +47,23 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
 
         .. code:: python
 
-            >>> from scm.plams import Settings
-
-            >>> solvent, solute = Settings(), Settings()
-            >>> solvent._h = '/path/to/solvent.t21'
-            >>> solvent.frac1 = 1.0
-
-            # run_crs_adf() will automatically replace None with the to-be created solute .t21 file
-            >>> solute._h = None
-
             >>> settings_crs = Settings()
-            >>> settings_crs.input.compound = [solvent, solute]
             >>> settings_crs.input.temperature = 298.15
             >>> settings_crs.input.property._h = 'activitycoef'
 
-    :type mol: :class:`.Molecule`
-    :parameter mol: A PLAMS Molecule.
+        And finally the actual calculation with methanl, ethanol and propanol as solvents and
+        acetic acid as solute:
+
+        .. code:: python
+
+            >>> solvents = [Molecule('methanol.xyz'), Molecule('ethanol.xyz'), Molecule('propanol.xyz')]
+            >>> solutes = Molecule('acetic_acid.xyz')
+
+            >>> crs_dict = run_crs_adf(settings_adf, settings_crs, solvents, solutes)
+            >>> print(crs_dict)
+            {'CRSJob.methanol.acetic_acid': <scm.plams.interfaces.adfsuite.crs.CRSResults object at 0x7f89b0355668>,
+             'CRSJob.ethanol.acetic_acid': <scm.plams.interfaces.adfsuite.crs.CRSResults object at 0x7f89b0355f60>,
+             'CRSJob.propanol.acetic_acid': <scm.plams.interfaces.adfsuite.crs.CRSResults object at 0x7f89b0355b00>}
 
     :type settings_adf: :class:`.Settings`
     :parameter settings_adf:
@@ -68,64 +73,102 @@ def run_crs_adf(mol, settings_adf, settings_crs, **kwargs):
     :parameter settings_crs:
         A Settings instance with settings for :class:`.CRSJob` (see Examples).
 
-    :parameter \**kwargs:
+    :type solvents: :class:`.Molecule` or :class:`list` [:class:`.Molecule`]
+    :parameter solvents: A Molecule or list of one or more Molecules representing solvents.
+
+    :type solutes: :class:`.Molecule` or :class:`list` [:class:`.Molecule`], optional
+    :parameter solutes: An optional Molecule or list of one or more Molecules representing solutes.
+
+    :type return_adfresults: :class:`bool`
+    :parameter return_adfresults: If ``True``, return both the solvent and solute ADF results in addition to the final COSMO-RS.
+
+    :parameter \**kwargs, optional:
         Optional keyword arguments that will be passed to all calls of :meth:`.Job.run`.
         For example, one could consider passing a custom jobrunner_ or jobmanager_.
 
-    :returns: The resulting COSMO-RS output.
-    :rtype: :class:`.CRSResults`
+    :returns: A dictionary with the resulting COSMO-RS output.
+        The `name` of each :class:`.CRSResults` instance is used as key.
+        If ``return_adfresults=True``, return the COSMO-RS results and the solvent and solute results.
+    :rtype: :class:`dict` or :class:`tuple` [:class:`dict`, :class:`list`, :class:`list`]
 
     .. _`activity coefficient`: https://www.scm.com/doc/COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
     .. _jobmanager: ../components/jobmanager.html
     .. _jobrunner: ../components/runners.html
 
     """  # noqa
+    solvents = [solvents] if isinstance(solvents, Molecule) else solvents
+    solutes = [solutes] if isinstance(solutes, Molecule) else solutes
+
     # Validate arguments
     _settings_adf = add_solvation_block(settings_adf)
     _validate_settings_adf(_settings_adf)
-    _validate_settings_crs(settings_crs)
 
-    # Identify the "solvation" and "allpoints" keys
-    solvation = _settings_adf.input.find_case('solvation')
-    allpoints = _settings_adf.input.find_case('allpoints')
+    # Decapitalize the "solvation" and "allpoints" keys
+    if ig('solvation') in _settings_adf.settings.input:
+        _settings_adf.input.solvation = _settings_adf.settings.input.pop(ig('solvation'))
+    if ig('allpoints') in _settings_adf.settings.input:
+        _settings_adf.input.allpoints = _settings_adf.settings.input.pop(ig('allpoints'))
 
-    # Create the gas-phase molecular fragment
-    adf_job1 = ADFJob(molecule=mol, settings=_settings_adf)
-    adf_job1.settings.input[allpoints] = ''
-    del adf_job1.settings.input[solvation]
-    adf_results1 = adf_job1.run(**kwargs)
-    adf_restart1 = adf_results1['$JN.t21']
-
-    # Construct the ADF COSMO surface
-    adf_job2 = ADFJob(molecule=mol, settings=_settings_adf, depend=[adf_job1])
-    adf_job2.settings.input[allpoints] = ''
-    adf_job2.settings.input.fragments.gas = adf_restart1
-    for at in adf_job2.molecule:
-        at.properties.adf.fragment = 'gas'
-    adf_results2 = adf_job2.run(**kwargs)
-    adf_restart2 = adf_results2['$JN.t21']
+    # Create the COSMO surfaces for the solute
+    solvent_list = [run_adfjob(mol, _settings_adf, **kwargs) for mol in solvents]
+    solute_list = [run_adfjob(mol, _settings_adf, **kwargs) for mol in solutes]
+    if not solutes:
+        solute_list = [None]
 
     # Start the and return the COSMO-RS job
-    crs_job = CRSJob(settings=settings_crs, depend=[adf_job1, adf_job2])
-    set_header(crs_job.settings, adf_restart2)
-    ret = crs_job.run(**kwargs)
-    ret.wait()
-    return ret
+    crs = {}
+    for solvent in solvent_list:
+        for solute in solute_list:
+            results = run_crsjob(solvent, settings_crs, solute=solute, **kwargs)
+            crs[results.job.name] = results
 
-
-def set_header(s: Settings, value: str) -> None:
-    """Assign *value* to the ``["_h"]`` key in *s.input.compound*."""
-    compound = s.input.find_case('compound')
-    compound_block = s.input[compound]
-
-    if isinstance(compound_block, Settings):
-        compound_block._h = value
+    if not return_adfresults:
+        return crs
     else:
-        # Find the first element where the _h key is None
-        for item in compound_block:
-            if item._h is None:
-                item._h = value
-                break
+        return crs, solvent_list, solute_list
+
+
+def run_adfjob(mol: Molecule, s: Settings, **kwargs) -> ADFResults:
+    """Run an :class:`.ADFJob` on *mol* using the settings provided in *s*."""
+    name = 'ADFJob.' + mol.properties.name if 'name' in mol.properties else 'ADFJob.mol'
+
+    # Create the gas-phase molecular fragment
+    job1 = ADFJob(molecule=mol, settings=s, name=name+'.gas')
+    job1.settings.input.allpoints = ''
+    del job1.settings.input.solvation
+    results1 = job1.run(**kwargs)
+    restart1 = results1['$JN.t21']
+
+    # Construct the ADF COSMO surface
+    job2 = ADFJob(molecule=mol, settings=s, depend=[job1], name=name)
+    job2.settings.input.allpoints = ''
+    job2.settings.input.fragments.gas = restart1
+    for at in job2.molecule:
+        at.properties.adf.fragment = 'gas'
+    return job2.run(**kwargs)
+
+
+def run_crsjob(solvent: ADFResults, s: Settings, solute: ADFResults = None, **kwargs) -> CRSResults:
+    """Run an :class:`.CRSJob` on with *solvent* and, optionally, *solute* using the settings provided in *s*."""
+    name = 'CRSJob.' + solvent.job.name.split('.')[1]
+
+    if solute is not None:
+        name += '.' + solute.job.name.split('.')[1]
+        job = CRSJob(settings=s, depend=[solvent.job, solute.job], name=name)
+        set_header(job.settings, solvent['$JN.t21'], solute['$JN.t21'])
+    else:
+        job = CRSJob(settings=s, depend=[solvent.job], name=name)
+        set_header(job.settings, solvent['$JN.t21'])
+
+    return job.run(**kwargs)
+
+
+def set_header(s: Settings, *values: str) -> None:
+    """Assign *value* to the ``["_h"]`` key in *s.input.compound*."""
+    s.input.compound = []
+    for item in values:
+        s.input.compound.append(Settings({'_h': item}))
+    s.input.compound[0].frac1 = 1.0  # The first item in *values should be the solvent
 
 
 def add_solvation_block(adf_settings: Settings) -> None:
@@ -207,23 +250,3 @@ def _validate_settings_adf(s: Settings) -> None:
     if 'name=crs' not in s.input[solvation][solv].lower():
         raise JobError("run_crs_adf: The 'name=CRS' value is absent"
                        " from settings_adf.input.solvation.solv")
-
-
-def _validate_settings_crs(s: Settings) -> None:
-    """Validate the *settings_crs* argument in :func:`run_crs_adf`."""
-    compound = s.input.find_case('compound')
-    value = s.input[compound]
-
-    if compound not in s.input:
-        raise JobError("run_crs_adf: The 'compound' key is absent from settings_crs.input")
-
-    if not isinstance(value, (list, Settings)):
-        class_name = repr(value.__class__.__name__)
-        raise JobError("run_crs_adf: settings_crs.input.compound expects an instance "
-                       "of 'list' or 'Settings'; observed type: " + class_name)
-
-    if isinstance(value, list):
-        header_list = [item._h for item in value]
-        if header_list.count(None) != 1:
-            raise JobError("run_crs_adf: settings_crs.input.compound was passed as a 'list'; "
-                           "a single 'None' was expected in the '_h' key of one of its values")
