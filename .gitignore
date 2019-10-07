@@ -61,3 +61,10 @@ target/
 
 # CJ
 svn.authors
+
+# Spyder
+.spyproject/
+
+# Visual Studio Code
+.vscode/
+.mypy_cache/

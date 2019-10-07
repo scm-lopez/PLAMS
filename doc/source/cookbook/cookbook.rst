@@ -38,6 +38,7 @@ Recipes
 
 .. toctree::
 
+    adf_crs
     adffragment
     adfnbo
     numgrad

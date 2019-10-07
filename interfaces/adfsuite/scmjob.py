@@ -1,12 +1,14 @@
 import os
+import re
+import sys
 import numpy as np
 
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import PlamsError, ResultsError, FileError
-from ...core.functions import log
-from ...core.private import sha256
+from ...core.errors import PlamsError, ResultsError, FileError, JobError
+from ...core.functions import log, parse_heredoc
+from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
 from ...core.settings import Settings
 from ...mol.molecule import Molecule
@@ -173,6 +175,16 @@ class SCMResults(Results):
             raise PlamsError('to_input_order() got an argument with incorrect length. Length must be equal to the number of atoms')
         t = np.array if type(data) == np.ndarray else type(data)
         return t([data[mapping[i]-1] for i in range(len(mapping))])
+
+
+    def readarray(self, section: str, subsection: str, **kwargs) -> np.ndarray:
+        """Read data from *section*/*subsection* of the main KF file and return as NumPy array.
+
+        All additional provided keyword arguments will be passed onto the numpy.array_ function.
+
+        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
+        """
+        return np.array(self.readkf(section, subsection), **kwargs)
 
 
 
@@ -345,3 +357,41 @@ class SCMJob(SingleJob):
             smb = (smb+'.'+str(atom.properties.name)).lstrip('.')
         return smb
 
+
+    @classmethod
+    def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'SCMJob':
+        """Construct a :class:`SCMJob` instance from an ADF inputfile.
+
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
+        try:
+            from scm.input_parser.parse import input_to_settings
+        except ImportError:  # Try to load the parser from $ADFHOME/scripting
+            with UpdateSysPath():
+                from scm.input_parser.parse import input_to_settings
+
+        s = Settings()
+        with open(filename, 'r') as f:
+            inp_file = parse_heredoc(f.read(), heredoc_delimit)
+
+        s.input = input_to_settings(inp_file, cls._command)
+        if not s.input:
+            raise JobError(f"from_inputfile: failed to parse '{filename}'")
+
+        # Extract a molecule from the input settings
+        mol = cls.settings_to_mol(s)
+
+        # Create and return the Job instance
+        if mol is not None:
+            return cls(molecule=mol, settings=s, **kwargs)
+        else:
+            s.ignore_molecule = True
+            return cls(settings=s, **kwargs)
+
+
+    @staticmethod
+    def settings_to_mol(s: Settings) -> None:
+        """An abstract method for extracting molecules from input settings (see :meth:`SCMJob.from_inputfile`)."""
+        return None

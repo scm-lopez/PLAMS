@@ -4,9 +4,9 @@ import numpy as np
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import FileError, JobError, ResultsError
-from ...core.functions import config, log
-from ...core.private import sha256
+from ...core.errors import FileError, JobError, ResultsError, PTError
+from ...core.functions import config, log, parse_heredoc
+from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
 from ...core.settings import Settings, ig
 from ...mol.molecule import Molecule
@@ -576,3 +576,100 @@ class AMSJob(SingleJob):
             if isinstance(arg[0], AMSResults):
                 return arg[0].rkfpath(arg[1])
         return str(arg)
+
+
+    @classmethod
+    def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
+        """Construct an :class:`AMSJob` instance from an ADF inputfile or runfile.
+
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
+        try:
+            from scm.input_parser.parse import input_to_settings
+        except ImportError:  # Try to load the parser from $ADFHOME/scripting
+            with UpdateSysPath():
+                from scm.input_parser.parse import input_to_settings
+
+        s = Settings()
+        with open(filename, 'r') as f:
+            inp_file = parse_heredoc(f.read(), heredoc_delimit)
+
+        s.input = input_to_settings(inp_file, cls._command)
+        if not s.input:
+            raise JobError(f"from_inputfile: failed to parse '{filename}'")
+
+        # Extract a molecule from the input settings
+        mol = cls.settings_to_mol(s)
+
+        # Create and return the Job instance
+        if mol is not None:
+            return cls(molecule=mol, settings=s, **kwargs)
+        else:
+            s.ignore_molecule = True
+            return cls(settings=s, **kwargs)
+
+
+    @staticmethod
+    def settings_to_mol(s: Settings) -> dict:
+        """Pop the `s.input.ams.system` block from a settings instance and convert it into a dictionary of molecules.
+
+        The provided settings should be in the same style as the ones produced by the SCM input parser.
+        Dictionary keys are taken from the header of each system block.
+        The existing `s.input.ams.system` block is removed in the process, assuming it was present in the first place.
+
+        """
+        def read_mol(settings_block: Settings) -> Molecule:
+            """Retrieve single molecule from a single `s.input.ams.system` block."""
+            mol = Molecule()
+            for atom in settings_block.atoms._1:
+                # Extract arguments for Atom()
+                symbol, x, y, z, *comment = atom.split(maxsplit=4)
+                kwargs = {} if not comment else {'suffix': comment[0]}
+                coords = float(x), float(y), float(z)
+
+                try:
+                    at = Atom(symbol=symbol, coords=coords, **kwargs)
+                except PTError:  # It's either a ghost atom and/or an atom with a custom name
+                    if symbol.startswith('Gh.'):  # Ghost atom
+                        kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
+                    if '.' in symbol:  # Atom with a custom name
+                        symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
+                    at = Atom(symbol=symbol, coords=coords, **kwargs)
+
+                mol.add_atom(at)
+
+            # Add bonds
+            for bond in settings_block.bondorders._1:
+                _at1, _at2, _order = bond.split()
+                at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
+                mol.add_bond(at1, at2, order)
+
+            # Set the lattice vector if applicable
+            if settings_block.lattice._1:
+                mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
+
+            # Set the moleculair charge
+            if settings_block.charge:
+                mol.properties.charge = float(settings_block.charge)
+
+            mol.properties.name = str(settings_block._h)
+            return mol
+
+        # Raises a KeyError if the `system` key is absent
+        with s.supress_missing():
+            try:
+                settings_list = s.input.ams.pop('system')
+            except KeyError:  # The block s.input.ams.system is absent
+                return None
+
+        # Create a new dictionary with system headers as keys and molecules as values
+        moldict = {}
+        for settings_block in settings_list:
+            key = str(settings_block._h)
+            if key in moldict:
+                raise KeyError(f"Duplicate system headers found in s.input.ams.system: {repr(key)}")
+            moldict[key] = read_mol(settings_block)
+
+        return moldict
