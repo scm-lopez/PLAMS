@@ -1,6 +1,4 @@
 import os
-import re
-import sys
 import numpy as np
 
 from os.path import join as opj
@@ -8,7 +6,7 @@ from os.path import join as opj
 from ...core.basejob import SingleJob
 from ...core.errors import FileError, JobError, ResultsError, PTError
 from ...core.functions import config, log
-from ...core.private import sha256
+from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
 from ...core.settings import Settings, ig
 from ...mol.molecule import Molecule
@@ -588,47 +586,17 @@ class AMSJob(SingleJob):
         on the heredoc delimiter (see *heredoc_delimit*).
 
         """
-        def update_syspath() -> None:
-            """Load the SCM input parser; raise a :exc:`EnvironmentError` if it cannot be found."""
-            try:
-                parser_path = opj(os.environ['ADFHOME'], 'scripting')
-                if parser_path not in sys.path:
-                    sys.path.append(parser_path)
-            except KeyError as ex:
-                adfhome = opj('$ADFHOME', 'scripting', 'scm') + os.sep
-                err = (f"from_inputfile: Failed to load the scm inputparser from '{adfhome}'; "
-                       "the 'ADFHOME' environment variable has not been set")
-                raise EnvironmentError(err).with_traceback(ex.__traceback__)
-
-        def file_to_settings(filename: str, heredoc_delimit: str = 'eor') -> Settings:
-            """Convert *filename* into a |Settings| instance using the SCM inputparser."""
-            with open(filename, 'r') as f:
-                ret = f.read()
-
-            # Find the start of the heredoc block
-            start_heredoc = re.search(rf'<<(-)?(\s+)?{heredoc_delimit}', ret)
-            if not start_heredoc:
-                return input_to_settings(ret, 'ams')
-
-            # Find the end of the heredoc block
-            end_heredoc = re.search(rf'\n(\s+){heredoc_delimit}', ret)
-            i, j = start_heredoc.end(), end_heredoc.start()
-            i += 1
-
-            # Grab heredoced block and parse it
-            _, ret = ret[i:].split('\n', maxsplit=1)
-            return input_to_settings(ret[:j], 'ams')
-
-        # Load the SCM input parser
         try:
             from scm.input_parser.parse import input_to_settings
         except ImportError:  # Try to load the parser from $ADFHOME/scripting
-            update_syspath()
-            from scm.input_parser.parse import input_to_settings
+            with UpdateSyspath():
+                from scm.input_parser.parse import input_to_settings
 
-        # Parse the settings
         s = Settings()
-        s.input = file_to_settings(filename, heredoc_delimit)
+        with open(filename, 'r') as f:
+            inp_file = parse_heredoc(f, heredoc_delimit)
+
+        s.input = input_to_settings(inp_file, cls._command)
         if not s.input:
             raise JobError(f"from_inputfile: failed to parse '{filename}'")
 

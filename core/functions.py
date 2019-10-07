@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import sys
 import threading
@@ -233,3 +234,78 @@ def add_to_instance(instance):
         setattr(instance, func.__func__.__name__, func)
     return decorator
 
+
+#===========================================================================
+
+
+def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
+    """Take a string and isolate the content of a bash-style `Here Document`_.
+
+    The input string, *bash_input*, is returned unaltered if no heredoc block is found.
+    If multiple heredoc blocks are present only the first one is returned.
+
+    An example bash input file for ADF:
+
+    .. code:: bash
+
+        #!/bin/bash
+
+        $ADFBIN/adf << eor
+        ATOMS
+            1.H  0.0  0.0  0.0
+            2.H  1.0  0.0  0.0
+        END
+
+        BASIS
+            type TZ2P
+        END
+
+        XC
+            GGA BP86
+        END
+        eor
+
+        echo "Job finished"
+
+    The matching :func:`parse_heredoc` output:
+
+    .. code:: python
+
+        >>> filename: str = ...  # The bash input file
+        >>> with open(filename, 'r') as f:
+        ...     output = parse_heredoc(f)
+
+        >>> print(output)
+        ATOMS
+            1.H  0.0  0.0  0.0
+            2.H  1.0  0.0  0.0
+        END
+
+        BASIS
+            type TZ2P
+        END
+
+        XC
+            GGA BP86
+        END
+
+    .. _`Here Document`: https://en.wikipedia.org/wiki/Here_document
+
+    """
+    # Find the start of the heredoc block
+    start_heredoc = re.search(rf'<<(-)?(\s+)?{heredoc_delimit}', bash_input)
+    if not start_heredoc:
+        return bash_input
+
+    # Find the end of the heredoc block
+    end_heredoc = re.search(rf'\n(\s+)?{heredoc_delimit}(\s+)?\n', bash_input)
+    i = 1 + start_heredoc.end()
+    try:
+        j = end_heredoc.start()
+    except AttributeError as ex:
+        err = f"parse_heredoc: failed to find the final '{heredoc_delimit}' delimiter"
+        raise ValueError(err).with_traceback(ex.__traceback__)
+
+    # Grab heredoced block and parse it
+    _, ret = bash_input[i:j].split('\n', maxsplit=1)
+    return ret
