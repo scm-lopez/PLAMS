@@ -1,15 +1,11 @@
-from typing import List, Union
-
 from scm.plams import Settings, JobError, ADFJob, CRSJob, Molecule, ADFResults, ig, CRSResults
 
 __all__ = ['run_crs_adf']
 
 
-def run_crs_adf(settings_adf: Settings, settings_crs: Settings,
-                solvents: Union[Molecule, List[Molecule]],
-                solutes: Union[Molecule, List[Molecule], None] = None,
-                return_adfresults: bool = False,
-                **kwargs):
+def run_crs_adf(settings_adf, settings_crs,
+                solvents, solutes=None,
+                return_adfresults=False, **kwargs):
     """A workflow for running COSMO-RS calculations with ADF (*i.e.* DFT) COSMO surface charges.
 
     The workflow consists of three distinct steps:
