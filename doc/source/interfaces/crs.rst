@@ -182,77 +182,12 @@ An example is provided below with the default COSMO-RS paramaters (*i.e.* ADF Co
 .. _parameters: ../../COSMO-RS/COSMO-RS_and_COSMO-SAC_parameters.html
 
 
-Data analyses and plotting
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Further Examples
+~~~~~~~~~~~~~~~~
 
-As COSMO-RS can produce a large variety of data series,
-a number of specialized methods are available in the :class:`CRSResults` for their extraction and analysis.
-The resulting data is stored in either a dictionary of Numpy arrays or (optionally) a `Pandas DataFrame`_.
+A number of example inputs for common calculations are provided in the `COSMO-RS documentation`_.
 
-The extracted data can be further customized by altering the ``subsection`` argument.
-For example, by default :meth:`CRSResults.get_solubility` will extract the solubility in mol solute
-per liter solvent (``"subsection=mol_per_L_solvent"``). This can be changed in, for example,
-gram per liter solvent (``"subsection=m_per_L_solvent"``) or the solute mass fraction (``"massfrac"``).
-
-A complete overview of all available sections and subsections can be acquired
-by calling the :meth:`.KFFile.get_skeleton` method of the KF binary file
-(*e.g.* :code:`print(my_results._kf.get_skeleton())`).
-
-============================ =======================================
-Quantity                     Method for data extraction
-============================ =======================================
-`Sigma profile`_             :meth:`CRSResults.get_sigma_profile`
-`Sigma potential`_           :meth:`CRSResults.get_sigma_potential`
-`Vapor pressure`_            :meth:`CRSResults.get_vapor_pressure`
-`Boiling point`_             :meth:`CRSResults.get_boiling_point`
-`Solubility`_                :meth:`CRSResults.get_solubility`
-`Binary mixture`_            :meth:`CRSResults.get_bi_mixture`
-`Ternary mixtures`_          :meth:`CRSResults.get_tri_mixture`
-`Solvents composition line`_ :meth:`CRSResults.get_composition_line`
-============================ =======================================
-
-If the `Matplotlib <https://matplotlib.org/>`_ package is installed than the resulting data can easily plotted by passing
-it to the :meth:`CRSResults.plot` method (*e.g.* :code:`CRSResults.plot(my_sigma_profile)`):
-
-.. code:: python
-
-    >>> from scm.plams import Settings, CRSJob
-    >>> import numpy as np
-
-    >>> s = Settings()
-
-    >>> s.input.compound._h = '/path/to/Water.coskf'
-    >>> s.input.compound.frac1 = 1.0
-    >>> s.input.property._h = 'puresigmaprofile'
-    >>> s.input.property.nprofile = 50
-    >>> s.input.property.sigmamax = 0.025
-    >>> s.input.property.pure = ''
-    >>> s.input.temperature = 298.15
-
-    >>> my_job = CRSJob(settings=s)
-    >>> my_results = my_job.run()
-
-    >>> my_sigma_profile = my_results.get_sigma_profile()
-    >>> with np.printoptions(threshold=0, edgeitems=5):
-    ...     print(sigma_profile)
-    {'Water.coskf': array([0., 0., 0., 0., 0., ..., 0., 0., 0., 0., 0.]),
-     'σ (e/A**2)': array([-0.25, -0.24, -0.23, -0.22, -0.21, ...,  0.21,  0.22,  0.23,  0.24, 0.25])}
-
-    >>> my_results.plot(my_sigma_profile)
-
-.. image:: ../_static/sigma_profile.png
-
-
-.. _`Sigma profile`: ../../COSMO-RS/Analysis.html#sigma-profile
-.. _`Sigma potential`: ../../COSMO-RS/Analysis.html#sigma-potential
-.. _`Vapor pressure`: ../../COSMO-RS/Properties.html#vapor-pressure
-.. _`Boiling point`: ../../COSMO-RS/Properties.html#boiling-point
-.. _`Solubility`: ../../COSMO-RS/Properties.html#solubility
-.. _`Binary mixture`: ../../COSMO-RS/Properties.html#binary-mixture-vle-lle
-.. _`Ternary mixtures`: ../../COSMO-RS/Properties.html#ternary-mixture-vle-lle
-.. _`Solvents composition line`: ../../COSMO-RS/Properties.html#solvents-s1-s2-composition-line
-
-.. _`Pandas DataFrame`: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+.. _`COSMO-RS documentation`: ../../COSMO-RS/PLAMS_COSMO-RS_scripting.html#examples
 
 
 API
