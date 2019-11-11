@@ -168,14 +168,24 @@ class AMSResults(Results):
             coords = main.read('History', f'Coords({step})')
             coords = [coords[i:i+3] for i in range(0,len(coords),3)]
             if ('History', f'SystemVersion({step})') in main:
-                system = main.read('History', f'SystemVersion({step})')
+                version = main.read('History', f'SystemVersion({step})')
+                if 'SystemVersionHistory' in main:
+                    if ('SystemVersionHistory', 'blockSize') in main:
+                        blockSize = main.read('SystemVersionHistory', 'blockSize')
+                    else:
+                        blockSize = 1
+                    block = (version - 1) // blockSize + 1
+                    offset = (version - 1) % blockSize
+                    system = main.read('SystemVersionHistory', f'SectionNum({block})', return_as_list=True)[offset]
+                else:
+                    system = version
                 mol = self.get_molecule(f'ChemicalSystem({system})')
                 molsrc = f'ChemicalSystem({system})'
             else:
                 mol = self.get_main_molecule()
                 molsrc = 'Molecule'
             if len(mol) != len(coords):
-                raise ResultsError(f'Coordinates taken from "History%Coords({step})" have incompatible lenght with molecule from {molsrc} section')
+                raise ResultsError(f'Coordinates taken from "History%Coords({step})" have incompatible length with molecule from {molsrc} section')
             for at, c in zip(mol, coords):
                 at.move_to(c, unit='bohr')
 
@@ -460,7 +470,10 @@ class AMSJob(SingleJob):
 
                 for el in value:
                     if not el.startswith('_'):
-                        ret += serialize(el, value[el], indent+2)
+                        if key.lower().startswith('engine') and el.lower() == 'input':
+                            ret += serialize(el, value[el], indent+2, 'endinput')
+                        else:
+                            ret += serialize(el, value[el], indent+2)
 
                 ret += ' '*indent + end+'\n'
 

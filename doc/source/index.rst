@@ -20,3 +20,4 @@ Python Library for Automating Molecular Simulations
     components/components
     interfaces/interfaces
     cookbook/cookbook
+    citations

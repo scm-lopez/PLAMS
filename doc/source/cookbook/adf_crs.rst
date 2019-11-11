@@ -1,3 +1,5 @@
+.. _adf_crs_workflow:
+
 ADF and COSMO-RS workflow
 -------------------------
 

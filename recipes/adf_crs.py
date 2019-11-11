@@ -80,7 +80,7 @@ def run_crs_adf(settings_adf, settings_crs,
 
     :parameter \**kwargs, optional:
         Optional keyword arguments that will be passed to all calls of :meth:`.Job.run`.
-        For example, one could consider passing a custom jobrunner_ or jobmanager_.
+        For example, one could consider passing a custom :ref:`job_runners` or :ref:`job_manager`.
 
     :returns: A dictionary with the resulting COSMO-RS output.
         The `name` of each :class:`.CRSResults` instance is used as key.
@@ -88,8 +88,6 @@ def run_crs_adf(settings_adf, settings_crs,
     :rtype: :class:`dict` or :class:`tuple` [:class:`dict`, :class:`list`, :class:`list`]
 
     .. _`activity coefficient`: ../../COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
-    .. _jobmanager: ../components/jobmanager.html
-    .. _jobrunner: ../components/runners.html
 
     """  # noqa
     solvents = [solvents] if isinstance(solvents, Molecule) else solvents

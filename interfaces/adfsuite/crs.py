@@ -1,6 +1,7 @@
 import os
 import inspect
 import subprocess
+from itertools import cycle
 
 import numpy as np
 
@@ -9,8 +10,9 @@ try:
     PANDAS = True
 except ImportError:
     PANDAS = False
-
 try:
+    import matplotlib
+    matplotlib.use('TkAgg')
     import matplotlib.pyplot as plt
     MATPLOTLIB = True
 except ImportError:
@@ -27,14 +29,18 @@ class CRSResults(SCMResults):
     _kfext = '.crskf'
     _rename_map = {'CRSKF': '$JN.crskf'}
 
-    def get_energy(self, unit: str = 'kcal/mol') -> float:
+    @property
+    def section(self):
+        return self.job.settings.input.property._h
+
+    def get_energy(self, energy_type = "deltag", compound_idx = 0 , unit: str = 'kcal/mol') -> float:
         """Returns the solute solvation energy from an Activity Coefficients calculation."""
-        E = self.readkf('ACTIVITYCOEF', 'deltag')[0]
+        E = self.readkf(self.section, energy_type)[compound_idx]
         return Units.convert(E, 'kcal/mol', unit)
 
-    def get_activity_coefficient(self) -> float:
+    def get_activity_coefficient(self, compound_idx = 0) -> float:
         """Return the solute activity coefficient from an Activity Coefficients calculation."""
-        return self.readkf('ACTIVITYCOEF', 'gamma')[0]
+        return self.readkf(self.section.settings.input.property._h, 'gamma')[compound_idx]
 
     def get_sigma_profile(self, subsection: str = 'profil', as_df: bool = False) -> dict:
         r"""Grab all sigma profiles, returning a dictionary of Numpy Arrays.
@@ -81,134 +87,56 @@ class CRSResults(SCMResults):
         except KeyError:
             return self._get_array_dict('PURESIGMAPOTENTIAL', *args, unit=unit, as_df=as_df)
 
-    def get_solubility(self, subsection: str = 'mol_per_L_solvent', as_df: bool = False) -> dict:
-        r""""Grab all (temperature dependant) solubilities, returning a dictionary of Numpy Arrays.
-
-        The temperature is stored under the ``"T (K)"`` key.
-
-        Results can be returned as a Pandas DataFrame by settings *as_df* to ``True``.
-
-        The returned results can be plotted by passing them to the :meth:`CRSResults.plot` method.
-
-        .. note::
-            *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
-
-        .. _Pandas: https://pandas.pydata.org/
+    def get_prop_names(self, section = None) -> list:
+        r"""Read the section of the .crskf file and return a list of the properties that were calculated.  The section argument can be supplied to look at previously-calculated results.  If no section name is supplied, the function defaults to using the most recent property that was calculated.
 
         """
-        args = (subsection, 'T (K)', 'temperature')
+        if section == None:
+            section = self.section
         try:
-            return self._get_array_dict('SOLUBILITY', *args, as_df=as_df)
+            return self._kf.get_skeleton()[section]
         except KeyError:
-            return self._get_array_dict('PURESOLUBILITY', *args, as_df=as_df)
+            raise KeyError("Cannot find section name: " + str(section))
 
-    def get_boiling_point(self, subsection: str = 'temperature', as_df: bool = False) -> dict:
-        r""""Grab all (pressure dependant) boiling points, returning a dictionary of Numpy Arrays.
-
-        The pressure is stored under the ``"P (bar)"`` key.
-
-        Results can be returned as a Pandas DataFrame by settings *as_df* to ``True``.
-
-        The returned results can be plotted by passing them to the :meth:`CRSResults.plot` method.
-
-        .. note::
-            *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
-
-        .. _Pandas: https://pandas.pydata.org/
+    def get_results(self, section = None) -> dict:
+        r"""Read the section from the most recent calculation type and return the result as a dictionary.
 
         """
-        args = ('temperature', 'P (bar)', 'pressure')
+        if section == None:
+            section = self.section
+
+        output = getattr(self, '_prop_dict', False)
+        if output and output["section"] == section:
+            return output
+        
+        props = self.get_prop_names()
         try:
-            return self._get_array_dict('BOILINGPOINT', *args, as_df=as_df)
-        except KeyError:
-            return self._get_array_dict('PUREBOILINGPOINT', *args, as_df=as_df)
+            props.remove("ncomp")
+            props.remove("nitems")
+        except ValueError:
+            raise ValueError("Results object is missing or incomplete.")
 
-    def get_vapor_pressure(self, subsection: str = 'vapor pressure', as_df: bool = False) -> dict:
-        r""""Grab all (temperature dependant) solubillities, returning a dictionary of Numpy Arrays.
+        # first get the two ranges for the indices 
+        ncomp  = self.readkf(section, 'ncomp')
+        nitems = self.readkf(section, 'nitems')
 
-        The pressure is stored under the ``"T (K)"`` key.
+        np_dict = { "section" : section }
+        for prop in props:
+            tmp = self.readkf(section,prop)
+            if prop == "filename":
+                np_dict[prop] = [str(x).strip() for x in tmp.split()]
+                continue
+            if not isinstance(tmp,list):
+                np_dict[prop] = tmp
+            else:
+                np_dict[prop] = np.array(tmp)
+                if len(tmp) == ncomp*nitems:
+                    np_dict[prop].shape = (ncomp,nitems)
 
-        Results can be returned as a Pandas DataFrame by settings *as_df* to ``True``.
+        setattr(self, '_prop_dict', np_dict)
+        return np_dict
 
-        The returned results can be plotted by passing them to the :meth:`CRSResults.plot` method.
-
-        .. note::
-            *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
-
-        .. _Pandas: https://pandas.pydata.org/
-
-        """
-        args = (subsection, 'T (K)', 'temperature')
-        try:
-            return self._get_array_dict('VAPORPRESSURE', *args, as_df=as_df)
-        except KeyError:
-            return self._get_array_dict('PUREVAPORPRESSURE', *args, as_df=as_df)
-
-    def get_bi_mixture(self, subsection: str = 'gamma', unit: str = 'kcal/mol',
-                       as_df: bool = False) -> dict:
-        r""""Grab all (ratio dependant) activity coefficients of a binary mixture, returning a dictionary of Numpy Arrays.
-
-        The component ratio is stored under the ``"molar ratio"`` key.
-
-        Results can be returned as a Pandas DataFrame by settings *as_df* to ``True``.
-
-        The returned results can be plotted by passing them to the :meth:`CRSResults.plot` method.
-
-        .. note::
-            *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
-
-        .. _Pandas: https://pandas.pydata.org/
-
-        """  # noqa
-        args = (subsection, 'molar ratio', 'molar fraction')
-        return self._get_array_dict('BINMIXCOEF', *args, unit=unit, as_df=as_df)
-
-    def get_tri_mixture(self, subsection: str = 'gamma', unit: str = 'kcal/mol',
-                        as_df: bool = False) -> dict:
-        r""""Grab all (ratio dependant) activity coefficients of a ternary mixture, returning a dictionary of Numpy Arrays.
-
-        The component ratio is stored under the ``"molar ratio"`` key.
-
-        Results can be returned as a Pandas DataFrame by settings *as_df* to ``True``.
-
-        The returned results can be plotted by passing them to the :meth:`CRSResults.plot` method.
-
-        .. note::
-            *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
-
-        .. _Pandas: https://pandas.pydata.org/
-
-        """  # noqa
-        args = (subsection, 'molar ratio', 'molar fraction')
-        return self._get_array_dict('TERNARYMIX', *args, unit=unit, as_df=as_df)
-
-    def get_composition_line(self, subsection: str = 'gamma', unit: str = 'kcal/mol',
-                             as_df: bool = False) -> dict:
-        r""""Perform a linear interpolation between the activity coefficients of two components, returning a dictionary of Numpy Arrays.
-
-        The component ratio is stored under the ``"molar ratio"`` key.
-
-        Results can be returned as a Pandas DataFrame by settings *as_df* to ``True``.
-
-        The returned results can be plotted by passing them to the :meth:`CRSResults.plot` method.
-
-        .. note::
-            *as_df* = ``True`` requires the Pandas_ package.
-            Plotting requires the `matplotlib <https://matplotlib.org/index.html>`__ package.
-
-        .. _Pandas: https://pandas.pydata.org/
-
-        """  # noqa
-        args = (subsection, 'molar ratio', 'solvent fraction')
-        return self._get_array_dict('COMPOSITIONLINE', *args, unit=unit, as_df=as_df)
-
-    @classmethod
-    def plot(cls, array_dict: dict, index_name: str = None, plot_fig: bool = True):
+    def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
 
         Accepts the output of, *e.g.*, :meth:`CRSResults.get_sigma_profile`:
@@ -222,62 +150,83 @@ class CRSResults(SCMResults):
 
         .. note::
             The name of the dictionary/DataFrame key containing the index (*i.e.* the x-axis) can,
-            and should, be manually specified in *index_name* if a custom *index_name* is passed
+            and should, be manually specified in *x_axis* if a custom *x_axis* is passed
             to :meth:`CRSResults._get_array_dict`.
             This argument can be ignored otherwise.
 
         .. _Figure: https://matplotlib.org/api/_as_gen/matplotlib.figure.Figure.html#matplotlib.figure.Figure
 
         """  # noqa
-        def get_index_name(array_dict, index_name):
+        def get_x_axis(array, x_axis):
             """Find and return the index and its name."""
-            if index_name is not None:
-                return array_dict[index_name], index_name
+            if x_axis is None:
+                return np.arange(array.shape[1])
 
-            if not isinstance(array_dict, dict):
-                # *array_dict* is a dataframe instead of a dictionary
-                return array_dict.index, array_dict.index.name
-
-            idx_tups = ('σ (e/A**2)', 'T (K)', 'P (bar)', 'molar ratio')
-            for k, v in array_dict.items():
-                if k in idx_tups:
-                    return v, k
+            if isinstance(x_axis, str):
+                ret = self._prop_dict[x_axis]
+            else:
+                ret = np.array(x_axis, copy=False)
+            ret = ret.ravel()  # Flatten it
+            return ret[:array.shape[1]]
 
         # Check if matplotlib is installed
         if not MATPLOTLIB:
-            method = cls.__name__ + '.plot'
+            method = self.__class__.__name__ + '.plot'
             raise ImportError("{}: this method requires the 'matplotlib' package".format(method))
 
+        self.get_results()
+
+        # Create a dictionary of 1d arrays
+        array_dict = {}
+        for array in arrays:
+            name = None
+            if isinstance(array, str):  # Array refers to a section in the kf file
+                name = array
+                array = self._prop_dict[array]
+
+            # Ensure it's a 2D array
+            array = np.array(array, ndmin=2, dtype=float, copy=False)
+
+            # Fill the array dict with 1d arrays
+            base_key = '' if name is None else name + ' '
+            iterator = enumerate(array, 1) if array.shape[0] != 1 else zip(cycle(' '), array)
+            for i, array_1d in iterator:
+                key = f'{base_key}{i}'
+                array_dict[key] = array_1d
         # Retrieve the index and its name
-        index, index_name = get_index_name(array_dict, index_name)
+        index = get_x_axis(array, x_axis)
+        # print ("INDEX::::", index)
+        if x_label is None:
+            if isinstance(x_axis,str):
+                x_label = x_axis
+            else:
+                x_label = ""
+
+        if y_label is None:
+            y_label = ""
 
         # Assign various series to the plot
         fig, ax = plt.subplots()
         for k, v in array_dict.items():
-            if k == index_name:
-                continue
             ax.plot(index, v, label=k)
 
         # Add the legend and x-label
         ax.legend()
-        ax.set_xlabel(k)
-        try:
-            ax.set_title(array_dict.columns.name)
-        except AttributeError:
-            pass  # *array_dict* is not a dataframe
-
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+        
         # Show and return
         if plot_fig:
             plt.show()
         return fig
 
-    def _get_array_dict(self, section: str, subsection: str, index_name: str, index_subsection: str,
+    def _get_array_dict(self, section: str, subsection: str, x_axis: str, index_subsection: str,
                         unit: str = 'kcal/mol', as_df: bool = False) -> dict:
         """Create dictionary or DataFrame containing all values in *section*/*subsection*.
 
         Takes the following arguments:
             * The *section*/*subsection* of the desired quantity.
-            * The desired name of the index (*index_name*).
+            * The desired name of the index (*x_axis*).
             * The name of subsection containing the index (*index_subsection*).
             * The *unit* of the output quanty (ignore this keyword if not applicable).
             * If the result should be returned as Pandas DataFrame (*as_df*).
@@ -291,15 +240,15 @@ class CRSResults(SCMResults):
             ncomponent = 3 if section == 'TERNARYMIX' else 2
             index.shape = ncomponent, len(index) // ncomponent
             iterator = np.nditer(index.astype(str), flags=['external_loop'], order='F')
-            ret[index_name] = np.array([' / '.join(i for i in item) for item in iterator])
+            ret[x_axis] = np.array([' / '.join(i for i in item) for item in iterator])
         else:
-            ret[index_name] = index
+            ret[x_axis] = index
 
         # Return a dictionary of arrays or a DataFrame
         if not as_df:
             return ret
         else:
-            return self._dict_to_df(ret, section, index_name)
+            return self._dict_to_df(ret, section, x_axis)
 
     def _construct_array_dict(self, section: str, subsection: str, unit: str = 'kcal/mol') -> dict:
         """Construct dictionary containing all values in *section*/*subsection*."""
@@ -324,13 +273,13 @@ class CRSResults(SCMResults):
         return ret
 
     @staticmethod
-    def _dict_to_df(array_dict: dict, section: str, index_name: str):
+    def _dict_to_df(array_dict: dict, section: str, x_axis: str):
         """Attempt to convert a dictionary into a DataFrame."""
         if not PANDAS:
             method = inspect.stack()[2][3]
             raise ImportError("{}: as_df=True requires the 'pandas' package".format(method))
 
-        index = pd.Index(array_dict.pop(index_name), name=index_name)
+        index = pd.Index(array_dict.pop(x_axis), name=x_axis)
         df = pd.DataFrame(array_dict, index=index)
         df.columns.name = section.lower()
         return df

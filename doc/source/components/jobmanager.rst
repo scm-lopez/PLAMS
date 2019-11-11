@@ -1,3 +1,5 @@
+.. _job_manager:
+
 Job manager
 -------------
 
