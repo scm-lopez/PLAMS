@@ -186,10 +186,10 @@ class Molecule:
         atom.mol = self
         if adjacent is not None:
             for adj in adjacent:
-                if isinstance(adj, tuple):
-                    self.add_bond(atom, adj[0], adj[1])
-                else:
+                if isinstance(adj, Atom):
                     self.add_bond(atom, adj)
+                else:
+                    self.add_bond(atom, adj[0], adj[1])
 
 
     def delete_atom(self, atom):
@@ -983,12 +983,17 @@ class Molecule:
         A different cost function can be also supplied by the user, using one of the two remaining arguments: *cost_func_mol* or *cost_func_array*. *cost_func_mol* should be a function that takes two |Molecule| instances: this molecule (after removing unneeded atoms) and ligand in a particular orientation (also without unneeded atoms) and returns a single number (the lower the number, the better the fit). *cost_func_array* is analogous, but instead of |Molecule| instances it takes two numpy arrays (with dimensions: number of atoms x 3) with coordinates of this molecule and the ligand. If both are supplied, *cost_func_mol* takes precedence over *cost_func_array*.
 
         """
+        try:
+            _is_atom = [isinstance(i, Atom) and i.mol is self for i in connector]
+            assert all(_is_atom) and len(_is_atom) == 2
+        except (TypeError, AssertionError) as ex:
+            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule').with_traceback(ex.__traceback__)
 
-        if not (isinstance(connector, tuple) and len(connector) == 2 and all(isinstance(i, Atom) and i.mol is self for i in connector)):
-            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule')
-
-        if not (isinstance(ligand_connector, tuple) and len(ligand_connector) == 2 and all(isinstance(i, Atom) and i.mol is ligand for i in ligand_connector)):
-            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand')
+        try:
+            _is_atom = [isinstance(i, Atom) and i.mol is self for i in ligand_connector]
+            assert all(_is_atom) and len(_is_atom) == 2
+        except (TypeError, AssertionError) as ex:
+            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand').with_traceback(ex.__traceback__)
 
         if len(self.bonds) == 0:
             self.guess_bonds()
@@ -1132,7 +1137,7 @@ class Molecule:
             if key < 0:
                 return self.atoms[key]
             return self.atoms[key-1]
-        
+
         try:
             i, j = key
             return self.find_bond(self[i], self[j])
@@ -1141,7 +1146,7 @@ class Molecule:
         except ValueError as ex:
             raise MoleculeError(f'Molecule: argument ({repr(key)}) of invalid size inside []').with_traceback(ex.__traceback__)
 
-            
+
     def __add__(self, other):
         """Create a new molecule that is a sum of this molecule and some *other* molecule::
 
@@ -1231,7 +1236,7 @@ class Molecule:
         Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
         """
         atom_subset = atom_subset or self.atoms
-        
+
         try:
             at_len = len(atom_subset)
         except TypeError:  # atom_subset is an iterator
@@ -1240,7 +1245,7 @@ class Molecule:
         else:
             count = at_len * 3
             shape = at_len, 3
-        
+
         atom_iterator = itertools.chain.from_iterable(at.coords for at in atom_subset)
         xyz_array = np.fromiter(atom_iterator, count=count, dtype=float)
         xyz_array.shape = shape
