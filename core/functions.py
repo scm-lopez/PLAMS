@@ -42,7 +42,8 @@ def init(path=None, folder=None):
         defaults = opj(dirname(dirname(__file__)), 'plams_defaults')
         if not isfile(defaults):
             raise PlamsError('plams_defaults not found, please set PLAMSDEFAULTS or ADFHOME in your environment')
-    exec(compile(open(defaults).read(), defaults, 'exec'))
+    with open(defaults, 'r') as f:
+        exec(compile(f.read(), defaults, 'exec'))
 
     from .jobmanager import JobManager
     config.default_jobmanager = JobManager(config.jobmanager, path, folder)
