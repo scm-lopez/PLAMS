@@ -189,7 +189,7 @@ class Molecule:
                 if isinstance(adj, Atom):
                     self.add_bond(atom, adj)
                 else:
-                    self.add_bond(atom, adj[0], adj[1])
+                    self.add_bond(atom, *adj)
 
 
     def delete_atom(self, atom):
@@ -321,7 +321,7 @@ class Molecule:
         self.set_atoms_id(start=0)
         for b in self.bonds:
             i,j = b.atom1.id, b.atom2.id
-            ret[i][j] = ret[j][i] = b.order
+            ret[i, j] = ret[j, i] = b.order
         self.unset_atoms_id()
         return ret
 
