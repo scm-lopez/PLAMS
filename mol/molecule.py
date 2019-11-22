@@ -1241,7 +1241,8 @@ class Molecule:
             count = at_len * 3
             shape = at_len, 3
         
-        xyz_array = np.fromiter(atom_subset, count=count, dtype=float)
+        atom_iterator = itertools.chain.from_iterable(at.coords for at in atom_subset)
+        xyz_array = np.fromiter(atom_iterator, count=count, dtype=float)
         xyz_array.shape = shape
         return xyz_array
 
