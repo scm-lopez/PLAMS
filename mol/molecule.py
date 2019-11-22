@@ -781,7 +781,7 @@ class Molecule:
         xyz_array = self.as_array()
         dist_array = np.linalg.norm(point - xyz_array, axis=1)
         idx = dist_array.argmin()
-        return self[int(idx + 1)]
+        return self[idx + 1]
 
 
     def distance_to_point(self, point, unit='angstrom', result_unit='angstrom'):
@@ -808,8 +808,8 @@ class Molecule:
         res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:
             idx1, idx2 = np.unravel_index(dist_array.argmin(), dist_array.shape)
-            atom1 = self[int(idx1 + 1)]
-            atom2 = other[int(idx2 + 1)]
+            atom1 = self[idx1 + 1]
+            atom2 = other[idx2 + 1]
             return res, atom1, atom2
         return res
 
@@ -1126,17 +1126,22 @@ class Molecule:
 
         Numbering of atoms within a molecule starts with 1.
         """
-        if isinstance(key, int):
+        if hasattr(key, '__index__'):  # Available in all "int-like" objects; see PEP 357
             if key == 0:
                 raise MoleculeError('Numbering of atoms starts with 1')
             if key < 0:
                 return self.atoms[key]
             return self.atoms[key-1]
-        if isinstance(key, tuple) and len(key) == 2:
-            return self.find_bond(self[key[0]], self[key[1]])
-        raise MoleculeError('Molecule: invalid argument {} inside []'.format(key))
+        
+        try:
+            i, j = key
+            return self.find_bond(self[i], self[j])
+        except TypeError as ex:
+            raise MoleculeError(f'Molecule: argument ({repr(key)}) of invalid type inside []').with_traceback(ex.__traceback__)
+        except ValueError as ex:
+            raise MoleculeError(f'Molecule: argument ({repr(key)}) of invalid size inside []').with_traceback(ex.__traceback__)
 
-
+            
     def __add__(self, other):
         """Create a new molecule that is a sum of this molecule and some *other* molecule::
 
@@ -1226,8 +1231,19 @@ class Molecule:
         Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
         """
         atom_subset = atom_subset or self.atoms
-        x, y, z = zip(*[atom.coords for atom in atom_subset])
-        return np.array((x, y, z)).T
+        
+        try:
+            at_len = len(atom_subset)
+        except TypeError:  # atom_subset is an iterator
+            count = -1
+            shape = -1, 3
+        else:
+            count = at_len * 3
+            shape = at_len, 3
+        
+        xyz_array = np.fromiter(atom_subset, count=count, dtype=float)
+        xyz_array.shape = shape
+        return xyz_array
 
 
     def from_array(self, xyz_array, atom_subset=None):
