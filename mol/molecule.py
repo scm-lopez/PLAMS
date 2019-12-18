@@ -186,10 +186,10 @@ class Molecule:
         atom.mol = self
         if adjacent is not None:
             for adj in adjacent:
-                if isinstance(adj, tuple):
-                    self.add_bond(atom, adj[0], adj[1])
-                else:
+                if isinstance(adj, Atom):
                     self.add_bond(atom, adj)
+                else:
+                    self.add_bond(atom, *adj)
 
 
     def delete_atom(self, atom):
@@ -321,7 +321,7 @@ class Molecule:
         self.set_atoms_id(start=0)
         for b in self.bonds:
             i,j = b.atom1.id, b.atom2.id
-            ret[i][j] = ret[j][i] = b.order
+            ret[i, j] = ret[j, i] = b.order
         self.unset_atoms_id()
         return ret
 
@@ -781,7 +781,7 @@ class Molecule:
         xyz_array = self.as_array()
         dist_array = np.linalg.norm(point - xyz_array, axis=1)
         idx = dist_array.argmin()
-        return self[int(idx + 1)]
+        return self[idx + 1]
 
 
     def distance_to_point(self, point, unit='angstrom', result_unit='angstrom'):
@@ -808,8 +808,8 @@ class Molecule:
         res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:
             idx1, idx2 = np.unravel_index(dist_array.argmin(), dist_array.shape)
-            atom1 = self[int(idx1 + 1)]
-            atom2 = other[int(idx2 + 1)]
+            atom1 = self[idx1 + 1]
+            atom2 = other[idx2 + 1]
             return res, atom1, atom2
         return res
 
@@ -983,12 +983,17 @@ class Molecule:
         A different cost function can be also supplied by the user, using one of the two remaining arguments: *cost_func_mol* or *cost_func_array*. *cost_func_mol* should be a function that takes two |Molecule| instances: this molecule (after removing unneeded atoms) and ligand in a particular orientation (also without unneeded atoms) and returns a single number (the lower the number, the better the fit). *cost_func_array* is analogous, but instead of |Molecule| instances it takes two numpy arrays (with dimensions: number of atoms x 3) with coordinates of this molecule and the ligand. If both are supplied, *cost_func_mol* takes precedence over *cost_func_array*.
 
         """
+        try:
+            _is_atom = [isinstance(i, Atom) and i.mol is self for i in connector]
+            assert all(_is_atom) and len(_is_atom) == 2
+        except (TypeError, AssertionError) as ex:
+            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule').with_traceback(ex.__traceback__)
 
-        if not (isinstance(connector, tuple) and len(connector) == 2 and all(isinstance(i, Atom) and i.mol is self for i in connector)):
-            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule')
-
-        if not (isinstance(ligand_connector, tuple) and len(ligand_connector) == 2 and all(isinstance(i, Atom) and i.mol is ligand for i in ligand_connector)):
-            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand')
+        try:
+            _is_atom = [isinstance(i, Atom) and i.mol is self for i in ligand_connector]
+            assert all(_is_atom) and len(_is_atom) == 2
+        except (TypeError, AssertionError) as ex:
+            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand').with_traceback(ex.__traceback__)
 
         if len(self.bonds) == 0:
             self.guess_bonds()
@@ -1126,15 +1131,20 @@ class Molecule:
 
         Numbering of atoms within a molecule starts with 1.
         """
-        if isinstance(key, int):
+        if hasattr(key, '__index__'):  # Available in all "int-like" objects; see PEP 357
             if key == 0:
                 raise MoleculeError('Numbering of atoms starts with 1')
             if key < 0:
                 return self.atoms[key]
             return self.atoms[key-1]
-        if isinstance(key, tuple) and len(key) == 2:
-            return self.find_bond(self[key[0]], self[key[1]])
-        raise MoleculeError('Molecule: invalid argument {} inside []'.format(key))
+
+        try:
+            i, j = key
+            return self.find_bond(self[i], self[j])
+        except TypeError as ex:
+            raise MoleculeError(f'Molecule: argument ({repr(key)}) of invalid type inside []').with_traceback(ex.__traceback__)
+        except ValueError as ex:
+            raise MoleculeError(f'Molecule: argument ({repr(key)}) of invalid size inside []').with_traceback(ex.__traceback__)
 
 
     def __add__(self, other):
@@ -1226,8 +1236,20 @@ class Molecule:
         Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
         """
         atom_subset = atom_subset or self.atoms
-        x, y, z = zip(*[atom.coords for atom in atom_subset])
-        return np.array((x, y, z)).T
+
+        try:
+            at_len = len(atom_subset)
+        except TypeError:  # atom_subset is an iterator
+            count = -1
+            shape = -1, 3
+        else:
+            count = at_len * 3
+            shape = at_len, 3
+
+        atom_iterator = itertools.chain.from_iterable(at.coords for at in atom_subset)
+        xyz_array = np.fromiter(atom_iterator, count=count, dtype=float)
+        xyz_array.shape = shape
+        return xyz_array
 
 
     def from_array(self, xyz_array, atom_subset=None):
