@@ -8,8 +8,13 @@ import weakref
 import tempfile
 import functools
 import numpy as np
-import ubjson
 import collections
+
+try:
+    import ubsjon
+    __all__ = ['AMSWorker', 'AMSWorkerResults', 'AMSWorkerError', 'AMSWorkerPool']
+except ImportError:
+    __all__ = []
 
 from ...mol.molecule import Molecule
 from ...core.settings import Settings
@@ -18,10 +23,6 @@ from ...tools.units import Units
 from ...core.functions import config, log
 from .ams import AMSJob
 from .amspipeerror import *
-
-
-__all__ = ['AMSWorker', 'AMSWorkerResults', 'AMSWorkerError', 'AMSWorkerPool']
-
 
 
 def _restrict(func):
