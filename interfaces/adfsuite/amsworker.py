@@ -11,7 +11,7 @@ import numpy as np
 import collections
 
 try:
-    import ubsjon
+    import ubjson
     __all__ = ['AMSWorker', 'AMSWorkerResults', 'AMSWorkerError', 'AMSWorkerPool']
 except ImportError:
     __all__ = []
