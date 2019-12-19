@@ -248,6 +248,13 @@ rst_epilog = """
 .. |AMSJob| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSJob`
 .. |AMSResults| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSResults`
 
+.. |AMSWorker| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorker`
+.. |AMSWorkerPool| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerPool`
+.. |AMSWorkerResults| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerResults`
+.. |AMSWorkerError| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerError`
+.. |AMSPipeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeError`
+.. |AMSPipeRuntimeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeRuntimeError`
+
 .. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
 .. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`
 

@@ -4,9 +4,9 @@ AMS driver
 .. currentmodule:: scm.plams.interfaces.adfsuite.ams
 
 The AMS driver is a new program introduced in the 2018 release that unifies the way in which different computational engines of Amsterdam Modelling Suite are called.
-You can find more information about AMS in the `corresponding part of the documentation <../../AMS/General.html>`_.
+You can find more information about the AMS driver in the `corresponding part of the documentation <../../AMS/General.html>`_.
 
-
+.. _AMS_preparing_input:
 
 Preparing input
 ~~~~~~~~~~~~~~~
@@ -266,7 +266,7 @@ An alternative way of supplying molecular coordinates is to use the ``GeometryFi
     #other settings adjustments
     myjob = AMSJob(settings=s)
 
-(Currently only the `extended XYZ format <../../AMS/Appendices.html#extendedxyz>`_ for details) is supported.)
+Currently only the `extended XYZ format <../../AMS/Appendices.html#extendedxyz>`_ is supported.
 
 Finally, one could use the ``LoadSystem`` top-level key and point to an existing ``.rkf`` file with results of some previous calculation::
 
@@ -324,6 +324,7 @@ AMSResults API
 ~~~~~~~~~~~~~~
 
 .. autoclass:: AMSResults
+    :exclude-members: __init__
     :no-private-members:
 
 

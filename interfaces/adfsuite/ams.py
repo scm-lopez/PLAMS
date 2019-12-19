@@ -138,7 +138,7 @@ class AMSResults(Results):
 
 
     def get_input_molecule(self):
-        """Return a |Molecule| instance with initial coordinates.
+        """Return a |Molecule| instance with the initial coordinates.
 
         All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
@@ -146,7 +146,7 @@ class AMSResults(Results):
 
 
     def get_main_molecule(self):
-        """Return a |Molecule| instance with final coordinates.
+        """Return a |Molecule| instance with the final coordinates.
 
         All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
@@ -230,11 +230,50 @@ class AMSResults(Results):
 
 
     def get_energy(self, unit='au', engine=None):
-        """Return final bond energy, expressed in *unit*.
+        """Return final energy, expressed in *unit*.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
+
+
+    def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
+        """Return the gradients of the final energy, expressed in *energy_unit* / *dist_unit*.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Gradients'), engine)).reshape(-1,3) * Units.conversion_ratio('au', energy_unit) / Units.conversion_ratio('au', dist_unit)
+
+
+    def get_stresstensor(self, engine=None):
+        """Return the final stress tensor, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'StressTensor'), engine)).reshape(len(self.get_input_molecule().lattice),-1)
+
+
+    def get_hessian(self, engine=None):
+        """Return the Hessian matrix, i.e. the second derivative of the total energy with respect to the nuclear coordinates, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Hessian'), engine)).reshape(3*len(self.get_input_molecule()),-1)
+
+
+    def get_elastictensor(self, engine=None):
+        """Return the elastic tensor, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        et_flat = np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'ElasticTensor'), engine))
+        num_latvec = len(self.get_input_molecule().lattice)
+        if num_latvec == 1:
+            return et_flat.reshape(1,1)
+        elif num_latvec == 2:
+            return et_flat.reshape(3,3)
+        else:
+            return et_flat.reshape(6,6)
 
 
     def get_frequencies(self, unit='cm^-1', engine=None):
@@ -244,6 +283,28 @@ class AMSResults(Results):
         """
         freqs = np.array(self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine))
         return freqs * Units.conversion_ratio('cm^-1', unit)
+
+
+    def get_charges(self, engine=None):
+        """Return the atomic charges, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Charges'), engine))
+
+
+    def get_dipolemoment(self, engine=None):
+        """Return the electric dipole moment, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleMoment'), engine))
+
+
+    def get_dipolegradients(self, engine=None):
+        """Return the nuclear gradients of the electric dipole moment, expressed in atomic units. This is a (3*numAtoms x 3) matrix.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleGradients'), engine)).reshape(-1,3)
 
 
     def recreate_molecule(self):
@@ -275,6 +336,17 @@ class AMSResults(Results):
             s.soft_update(config.job)
             return s
         return None
+
+
+    def ok(self):
+        """Check if the execution of the associated :attr:`job` was successful or not.
+        See :meth:`Job.ok<scm.plams.core.basejob.Job.ok>` for more information."""
+        return self.job.ok()
+
+    @property
+    def name(self):
+        """Retrun the :attr:`job.name` of the job associated with this results instance."""
+        return self.job.name
 
 
 
@@ -389,11 +461,13 @@ class AMSJob(SingleJob):
     def get_runscript(self):
         """Generate the runscript. Returned string is of the form::
 
+            unset AMS_SWITCH_LOGFILE_AND_STDOUT
             AMS_JOBNAME=jobname AMS_RESULTSDIR=. $ADFBIN/ams [-n nproc] <jobname.in [>jobname.out]
 
         ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``.
         """
-        ret = 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
+        ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
+        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
@@ -480,7 +554,7 @@ class AMSJob(SingleJob):
             elif isinstance(value, list):
                 for el in value:
                     ret += serialize(key, el, indent)
-            elif value is '' or value is True:
+            elif value == '' or value is True:
                 ret += ' '*indent + key + '\n'
             elif value is False or value is None:
                 pass
@@ -663,7 +737,7 @@ class AMSJob(SingleJob):
             if settings_block.lattice._1:
                 mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
 
-            # Set the moleculair charge
+            # Set the molecular charge
             if settings_block.charge:
                 mol.properties.charge = float(settings_block.charge)
 

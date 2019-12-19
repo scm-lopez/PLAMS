@@ -7,5 +7,5 @@ When you publish results in the scientific literature that were obtained using t
 
 Additionally, you may add a list of authors and contributors:
 
-| **Main author:** Michał Handzlik. 
-| **Main contributors:** Bas van Beek, Patrick Melix, Lars Ridder, Felipe Zapata.
+| **Main author:** Michał Handzlik.
+| **Main contributors:** Bas van Beek, Patrick Melix, Robert Rüger, Tomáš Trnka, Lars Ridder, Felipe Zapata.

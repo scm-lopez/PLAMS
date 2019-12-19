@@ -86,7 +86,7 @@ class CSHessianADFJob(MultiJob):
                 hess = s.get_hessian(self.basisjob.results)
                 hess.shape = (self.N, self.N)
 
-            elif arg is 'cart':
+            elif arg == 'cart':
                 return np.eye(self.N)
 
             else:

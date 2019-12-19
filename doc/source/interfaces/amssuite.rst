@@ -12,7 +12,7 @@ All possible input keywords and options are covered, as well as extraction of ar
     * ADF      : |ADFJob|
     * BAND     : |AMSJob| with BAND engine
     * DFTB     : |AMSJob| with DFTB engine
-    * ReaxFF   : |ReaxFFJob| **or** |AMSJob| with ReaxFF engine (incomplete functionality)
+    * ReaxFF   : |ReaxFFJob| **or** |AMSJob| with ReaxFF engine
     * MOPAC    : |AMSJob| with MOPAC engine
     * UFF      : |AMSJob| with UFF engine
     * Densf    : |DensfJob|
@@ -23,6 +23,7 @@ All possible input keywords and options are covered, as well as extraction of ar
 .. toctree::
 
     ams
+    amsworker
     adf
     reaxff
     postadf
