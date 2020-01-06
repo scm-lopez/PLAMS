@@ -59,10 +59,17 @@ class AMSWorkerResults:
     """
 
     def __init__(self, name, molecule, results, error=None):
-        self._name      = name
-        self._molecule  = molecule
-        self.error      = error
-        self._results   = results
+        self._name           = name
+        self._input_molecule = molecule
+        self.error           = error
+        self._results        = results
+        if 'xyzAtoms' in self._results:
+            self._main_molecule = self._input_molecule.copy()
+            self._main_molecule.from_array(self._results.pop('xyzAtoms') * Units.conversion_ratio('au', 'Angstrom'))
+            if 'latticeVectors' in self._results:
+                self._main_molecule.lattice = [ tuple(v) for v in self._results.pop('latticeVectors') * Units.conversion_ratio('au', 'Angstrom') ]
+        else:
+            self._main_molecule = self._input_molecule
 
     @property
     def name(self):
@@ -134,15 +141,13 @@ class AMSWorkerResults:
         """Return a |Molecule| instance with the coordinates passed into the |AMSWorker|.
 
         Note that this method may also be used if the calculation producing this |AMSWorkerResults| object has failed, i.e. :meth:`ok` is ``False``."""
-        return self._molecule
+        return self._input_molecule
 
     @_restrict
     def get_main_molecule(self):
         """Return a |Molecule| instance with the final coordinates.
-
-        This is currently equivalent to the :meth:`get_input_molecule` method, as the |AMSWorker| does not (yet) have methods that change the geometry.
         """
-        return self._molecule
+        return self._main_molecule
 
 
 
@@ -362,6 +367,69 @@ class AMSWorker:
         self.restart_cache_deleted.clear()
 
 
+    def _solve(self, optimize, name, molecule, prev_results=None, quiet=True,
+               gradients=False, stresstensor=False, hessian=False, elastictensor=False,
+               charges=False, dipolemoment=False, dipolegradients=False):
+
+        if self.use_restart_cache and name in self.restart_cache:
+            raise JobError(f'Name "{name}" is already associated with results from the restart cache.')
+
+        try:
+
+            # This is a good opportunity to let the worker process know about all the results we no longer need ...
+            self._prune_restart_cache()
+
+            chemicalSystem = {}
+            chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
+            chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
+            if 'charge' in molecule.properties:
+                chemicalSystem['totalCharge'] = float(molecule.properties.charge)
+            else:
+                chemicalSystem['totalCharge'] = 0.0
+            self._call("SetSystem", chemicalSystem)
+            if molecule.lattice:
+                cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
+                self._call("SetLattice", {"vectors": cell})
+            else:
+                self._call("SetLattice", {})
+
+            args = {
+                "request": { "title": str(name) },
+                "keepResults": self.use_restart_cache,
+                "optimize": optimize
+            }
+            if quiet: args["request"]["quiet"] = True
+            if gradients: args["request"]["gradients"] = True
+            if stresstensor: args["request"]["stressTensor"] = True
+            if hessian: args["request"]["hessian"] = True
+            if elastictensor: args["request"]["elasticTensor"] = True
+            if charges: args["request"]["charges"] = True
+            if dipolemoment: args["request"]["dipoleMoment"] = True
+            if dipolegradients: args["request"]["dipoleGradients"] = True
+            if self.use_restart_cache and prev_results is not None and prev_results.name in self.restart_cache:
+                args["prevTitle"] = prev_results.name
+
+            results = self._call("Solve", args)
+            results = self._unflatten_arrays(results[0]['results'])
+            results = AMSWorkerResults(name, molecule, results)
+
+            if self.use_restart_cache:
+                self.restart_cache.add(name)
+                weakref.finalize(results, self._delete_from_restart_cache, name)
+
+            return results
+
+        except AMSPipeRuntimeError as exc:
+            return AMSWorkerResults(name, molecule, None, exc)
+        except AMSWorkerError as exc:
+            # Something went wrong. Our worker process might also be down.
+            # Let's reset everything to be safe ...
+            exc.stdout, exc.stderr = self.stop()
+            self._start_subprocess()
+            # ... and return an AMSWorkerResults object indicating our failure.
+            return AMSWorkerResults(name, molecule, None, exc)
+
+
     def SinglePoint(self, name, molecule, prev_results=None, quiet=True,
                     gradients=False, stresstensor=False, hessian=False, elastictensor=False,
                     charges=False, dipolemoment=False, dipolegradients=False):
@@ -395,62 +463,20 @@ class AMSWorker:
 
         The *quiet* keyword can be used to obtain more output from the worker process. Note that the output of the worker process is not printed to the standard output but instead ends up in the ``ams.out`` file in the temporary working directory of the |AMSWorker| instance. This is mainly useful for debugging.
         """
-        if self.use_restart_cache and name in self.restart_cache:
-            raise JobError(f'Name "{name}" is already associated with results from the restart cache.')
+        return self._solve(False, name, molecule, prev_results=prev_results, quiet=quiet,
+                           gradients=gradients, stresstensor=stresstensor, hessian=hessian, elastictensor=elastictensor,
+                           charges=charges, dipolemoment=dipolemoment, dipolegradients=dipolegradients)
 
-        try:
 
-            # This is a good opportunity to let the worker process know about all the results we no longer need ...
-            self._prune_restart_cache()
-
-            chemicalSystem = {}
-            chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
-            chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
-            if 'charge' in molecule.properties:
-                chemicalSystem['totalCharge'] = float(molecule.properties.charge)
-            else:
-                chemicalSystem['totalCharge'] = 0.0
-            self._call("SetSystem", chemicalSystem)
-            if molecule.lattice:
-                cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                self._call("SetLattice", {"vectors": cell})
-            else:
-                self._call("SetLattice", {})
-
-            args = {
-                "request": { "title": str(name) },
-                "keepResults": self.use_restart_cache
-            }
-            if quiet: args["request"]["quiet"] = True
-            if gradients: args["request"]["gradients"] = True
-            if stresstensor: args["request"]["stressTensor"] = True
-            if hessian: args["request"]["hessian"] = True
-            if elastictensor: args["request"]["elasticTensor"] = True
-            if charges: args["request"]["charges"] = True
-            if dipolemoment: args["request"]["dipoleMoment"] = True
-            if dipolegradients: args["request"]["dipoleGradients"] = True
-            if self.use_restart_cache and prev_results is not None and prev_results.name in self.restart_cache:
-                args["prevTitle"] = prev_results.name
-
-            results = self._call("Solve", args)
-            results = self._unflatten_arrays(results[0]['results'])
-            results = AMSWorkerResults(name, molecule, results)
-
-            if self.use_restart_cache:
-                self.restart_cache.add(name)
-                weakref.finalize(results, self._delete_from_restart_cache, name)
-
-            return results
-
-        except AMSPipeRuntimeError as exc:
-            return AMSWorkerResults(name, molecule, None, exc)
-        except AMSWorkerError as exc:
-            # Something went wrong. Our worker process might also be down.
-            # Let's reset everything to be safe ...
-            exc.stdout, exc.stderr = self.stop()
-            self._start_subprocess()
-            # ... and return an AMSWorkerResults object indicating our failure.
-            return AMSWorkerResults(name, molecule, None, exc)
+    def GeometryOptimization(self, name, molecule, prev_results=None, quiet=True,
+                             gradients=False, stresstensor=False, hessian=False, elastictensor=False,
+                             charges=False, dipolemoment=False, dipolegradients=False):
+        """Performs a geometry optimization on the |Molecule| instance *molecule* and returns an instance of |AMSWorkerResults| containing the results from the optimized geometry.
+        """
+        # TODO: Set GO settings if necessary: convergence criteria, lattice optimization, max number of iterations, ...
+        return self._solve(True, name, molecule, prev_results=prev_results, quiet=quiet,
+                           gradients=gradients, stresstensor=stresstensor, hessian=hessian, elastictensor=elastictensor,
+                           charges=charges, dipolemoment=dipolemoment, dipolegradients=dipolegradients)
 
 
     def _check_process(self) :
