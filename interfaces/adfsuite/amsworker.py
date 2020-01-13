@@ -63,7 +63,7 @@ class AMSWorkerResults:
         self._input_molecule = molecule
         self.error           = error
         self._results        = results
-        if 'xyzAtoms' in self._results:
+        if self._results is not None and 'xyzAtoms' in self._results:
             self._main_molecule = self._input_molecule.copy()
             self._main_molecule.from_array(self._results.pop('xyzAtoms') * Units.conversion_ratio('au', 'Angstrom'))
             if 'latticeVectors' in self._results:
