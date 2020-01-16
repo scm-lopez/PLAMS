@@ -22,7 +22,7 @@ class AMSPipeError(PlamsError):
             arg = msg["argument"]
         else:
             arg = None
-        exc = _code2class[msg["status"]](msg["message"], arg)
+        exc = _code2class[msg["status"]](msg.get("message", "unknown message"), arg)
         exc.method = msg["method"]
 
         return exc
