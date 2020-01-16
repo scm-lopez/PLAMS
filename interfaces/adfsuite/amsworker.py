@@ -396,7 +396,6 @@ class AMSWorker:
             args = {
                 "request": { "title": str(name) },
                 "keepResults": self.use_restart_cache,
-                "optimize": optimize
             }
             if quiet: args["request"]["quiet"] = True
             if gradients: args["request"]["gradients"] = True
@@ -409,7 +408,11 @@ class AMSWorker:
             if self.use_restart_cache and prev_results is not None and prev_results.name in self.restart_cache:
                 args["prevTitle"] = prev_results.name
 
-            results = self._call("Solve", args)
+            if optimize:
+                results = self._call("Optimize", args)
+            else:
+                results = self._call("Solve", args)
+
             results = self._unflatten_arrays(results[0]['results'])
             results = AMSWorkerResults(name, molecule, results)
 

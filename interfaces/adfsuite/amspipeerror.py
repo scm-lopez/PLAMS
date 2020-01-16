@@ -18,17 +18,15 @@ class AMSPipeError(PlamsError):
 
     @staticmethod
     def from_message(msg):
-        if "argument" in msg:
-            arg = msg["argument"]
-        else:
-            arg = None
-        exc = _code2class[msg["status"]](msg.get("message", "unknown message"), arg)
-        exc.method = msg["method"]
+        exc = _code2class[msg["status"]](msg.get("message"), msg.get("argument"))
+        exc.method = msg.get("method")
 
         return exc
 
     def to_message(self):
-        msg = {"status": self.status, "message": self.message}
+        msg = {"status": self.status}
+        if self.message is not None:
+            msg["message"] = self.message
         if self.method is not None:
             msg["method"] = self.method
         if self.argument is not None:
