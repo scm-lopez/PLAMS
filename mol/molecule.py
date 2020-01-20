@@ -1597,17 +1597,14 @@ class Molecule:
         """
 
         if inputformat is None:
-            fsplit = filename.rsplit('.',1)
-            if len(fsplit) == 2:
-                inputformat = fsplit[1]
-            else:
-                inputformat = 'xyz'
+            _, extension = os.path.splitext(filename)
+            inputformat = extension.strip('.') if extension else 'xyz'
         if inputformat in self.__class__._readformat:
             with open(filename, 'r') as f:
                 ret = self._readformat[inputformat](self, f, **other)
             return ret
         else:
-            raise MoleculeError('read: Unsupported file format')
+            raise MoleculeError(f"read: Unsupported file format '{inputformat}'")
 
 
     def write(self, filename, outputformat=None, **other):
@@ -1619,16 +1616,13 @@ class Molecule:
         """
 
         if outputformat is None:
-            fsplit = filename.rsplit('.',1)
-            if len(fsplit) == 2:
-                outputformat = fsplit[1]
-            else:
-                outputformat = 'xyz'
+            _, extension = os.path.splitext(filename)
+            outputformat = extension.strip('.') if extension else 'xyz'
         if outputformat in self.__class__._writeformat:
             with open(filename, 'w') as f:
                 self._writeformat[outputformat](self, f, **other)
         else:
-            raise MoleculeError('write: Unsupported file format')
+            raise MoleculeError(f"write: Unsupported file format '{outputformat}'")
 
     #Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
