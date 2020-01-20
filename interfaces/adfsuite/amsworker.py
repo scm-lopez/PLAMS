@@ -442,13 +442,13 @@ class AMSWorker:
 
         By default only the total energy is calculated but additional properties can be requested using the corresponding keyword arguments:
 
-            - *gradients*: Calculate the nuclear gradients of the total energy.
-            - *stresstensor*: Calculate the clamped-ion stress tensor. This should only be requested for periodic systems.
-            - *hessian*: Calculate the Hessian matrix, i.e. the second derivative of the total energy with respect to the nuclear coordinates.
-            - *elastictensor*: Calculate the elastic tensor. This should only be requested for periodic systems.
-            - *charges*: Calculate atomic charges.
-            - *dipolemoment*: Calculate the electric dipole moment. This should only be requested for non-periodic systems.
-            - *dipolemoment*: Calculate the nuclear gradients of the electric dipole moment. This should only be requested for non-periodic systems.
+        - *gradients*: Calculate the nuclear gradients of the total energy.
+        - *stresstensor*: Calculate the clamped-ion stress tensor. This should only be requested for periodic systems.
+        - *hessian*: Calculate the Hessian matrix, i.e. the second derivative of the total energy with respect to the nuclear coordinates.
+        - *elastictensor*: Calculate the elastic tensor. This should only be requested for periodic systems.
+        - *charges*: Calculate atomic charges.
+        - *dipolemoment*: Calculate the electric dipole moment. This should only be requested for non-periodic systems.
+        - *dipolemoment*: Calculate the nuclear gradients of the electric dipole moment. This should only be requested for non-periodic systems.
 
         Users can pass an instance of a previously obtained |AMSWorkerResults| as the *prev_results* keyword argument. This can trigger a restart from previous results in the worker process, the details of which depend on the used computational engine: For example, a DFT based engine might restart from the electronic density obtained in an earlier calculation on a similar geometry. This is often useful to speed up series of sequentially dependent calculations:
 
