@@ -12,7 +12,7 @@ except ImportError:
     PANDAS = False
 try:
     import matplotlib
-    matplotlib.use('TkAgg')
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     MATPLOTLIB = True
 except ImportError:
@@ -136,7 +136,7 @@ class CRSResults(SCMResults):
         setattr(self, '_prop_dict', np_dict)
         return np_dict
 
-    def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
+    def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = False, x_label = None, y_label = None):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
 
         Accepts the output of, *e.g.*, :meth:`CRSResults.get_sigma_profile`:
