@@ -306,6 +306,18 @@ class AMSResults(Results):
         """
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleGradients'), engine)).reshape(-1,3)
 
+    def get_timings(self):
+        """This functions is for AMSJob results only. ADFJob already has a built in function for this.
+        Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds (Jim Boelrijk).
+        """
+        ret = {}
+        cpu = self.grep_output('Total cpu time:')
+        system = self.grep_output('Total system time:')
+        elapsed = self.grep_output('Total elapsed time:')
+        ret['elapsed'] = float(elapsed[0].split()[-1])
+        ret['system'] = float(system[0].split()[-1])
+        ret['cpu'] = float(cpu[0].split()[-1])
+        return ret
 
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
