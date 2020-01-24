@@ -50,7 +50,7 @@ def saferun(*args, **kwargs):
     while attempt <= repeat:
         try:
             return subprocess.run(*args, **kwargs)
-        except BlockingIOError as e:
+        except OSError as e:
             attempt += 1
             log('subprocess.run({}) attempt {} failed with {}'.format(args[0], attempt, e), 5)
             last_error = e
