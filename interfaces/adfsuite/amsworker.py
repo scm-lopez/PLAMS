@@ -369,7 +369,9 @@ class AMSWorker:
 
     def _solve(self, optimize, name, molecule, prev_results=None, quiet=True,
                gradients=False, stresstensor=False, hessian=False, elastictensor=False,
-               charges=False, dipolemoment=False, dipolegradients=False):
+               charges=False, dipolemoment=False, dipolegradients=False,
+               method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
+               maxiterations=None, convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
 
         if self.use_restart_cache and name in self.restart_cache:
             raise JobError(f'Name "{name}" is already associated with results from the restart cache.')
@@ -409,6 +411,15 @@ class AMSWorker:
                 args["prevTitle"] = prev_results.name
 
             if optimize:
+                if method is not None: args["method"] = method
+                if coordinatetype is not None: args["coordinateType"] = coordinatetype
+                if usesymmetry is not None: args["useSymmetry"] = usesymmetry
+                if optimizelattice: args["optimizeLattice"] = True
+                if maxiterations is not None: args["maxIterations"] = maxiterations
+                if convenergy is not None: args["convEnergy"] = convenergy
+                if convgradients is not None: args["convGradients"] = convgradients
+                if convstep is not None: args["convStep"] = convstep
+                if convstressenergyperatom is not None: args["convStressEnergyPerAtom"] = convstressenergyperatom
                 results = self._call("Optimize", args)
             else:
                 results = self._call("Solve", args)
@@ -473,13 +484,29 @@ class AMSWorker:
 
     def GeometryOptimization(self, name, molecule, prev_results=None, quiet=True,
                              gradients=False, stresstensor=False, hessian=False, elastictensor=False,
-                             charges=False, dipolemoment=False, dipolegradients=False):
+                             charges=False, dipolemoment=False, dipolegradients=False,
+                             method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
+                             maxiterations=None, convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
         """Performs a geometry optimization on the |Molecule| instance *molecule* and returns an instance of |AMSWorkerResults| containing the results from the optimized geometry.
+
+        The geometry optimizer can be controlled using the following keyword arguments:
+
+        - *method*: String identifier of a particular optimization algorithm.
+        - *coordinatetype*: Select a particular kind of optimization coordinates.
+        - *usesymmetry*: Enable the use of symmetry when applicable.
+        - *optimizelattice*: Optimize the lattice vectors together with atomic positions.
+        - *maxiterations*: Maximum number of iterations allowed.
+        - *convenergy*: Convergence criterion for the energy (in Hartree).
+        - *convgradients*: Convergence criterion for the gradients (in Hartree/Bohr).
+        - *convstep*: Convergence criterion for displacements (in Bohr).
+        - *convstressenergyperatom*: Convergence criterion for the stress energy per atom (in Hartree).
         """
-        # TODO: Set GO settings if necessary: convergence criteria, lattice optimization, max number of iterations, ...
         return self._solve(True, name, molecule, prev_results=prev_results, quiet=quiet,
                            gradients=gradients, stresstensor=stresstensor, hessian=hessian, elastictensor=elastictensor,
-                           charges=charges, dipolemoment=dipolemoment, dipolegradients=dipolegradients)
+                           charges=charges, dipolemoment=dipolemoment, dipolegradients=dipolegradients,
+                           method=method, coordinatetype=coordinatetype, usesymmetry=usesymmetry, optimizelattice=optimizelattice,
+                           maxiterations=maxiterations, convenergy=convenergy, convgradients=convgradients,
+                           convstep=convstep, convstressenergyperatom=convstressenergyperatom)
 
 
     def _check_process(self) :
