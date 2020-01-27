@@ -339,7 +339,7 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
         cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1))
     except:
          # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1, useRandomCoords=True)) 
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1, useRandomCoords=True))
 
     if forcefield:
         # Select the forcefield (UFF or MMFF)
@@ -661,6 +661,8 @@ def add_Hs(mol, forcefield=None, return_rdmol=False):
                 connected_atom = bond.GetBeginAtom()
             try:
                 ResInfo = connected_atom.GetPDBResidueInfo()
+                if ResInfo is None:
+                    continue  # Segmentation faults are raised if ResInfo is None
                 atom.SetMonomerInfo(ResInfo)
                 atomname = 'H' + atom.GetPDBResidueInfo().GetName()[1:]
                 atom.GetPDBResidueInfo().SetName(atomname)
