@@ -10,13 +10,6 @@ try:
     PANDAS = True
 except ImportError:
     PANDAS = False
-try:
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    MATPLOTLIB = True
-except ImportError:
-    MATPLOTLIB = False
 
 from .scmjob import (SCMJob, SCMResults)
 from ...tools.units import Units
@@ -136,7 +129,7 @@ class CRSResults(SCMResults):
         setattr(self, '_prop_dict', np_dict)
         return np_dict
 
-    def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = False, x_label = None, y_label = None):
+    def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
 
         Accepts the output of, *e.g.*, :meth:`CRSResults.get_sigma_profile`:
@@ -170,7 +163,11 @@ class CRSResults(SCMResults):
             return ret[:array.shape[1]]
 
         # Check if matplotlib is installed
-        if not MATPLOTLIB:
+        try:
+            import matplotlib
+            matplotlib.use('TkAgg') if plot_fig else matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+        except ImportError:
             method = self.__class__.__name__ + '.plot'
             raise ImportError("{}: this method requires the 'matplotlib' package".format(method))
 
