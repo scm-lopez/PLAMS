@@ -465,7 +465,7 @@ class AMSJob(SingleJob):
             AMSJob: lambda x: x.results.rkfpath(),
             AMSResults: lambda x: x.rkfpath(),
             KFFile: lambda x: x.path,
-            tuple: lambda x: AMSJob.tuple2rkf(x)
+            tuple: lambda x: AMSJob._tuple2rkf(x)
         }
         return self._serialize_input(special)
 
@@ -514,7 +514,7 @@ class AMSJob(SingleJob):
             AMSJob: lambda x: x.hash_input(),
             AMSResults: lambda x: x.job.hash_input(),
             KFFile: lambda x: x.path,
-            tuple: lambda x: AMSJob.tuple2rkf(x)
+            tuple: lambda x: AMSJob._tuple2rkf(x)
         }
         return sha256(self._serialize_input(special))
 
