@@ -2,7 +2,7 @@
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
-           'partition_protein', 'readpdb', 'writepdb', 'get_substructure']
+           'partition_protein', 'readpdb', 'writepdb', 'get_substructure', 'get_conformations']
 
 """
 @author: Lars Ridder
@@ -293,12 +293,12 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     return get_conformations(molecule, nconfs, name, forcefield, rms)
 
 
-def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
+def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1):
     """
-    Generates 3D conformation(s) for an rdkit_mol
+    Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
-    :parameter rdkit_mol: RDKit molecule
-    :type rdkit_mol: rdkit.Chem.Mol
+    :parameter mol: RDKit or PLAMS Molecule
+    :type mol: rdkit.Chem.Mol or |Molecule|
     :parameter int nconfs: Number of conformers to be generated
     :parameter str name: A name for the molecule
     :parameter str forcefield: Choose 'uff' or 'mmff' forcefield for geometry
@@ -309,6 +309,12 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
+
+    if isinstance(mol, Molecule):
+        rdkit_mol = to_rdmol(mol)
+    else:
+        rdkit_mol = mol
+
     def MMFFenergy(cid):
         ff = AllChem.MMFFGetMoleculeForceField(
             rdkit_mol, AllChem.MMFFGetMoleculeProperties(rdkit_mol), confId=cid)
