@@ -4,6 +4,7 @@ import itertools
 import math
 import numpy as np
 import os
+from collections import OrderedDict
 
 from .atom import Atom
 from .bond import Bond
@@ -602,6 +603,170 @@ class Molecule:
         if len(self.lattice) != 3:
             raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
         return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
+
+
+    def set_integer_bonds(self):
+        """Convert non-integer bond orders into integers.
+
+        For example, bond orders of aromatic systems are no longer set to the non-integer
+        value of ``1.5``, instead adopting bond orders of ``1`` and ``2``.
+
+        The implemented function walks a set of graphs constructed from all non-integer bonds,
+        converting the orders of aforementioned bonds to integers by alternating calls to
+        :func:`math.ceil` and :func:`math.floor`.
+        The implication herein is that both :math:`i` and :math:`i+1` are considered valid
+        (integer) values for any bond order within the :math:`(i, i+1)` interval.
+        Floats which can be represented exactly as an integer, *e.g.* :math:`1.0`,
+        are herein treated as integers.
+
+        Can be used for sanitizaing any Molecules passed to the
+        :mod:`rdkit<scm.plams.interfaces.molecule.rdkit>` module,
+        as its functions are generally unable to handle Molecules with non-integer bond orders.
+
+        ..code:: python
+
+            >>> from scm.plams import Molecule
+
+            >>> benzene = Molecule(...)
+            >>> print(benzene)
+              Atoms:
+                1         C      1.193860     -0.689276      0.000000
+                2         C      1.193860      0.689276      0.000000
+                3         C      0.000000      1.378551      0.000000
+                4         C     -1.193860      0.689276      0.000000
+                5         C     -1.193860     -0.689276      0.000000
+                6         C     -0.000000     -1.378551      0.000000
+                7         H      2.132911     -1.231437     -0.000000
+                8         H      2.132911      1.231437     -0.000000
+                9         H      0.000000      2.462874     -0.000000
+               10         H     -2.132911      1.231437     -0.000000
+               11         H     -2.132911     -1.231437     -0.000000
+               12         H     -0.000000     -2.462874     -0.000000
+              Bonds:
+               (3)--1.5--(4)
+               (5)--1.5--(6)
+               (1)--1.5--(6)
+               (2)--1.5--(3)
+               (4)--1.5--(5)
+               (1)--1.5--(2)
+               (3)--1.0--(9)
+               (6)--1.0--(12)
+               (5)--1.0--(11)
+               (4)--1.0--(10)
+               (2)--1.0--(8)
+               (1)--1.0--(7)
+
+            >>> benzene.set_integer_bonds()
+            >>> print(benzene)
+              Atoms:
+                1         C      1.193860     -0.689276      0.000000
+                2         C      1.193860      0.689276      0.000000
+                3         C      0.000000      1.378551      0.000000
+                4         C     -1.193860      0.689276      0.000000
+                5         C     -1.193860     -0.689276      0.000000
+                6         C     -0.000000     -1.378551      0.000000
+                7         H      2.132911     -1.231437     -0.000000
+                8         H      2.132911      1.231437     -0.000000
+                9         H      0.000000      2.462874     -0.000000
+               10         H     -2.132911      1.231437     -0.000000
+               11         H     -2.132911     -1.231437     -0.000000
+               12         H     -0.000000     -2.462874     -0.000000
+              Bonds:
+               (3)--1.0--(4)
+               (5)--1.0--(6)
+               (1)--2.0--(6)
+               (2)--2.0--(3)
+               (4)--2.0--(5)
+               (1)--1.0--(2)
+               (3)--1.0--(9)
+               (6)--1.0--(12)
+               (5)--1.0--(11)
+               (4)--1.0--(10)
+               (2)--1.0--(8)
+               (1)--1.0--(7)
+
+        """
+        ceil = math.ceil
+        floor = math.floor
+        func_invert = {ceil: floor, floor: ceil}
+
+        def dfs(atom, func) -> None:
+            """Depth-first search algorithm for integer-ifying the bond orders."""
+            for b2 in atom.bonds:
+                if b2._visited:
+                    continue
+
+                b2._visited = True
+                b2.order = func(b2.order)  # func = ``math.ceil()`` or ``math.floor()``
+                del bond_dict[b2]
+
+                atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
+                dfs(atom_new, func=func_invert[func])
+
+        # Mark all non-integer bonds; floats which can be represented exactly
+        # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
+        bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
+        for bond in self.bonds:
+            if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():  # Checking for ``is_integer()`` catches both float and np.float
+                bond._visited = False
+                bond_dict[bond] = None
+            else:
+                bond._visited = True
+
+        while bond_dict:
+            b1, _ = bond_dict.popitem()
+            order = b1.order
+
+            # Start with either ``math.ceil()`` if the ceiling is closer than the floor;
+            # start with ``math.floor()`` otherwise
+            delta_ceil, delta_floor = ceil(order) - order, floor(order) - order
+            func = ceil if abs(delta_ceil) < abs(delta_floor) else floor
+
+            b1.order = func(order)
+            b1._visited = True
+            dfs(b1.atom1, func=func_invert[func])
+            dfs(b1.atom2, func=func_invert[func])
+
+        for bond in self.bonds:
+            del bond._visited
+
+
+    def index(self, value, start=1, stop=None):
+        """Return the first index of the specified Atom or Bond.
+
+        Providing an |Atom| will return its 1-based index, while a |Bond| returns a 2-tuple with the 1-based indices of its atoms.
+
+        Raises a |MoleculeError| if the provided is not an Atom/Bond or if the Atom/bond is not part of the molecule.
+
+        .. code:: python
+
+            >>> from scm.plams import Molecule, Bond, Atom
+
+            >>> mol = Molecule(...)
+            >>> atom: Atom = Molecule[1]
+            >>> bond: Bond = Molecule[1, 2]
+
+            >>> print(mol.index(atom))
+            1
+
+            >>> print(mol.index(bond))
+            (1, 2)
+
+        """
+        args = [start - 1 if start > 0 else start]
+        if stop is not None:  # Correct for the 1-based indices used in Molecule
+            args.append(stop - 1 if stop > 0 else stop)
+
+        try:
+            if isinstance(value, Atom):
+                return 1 + self.atoms.index(value, *args)
+            elif isinstance(value, Bond):
+                return 1 + self.atoms.index(value.atom1, *args), 1 + self.atoms.index(value.atom2, *args)
+
+        except ValueError as ex:  # Raised if the provided Atom/Bond is not in self
+            raise MoleculeError(f'Provided {value.__class__.__name__} is not in Molecule').with_traceback(ex.__traceback__)
+        else:  # Raised if value is neither an Atom nor Bond
+            raise MoleculeError(f"'value' expected an Atom or Bond; observed type: '{value.__class__.__name__}'")
 
 
 #===========================================================================
