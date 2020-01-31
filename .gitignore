@@ -68,3 +68,6 @@ svn.authors
 # Visual Studio Code
 .vscode/
 .mypy_cache/
+
+# macOS
+.DS_Store
