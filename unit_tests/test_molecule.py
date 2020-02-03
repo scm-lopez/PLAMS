@@ -42,3 +42,38 @@ def test_set_integer_bonds():
 
     benzene.set_integer_bonds()
     np.testing.assert_array_equal([b.order for b in benzene.bonds], ref2)
+
+
+def test_round():
+    """Test :meth:`Molecule.set_integer_bonds`."""
+    benzene = BENZENE.copy()
+    ref1 = np.array([[ 1., -1.,  0.],
+                     [ 1.,  1.,  0.],
+                     [ 0.,  1.,  0.],
+                     [-1.,  1.,  0.],
+                     [-1., -1.,  0.],
+                     [ 0., -1.,  0.],
+                     [ 2., -1.,  0.],
+                     [ 2.,  1.,  0.],
+                     [ 0.,  2.,  0.],
+                     [-2.,  1.,  0.],
+                     [-2., -1.,  0.],
+                     [ 0., -2.,  0.]])
+    ref2 = np.array([[ 1.19, -0.69,  0.  ],
+                     [ 1.19,  0.69,  0.  ],
+                     [ 0.  ,  1.38,  0.  ],
+                     [-1.19,  0.69,  0.  ],
+                     [-1.19, -0.69,  0.  ],
+                     [-0.  , -1.38,  0.  ],
+                     [ 2.13, -1.23, -0.  ],
+                     [ 2.13,  1.23, -0.  ],
+                     [ 0.  ,  2.46, -0.  ],
+                     [-2.13,  1.23, -0.  ],
+                     [-2.13, -1.23, -0.  ],
+                     [-0.  , -2.46, -0.  ]])
+
+    benzene2 = round(benzene)
+    np.testing.assert_array_equal(benzene2, ref1)
+
+    benzene.round(ndigits=2)
+    np.testing.assert_allclose(benzene, ref2)
