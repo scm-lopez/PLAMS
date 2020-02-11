@@ -409,6 +409,8 @@ class AMSResults(Results):
         else:
             if len(names) == 1:
                 return func(self.rkfs[names[0]])
+            elif len(names) == 0:
+                raise FileError('There is no engine .rkf present in {}'.format(self.job.path))
             else:
                 raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
 
