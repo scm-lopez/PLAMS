@@ -15,6 +15,13 @@ class AMSComparator:
     Initialize an instance with a dictionary of settings, a list of molecules, and a list of properties.
 
     Call run(), and later access the results with get_results_dict().
+
+    Write to .txt with savetxt()
+
+    Calculate rmsd with get_rmsd()
+
+    add a new column postrun with add_delta_result(), for storing/printing differences in calculated properties
+
     """
 
     def __init__(self, settings, molecules, properties="energy"):
@@ -34,7 +41,7 @@ class AMSComparator:
         assert(self.molecules is not None)
         assert(self.properties is not None)
 
-    def get_results_dict(self):
+    def get_results(self):
         """
             If energy, gradients, stresstensor, and other_property were given as properties, then this will
             return a dictionary of the form
@@ -60,6 +67,19 @@ class AMSComparator:
         """
         return self.all_results_dict
 
+    def add_delta_result(self, sett1, sett2, new_name=""):
+        if not new_name:
+            new_name = sett2+"_minus_"+sett1
+        assert(new_name not in self.all_results_dict)
+        assert(sett1 in self.all_results_dict)
+        assert(sett2 in self.all_results_dict)
+
+        self.all_results_dict[new_name]  = dict()
+        for prop in self.all_results_dict[sett1]:
+            if isinstance(self.all_results_dict[sett1][prop], np.ndarray):
+                delta = self.all_results_dict[sett2][prop] - self.all_results_dict[sett1][prop]
+                self.all_results_dict[new_name][prop] = delta
+
     def get_delta(self, sett1, sett2, prop):
         """ Calculates differences between two properties for different settings. 
             sett1: string
@@ -69,8 +89,8 @@ class AMSComparator:
         assert(sett1 in self.all_results_dict)
         assert(sett2 in self.all_results_dict)
         assert(prop in self.all_results_dict[sett1])
-        assert(ptop in self.all_results_dict[sett2])
-        delta = self.all_results_dict[sett1][prop] - self.all_results_dict[sett2][prop]
+        assert(prop in self.all_results_dict[sett2])
+        delta = self.all_results_dict[sett2][prop] - self.all_results_dict[sett1][prop]
         return delta
 
     def get_msd(self, sett1, sett2, prop, per_molecule=True):
@@ -171,9 +191,9 @@ class AMSComparator:
 
         fmt = kwargs.get('fmt', '.6e')
 
-        #def get_row_string(row_info, row_data):
-        #    ret = str(row_info)+' ' + ' '.join( ('{:'+fmt+'}').format(x) for x in row_data) + '\n'
-        #    return ret
+        def get_row_string(row_info, row_data):
+            ret = str(row_info)+' ' + ' '.join( ('{:'+fmt+'}').format(x) for x in row_data) + '\n'
+            return ret
 
         #def get_columnar_widths():
         #    lines = [header.split()]
