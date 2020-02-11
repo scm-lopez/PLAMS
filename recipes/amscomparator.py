@@ -60,11 +60,33 @@ class AMSComparator:
         """
         return self.all_results_dict
 
-    def get_msd(self, sett1, sett2, prop, per_molecule=True):
+    def get_delta(self, sett1, sett2, prop):
+        """ Calculates differences between two properties for different settings. 
+            sett1: string
+            sett2: string
+            prop: string
+        """
+        assert(sett1 in self.all_results_dict)
+        assert(sett2 in self.all_results_dict)
+        assert(prop in self.all_results_dict[sett1])
+        assert(ptop in self.all_results_dict[sett2])
         delta = self.all_results_dict[sett1][prop] - self.all_results_dict[sett2][prop]
+        return delta
+
+    def get_msd(self, sett1, sett2, prop, per_molecule=True):
+        """ Calculate mean squared deviation between two properties for different settings.
+        If per_molecule=False, returns a float.
+        If per_molecule=True, an array is returned with one entry per molecule """
+        assert(sett1 in self.all_results_dict)
+        assert(sett2 in self.all_results_dict)
+        assert(prop in self.all_results_dict[sett1])
+        assert(prop in self.all_results_dict[sett2])
+        my_mean = None
+        delta = self.get_delta(sett1, sett2, prop)
         squared = delta ** 2
+
         # if the molecules have different sizes, then the dtype will be object
-        if True or str(squared.dtype) == 'object':
+        if str(squared.dtype) == 'object':
             if per_molecule:
                 mean_list = [np.mean(x) for x in squared]
                 my_mean = np.array(mean_list)
@@ -81,7 +103,13 @@ class AMSComparator:
             else:
                 my_mean = np.mean(squared)
 
+        return my_mean
+
     def get_rmsd(self, sett1, sett2, prop, per_molecule=True):
+        assert(sett1 in self.all_results_dict)
+        assert(sett2 in self.all_results_dict)
+        assert(prop in self.all_results_dict[sett1])
+        assert(prop in self.all_results_dict[sett2])
         return np.sqrt(self.get_msd(sett1, sett2, prop, per_molecule))
 
 
@@ -111,8 +139,8 @@ class AMSComparator:
                 reshaped = raveled.reshape((-1, last_dim))
                 reshaped_values_list.append(reshaped)
 
-        ##### insert data information as the first four columns (prepared as a single string, so technically only one column in the final numpy array)
-        molecule_names = []
+        ##### insert data information as the first four columns (prepared as a single string)
+        data_information_list = []
         molecule_ids = []
         counter=-1
         for shape, orig_shape, mol in zip(data_shapes_list[0], orig_shapes_list[0], self.molecules):
@@ -131,7 +159,7 @@ class AMSComparator:
 
             for i in range(shape[0]):
                 complete_string_id = '{} {} {} {}'.format(thismolecule_name[i], counter, data_index[i], data_subindex[i])
-                molecule_names.extend([complete_string_id])
+                data_information_list.extend([complete_string_id])
 
 
         #### create header 
@@ -142,13 +170,31 @@ class AMSComparator:
         final_arr = np.concatenate(reshaped_values_list, axis=1)
 
         fmt = kwargs.get('fmt', '.6e')
+
+        #def get_row_string(row_info, row_data):
+        #    ret = str(row_info)+' ' + ' '.join( ('{:'+fmt+'}').format(x) for x in row_data) + '\n'
+        #    return ret
+
+        #def get_columnar_widths():
+        #    lines = [header.split()]
+        #    for row_info, row_data in zip(data_information_list, final_arr):
+        #        lines.extend( [get_row_string(row_info,row_data).split()])
+        #    widths = [max(map(len, map(str, col))) for col in zip(*lines)]
+        #    return lines, widths
+
         with open(fname, "w") as f:
+            #if columnar:
+            #    lines, widths = get_columnar_widths()
+            #    for line in lines:
+            #        f.write(" ".join((val.ljust(width) for val, width in zip(lines, widths))) + '\n')
+            #else:
             f.write(header+'\n')
-            for row_info, row_data in zip(molecule_names, final_arr):
-                f.write(str(row_info)+ ' ')
-                #f.write(' '.join(map(str, row_data))+'\n')
-                f.write(' '.join( ('{:'+fmt+'}').format(x) for x in row_data))
-                f.write('\n')
+            for row_info, row_data in zip(data_information_list, final_arr):
+                f.write(get_row_string(row_info, row_data))
+                    #f.write(str(row_info)+ ' ')
+                    ##f.write(' '.join(map(str, row_data))+'\n')
+                    #f.write(' '.join( ('{:'+fmt+'}').format(x) for x in row_data))
+                    #f.write('\n')
 
 
         # np.savetxt works but is very awkawrd with setting the format of the implicit conversion to stirng
