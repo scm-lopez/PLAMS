@@ -60,6 +60,31 @@ class AMSComparator:
         """
         return self.all_results_dict
 
+    def get_msd(self, sett1, sett2, prop, per_molecule=True):
+        delta = self.all_results_dict[sett1][prop] - self.all_results_dict[sett2][prop]
+        squared = delta ** 2
+        # if the molecules have different sizes, then the dtype will be object
+        if True or str(squared.dtype) == 'object':
+            if per_molecule:
+                mean_list = [np.mean(x) for x in squared]
+                my_mean = np.array(mean_list)
+            else:
+                if len(squared[0].shape) > 1: #non-scalar values
+                    raveled = np.concatenate([x.ravel() for x in squared])
+                    my_mean = np.mean(raveled)
+                else:
+                    my_mean = np.mean(squared)
+        else:
+            # this is faster.
+            if per_molecule:
+                my_mean = np.mean(squared.reshape(squared.shape[0], -1), axis=1)
+            else:
+                my_mean = np.mean(squared)
+
+    def get_rmsd(self, sett1, sett2, prop, per_molecule=True):
+        return np.sqrt(self.get_msd(sett1, sett2, prop, per_molecule))
+
+
     def savetxt(self, fname, prop="energy", ravel=False, **kwargs):
 
         settings_names_list = []
@@ -92,7 +117,7 @@ class AMSComparator:
         counter=-1
         for shape, orig_shape, mol in zip(data_shapes_list[0], orig_shapes_list[0], self.molecules):
             counter+=1
-            print(shape)
+            #print(shape)
             if len(orig_shape) > 1 and orig_shape[1] > 1 and last_dim == 1:
                 data_index = []
                 for outer in range(orig_shape[1]):
@@ -116,7 +141,7 @@ class AMSComparator:
 
         final_arr = np.concatenate(reshaped_values_list, axis=1)
 
-        fmt = kwargs.get('fmt', '6e')
+        fmt = kwargs.get('fmt', '.6e')
         with open(fname, "w") as f:
             f.write(header+'\n')
             for row_info, row_data in zip(molecule_names, final_arr):
