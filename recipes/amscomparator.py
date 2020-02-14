@@ -31,8 +31,8 @@ class AMSComparator:
             *   ``properties`` -- a list of properties. For example, properties=['energy', 'gradients'] will call the get_energy() and get_gradients() methods on the AMSResults or AMSWorkerResults after the jobs have been run.
 
         """
-        self.settings = settings
-        self.molecules = molecules
+        self.settings, self.molecules = self.ensure_settings_dict_and_molecules_list(settings, molecules)
+        #self.molecules = molecules
         self.properties = properties
         if isinstance(self.properties, str):
             self.properties = [self.properties]
@@ -228,7 +228,7 @@ class AMSComparator:
             *   ``num_workers`` -- only if run_mode == 'pipe': the number of workers passed to AMSWorkerPool.
         """
 
-        my_settings_dict, molecules_list = self.ensure_settings_dict_and_molecules_list(self.settings, self.molecules)
+        my_settings_dict, molecules_list = self.settings, self.molecules
 
         assert(isinstance(self.properties, list))
         assert(isinstance(my_settings_dict, dict) and not isinstance(my_settings_dict, Settings))
@@ -260,6 +260,8 @@ class AMSComparator:
                 #all_results_dict[engine_name]['molecules'] = [ job.results.get_main_molecule() for job in jobs[engine_name] ]
                 all_results_dict[engine_name]['jobs'] = multijob.children
                 all_results_dict[engine_name]['molecules'] = [ job.results.get_main_molecule() for job in multijob.children ]
+                for i, mol in enumerate(molecules_list):
+                    all_results_dict[engine_name]['molecules'][i].properties.name = molecules_list[i].properties.name
 
                 for prop in my_properties:
                     all_results_dict[engine_name][prop] = np.array(results[engine_name][prop])
@@ -284,6 +286,9 @@ class AMSComparator:
                             p = getattr(result, "get_"+prop)()
                             results[engine_name][prop].append(p)
                         all_results_dict[engine_name]['molecules'].append(result.get_main_molecule())
+
+                    for i, mol in enumerate(molecules_list):
+                        all_results_dict[engine_name]['molecules'][i].properties.name = molecules_list[i].properties.name
 
                     for prop in my_properties:
                         all_results_dict[engine_name][prop] = np.array(results[engine_name][prop])
@@ -326,7 +331,7 @@ class AMSComparator:
                 #    molecules_dict['{}_{}'.format(i, mol.name)] = mol
                 #else:
                 #    molecules_dict['{}_{}'.format(i, mol.get_formula())] = mol
-            molecules_list = molecules
+            molecules_list = molecules.copy()
         elif isinstance(molecules, dict):
             #molecules_dict = molecules
             for k,v in molecules.items():
@@ -341,7 +346,8 @@ class AMSComparator:
     def run_multiple_AMS_settings_and_molecules(self, settings, molecules):
 
         #my_settings_dict, molecules_dict = ensure_settings_dict_and_molecules_dict(settings, molecules)
-        my_settings_dict, molecules_list = self.ensure_settings_dict_and_molecules_list(settings, molecules)
+        #my_settings_dict, molecules_list = self.ensure_settings_dict_and_molecules_list(settings, molecules)
+        my_settings_dict, molecules_list = self.settings, self.molecules
 
         #jobs = dict()
         multijob_list = []
