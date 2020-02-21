@@ -9,6 +9,7 @@ import tempfile
 import functools
 import numpy as np
 import collections
+from typing import *
 
 try:
     import ubjson
@@ -169,6 +170,26 @@ class AMSWorkerError(PlamsError):
         else:
             return msg
 
+
+_arg2setting = {}
+
+for x in ("prev_results", "quiet"):
+    _arg2setting[x] = ('amsworker', x)
+
+for x in ("gradients", "stresstensor", "hessian", "elastictensor", "charges", "dipolemoment", "dipolegradients"):
+    _arg2setting[x] = ('input', 'ams', 'properties', x)
+
+for x in ("coordinatetype", "usesymmetry", "optimizelattice", "maxiterations"):
+    _arg2setting[x] = ('input', 'ams', 'geometryoptimization', x)
+
+for x in ("convenergy", "convgradients", "convstep", "convstressenergyperatom"):
+    _arg2setting[x] = ('input', 'ams', 'geometryoptimization', 'convergence', x)
+
+_arg2setting['task'] = ('input', 'ams', 'task')
+_arg2setting['usesymmetry'] = ('input', 'ams', 'usesymmetry')
+_arg2setting['method'] = ('input', 'ams', 'geometryoptimization', 'method')
+
+_setting2arg = {s: a for a, s in _arg2setting.items()}
 
 
 class AMSWorker:
@@ -367,6 +388,55 @@ class AMSWorker:
         self.restart_cache_deleted.clear()
 
 
+    @staticmethod
+    def supports(s:Settings) -> bool:
+        '''
+        Check if a |Settings| object is supported by |AMSWorker|.
+        '''
+
+        try:
+            task, args = AMSWorker._settings_to_args(s)
+            return True
+        except NotImplementedError:
+            return False
+
+
+    @staticmethod
+    def _settings_to_args(s:Settings) -> Tuple[ str, Dict ]:
+        '''
+        Return a `tuple(TASK, **request_kwargs)` corresponding to a given settings object.
+
+        Raises NotImplementedError if unsupported features are encountered.
+        '''
+
+        args = {}
+        for key, val in s.flatten().items():
+            kl = tuple(x.lower() for x in key)
+            try:
+                args[_setting2arg[kl]] = val
+            except KeyError:
+                raise NotImplementedError("Unexpected key {}".format(".".join(key)))
+
+        if "task" not in args:
+            raise NotImplementedError("No Settings.input.ams.task found")
+        elif args["task"].lower() not in ("singlepoint", "geometryoptimization"):
+            raise NotImplementedError("Unexpected task {}".format(args["task"]))
+        else:
+            task = args.pop("task")
+
+        return (task, args)
+
+
+    @staticmethod
+    def _args_to_settings(**kwargs) -> Settings:
+        s = Settings()
+
+        for key, val in kwargs.items():
+            s.set_nested(_arg2setting[key], val)
+
+        return s
+
+
     def _solve(self, optimize, name, molecule, prev_results=None, quiet=True,
                gradients=False, stresstensor=False, hessian=False, elastictensor=False,
                charges=False, dipolemoment=False, dipolegradients=False,
@@ -444,6 +514,13 @@ class AMSWorker:
             return AMSWorkerResults(name, molecule, None, exc)
 
 
+    def evaluate(self, name, molecule, settings):
+        task, props = AMSWorker._settings_to_args(settings)
+        optimize = (task == 'geometryoptimization')
+
+        return self._solve(optimize, name, molecule, **props)
+
+
     def SinglePoint(self, name, molecule, prev_results=None, quiet=True,
                     gradients=False, stresstensor=False, hessian=False, elastictensor=False,
                     charges=False, dipolemoment=False, dipolegradients=False):
@@ -477,9 +554,13 @@ class AMSWorker:
 
         The *quiet* keyword can be used to obtain more output from the worker process. Note that the output of the worker process is not printed to the standard output but instead ends up in the ``ams.out`` file in the temporary working directory of the |AMSWorker| instance. This is mainly useful for debugging.
         """
-        return self._solve(False, name, molecule, prev_results=prev_results, quiet=quiet,
-                           gradients=gradients, stresstensor=stresstensor, hessian=hessian, elastictensor=elastictensor,
-                           charges=charges, dipolemoment=dipolemoment, dipolegradients=dipolegradients)
+        args = locals()
+        del args['self']
+        del args['name']
+        del args['molecule']
+        s = self._args_to_settings(**args)
+        s.input.ams.task = 'singlepoint'
+        return self.evaluate(name, molecule, s)
 
 
     def GeometryOptimization(self, name, molecule, prev_results=None, quiet=True,
@@ -501,12 +582,13 @@ class AMSWorker:
         - *convstep*: Convergence criterion for displacements (in Bohr).
         - *convstressenergyperatom*: Convergence criterion for the stress energy per atom (in Hartree).
         """
-        return self._solve(True, name, molecule, prev_results=prev_results, quiet=quiet,
-                           gradients=gradients, stresstensor=stresstensor, hessian=hessian, elastictensor=elastictensor,
-                           charges=charges, dipolemoment=dipolemoment, dipolegradients=dipolegradients,
-                           method=method, coordinatetype=coordinatetype, usesymmetry=usesymmetry, optimizelattice=optimizelattice,
-                           maxiterations=maxiterations, convenergy=convenergy, convgradients=convgradients,
-                           convstep=convstep, convstressenergyperatom=convstressenergyperatom)
+        args = locals()
+        del args['self']
+        del args['name']
+        del args['molecule']
+        s = self._args_to_settings(**args)
+        s.input.ams.task = 'geometryoptimization'
+        return self.evaluate(name, molecule, s)
 
 
     def _check_process(self) :
@@ -635,6 +717,32 @@ class AMSWorkerPool:
         return self
 
 
+    def evaluate(self, items):
+        """Request to pool to execute calculations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects.
+
+        The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`evaluate <AMSWorker.evaluate>` method of the pool's |AMSWorker| instances.
+        """
+
+        results = [None]*len(items)
+
+        q = queue.Queue()
+
+        threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
+        for t in threads: t.start()
+
+        for i, item in enumerate(items):
+            if len(item) == 3:
+                name, mol, settings = item
+            else:
+                raise JobError('AMSWorkerPool.evaluate expects a list containing only 3-tuples (name, molecule, settings).')
+            q.put((i, name, mol, settings))
+
+        for t in threads: q.put(None) # signal for the thread to end
+        for t in threads: t.join()
+
+        return results
+
+
     def SinglePoints(self, items):
         """Request to pool to execute single point calculations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects.
 
@@ -650,14 +758,8 @@ class AMSWorkerPool:
                                           }) for name in sorted(molecules) ])
         """
 
-        results = [None]*len(items)
-
-        q = queue.Queue()
-
-        threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
-        for t in threads: t.start()
-
-        for i, item in enumerate(items):
+        evalitems = []
+        for item in items:
             if len(item) == 2:
                 name, mol = item
                 kwargs = {}
@@ -665,12 +767,13 @@ class AMSWorkerPool:
                 name, mol, kwargs = item
             else:
                 raise JobError('AMSWorkerPool.SinglePoints expects a list containing only 2-tuples (name, molecule) and/or 3-tuples (name, molecule, kwargs).')
-            q.put((i, name, mol, kwargs))
+            s = AMSWorker._args_to_settings(**kwargs)
+            s.input.ams.task = 'singlepoint'
 
-        for t in threads: q.put(None) # signal for the thread to end
-        for t in threads: t.join()
+            evalitems.append((name, mol, s))
 
-        return results
+        return self.evaluate(evalitems)
+
 
 
     def _execute_queue(worker, q, results):
@@ -679,8 +782,8 @@ class AMSWorkerPool:
             try:
                 if item is None:
                     break
-                i, name, mol, kwargs = item
-                results[i] = worker.SinglePoint(name, mol, **kwargs)
+                i, name, mol, settings = item
+                results[i] = worker.evaluate(name, mol, settings)
             finally:
                 q.task_done()
 
