@@ -30,12 +30,12 @@ class CRSResults(SCMResults):
             self._section = self.job.settings.input.property._h.upper()
             return self._section
 
-    def get_energy(self, energy_type = "deltag", compound_idx = 0 , unit: str = 'kcal/mol') -> float:
+    def get_energy(self, energy_type: str = "deltag", compound_idx: int = 0, unit: str = 'kcal/mol') -> float:
         """Returns the solute solvation energy from an Activity Coefficients calculation."""
         E = self.readkf(self.section, energy_type)[compound_idx]
         return Units.convert(E, 'kcal/mol', unit)
 
-    def get_activity_coefficient(self, compound_idx = 0) -> float:
+    def get_activity_coefficient(self, compound_idx: int = 0) -> float:
         """Return the solute activity coefficient from an Activity Coefficients calculation."""
         return self.readkf(self.section, 'gamma')[compound_idx]
 
