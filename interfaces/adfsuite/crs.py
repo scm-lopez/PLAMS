@@ -23,8 +23,12 @@ class CRSResults(SCMResults):
     _rename_map = {'CRSKF': '$JN.crskf'}
 
     @property
-    def section(self):
-        return self.job.settings.input.property._h
+    def section(self) -> str:
+        try:  # Return the cached value if possible
+            return self._section
+        except AttributeError:
+            self._section = self.job.settings.input.property._h.upper()
+            return self._section
 
     def get_energy(self, energy_type = "deltag", compound_idx = 0 , unit: str = 'kcal/mol') -> float:
         """Returns the solute solvation energy from an Activity Coefficients calculation."""
@@ -33,7 +37,7 @@ class CRSResults(SCMResults):
 
     def get_activity_coefficient(self, compound_idx = 0) -> float:
         """Return the solute activity coefficient from an Activity Coefficients calculation."""
-        return self.readkf(self.section.settings.input.property._h, 'gamma')[compound_idx]
+        return self.readkf(self.section, 'gamma')[compound_idx]
 
     def get_sigma_profile(self, subsection: str = 'profil', as_df: bool = False) -> dict:
         r"""Grab all sigma profiles, returning a dictionary of Numpy Arrays.
@@ -101,7 +105,7 @@ class CRSResults(SCMResults):
         output = getattr(self, '_prop_dict', False)
         if output and output["section"] == section:
             return output
-        
+
         props = self.get_prop_names()
         try:
             props.remove("ncomp")
@@ -109,7 +113,7 @@ class CRSResults(SCMResults):
         except ValueError:
             raise ValueError("Results object is missing or incomplete.")
 
-        # first get the two ranges for the indices 
+        # first get the two ranges for the indices
         ncomp  = self.readkf(section, 'ncomp')
         nitems = self.readkf(section, 'nitems')
 
@@ -211,7 +215,7 @@ class CRSResults(SCMResults):
         ax.legend()
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
-        
+
         # Show and return
         if plot_fig:
             plt.show()
