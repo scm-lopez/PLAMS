@@ -302,10 +302,10 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1):
     :parameter int nconfs: Number of conformers to be generated
     :parameter str name: A name for the molecule
     :parameter str forcefield: Choose 'uff' or 'mmff' forcefield for geometry
-    optimization and ranking of comformations. The default value None results
-    in skipping of the geometry optimization step
+        optimization and ranking of comformations. The default value None results
+        in skipping of the geometry optimization step
     :parameter float rms: Root Mean Square deviation threshold for removing
-    similar/equivalent conformations.
+        similar/equivalent conformations.
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """

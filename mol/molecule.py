@@ -919,7 +919,7 @@ class Molecule:
         xyz_array = self.as_array()
         fractional_coords = xyz_array@frac_coords_transf.T
 
-        self.from_array((deformed_lattice@fractional_coords.T).T)
+        self.from_array((deformed_lattice.T@fractional_coords.T).T)
         self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
 
 
