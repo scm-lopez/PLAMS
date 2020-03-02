@@ -1471,9 +1471,8 @@ class Molecule:
 
         *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule. It should have the same length as the first dimenstion of *xyz_array*.
         """
-        ar = xyz_array.T
         atom_subset = atom_subset or self.atoms
-        for at, x, y, z in zip(atom_subset, ar[0], ar[1], ar[2]):
+        for at, (x, y, z) in zip(atom_subset, xyz_array):
             at.coords = (x, y, z)
 
 
