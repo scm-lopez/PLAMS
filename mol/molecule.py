@@ -11,7 +11,7 @@ from .bond import Bond
 from .pdbtools import PDBHandler, PDBRecord
 
 from ..core.errors import MoleculeError, PTError, FileError
-from ..core.functions import log
+from ..core.functions import log, parse_action
 from ..core.private import smart_copy
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
@@ -605,7 +605,7 @@ class Molecule:
         return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
 
 
-    def set_integer_bonds(self):
+    def set_integer_bonds(self, action = 'warn', tolerance = 10**-4):
         """Convert non-integer bond orders into integers.
 
         For example, bond orders of aromatic systems are no longer set to the non-integer
@@ -622,6 +622,11 @@ class Molecule:
         Can be used for sanitizaing any Molecules passed to the
         :mod:`rdkit<scm.plams.interfaces.molecule.rdkit>` module,
         as its functions are generally unable to handle Molecules with non-integer bond orders.
+
+        By default this function will issue a warning if the total (summed) bond orders
+        before and after are not equal to each other within a given *tolerance*.
+        Accepted values are for *action* are ``"ignore"``, ``"warn"`` and ``"raise"``,
+        which respectivelly ignore such cases, issue a warning or raise a :exc:`MoleculeError`.
 
         ..code:: python
 
@@ -686,6 +691,9 @@ class Molecule:
                (1)--1.0--(7)
 
         """
+        # Ignore, raise or warn
+        action_func = parse_action(action)
+
         ceil = math.ceil
         floor = math.floor
         func_invert = {ceil: floor, floor: ceil}
@@ -703,15 +711,24 @@ class Molecule:
                 atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
                 dfs(atom_new, func=func_invert[func])
 
-        # Mark all non-integer bonds; floats which can be represented exactly
-        # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
-        bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
-        for bond in self.bonds:
-            if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():  # Checking for ``is_integer()`` catches both float and np.float
-                bond._visited = False
-                bond_dict[bond] = None
-            else:
-                bond._visited = True
+        def collect_and_mark_bonds(self):
+            order_before = []
+            order_before_append = order_before.append
+
+            # Mark all non-integer bonds; floats which can be represented exactly
+            # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
+            bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
+            for bond in self.bonds:
+                order = bond.order
+                order_before_append(order)
+                if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():  # Checking for ``is_integer()`` catches both float and np.float
+                    bond._visited = False
+                    bond_dict[bond] = None
+                else:
+                    bond._visited = True
+            return bond_dict, order_before
+
+        bond_dict, order_before = collect_and_mark_bonds(self)
 
         while bond_dict:
             b1, _ = bond_dict.popitem()
@@ -727,8 +744,24 @@ class Molecule:
             dfs(b1.atom1, func=func_invert[func])
             dfs(b1.atom2, func=func_invert[func])
 
+        # Remove the Bond._visited attribute
+        order_after_sum = 0.0
         for bond in self.bonds:
+            order_after_sum += bond.order
             del bond._visited
+
+        # Check that the total (summed) bond order has not changed
+        order_before_sum = sum(order_before)
+        if abs(order_before_sum - order_after_sum) > tolerance:
+            err = MoleculeError(f"Bond orders before and after not equal to tolerance {tolerance!r}:\n"
+                                f"before: sum(...) == {order_before_sum!r}\n"
+                                f"after: sum(...) == {order_after_sum!r}")
+            try:
+                action_func(err)
+            except MoleculeError as ex:  # Restore the initial bond orders
+                for b, order in zip(mol.bonds, reversed(order_before)):
+                    b.order = order
+                raise ex
 
 
     def index(self, value, start=1, stop=None):
