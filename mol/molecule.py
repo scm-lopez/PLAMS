@@ -4,6 +4,7 @@ import itertools
 import math
 import numpy as np
 import os
+from collections import OrderedDict
 
 from .atom import Atom
 from .bond import Bond
@@ -11,7 +12,7 @@ from .pdbtools import PDBHandler, PDBRecord
 
 from ..core.errors import MoleculeError, PTError, FileError
 from ..core.functions import log
-from ..core.private import smart_copy
+from ..core.private import smart_copy, parse_action
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
 from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array
@@ -604,6 +605,247 @@ class Molecule:
         return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
 
 
+    def set_integer_bonds(self, action = 'warn', tolerance = 10**-4):
+        """Convert non-integer bond orders into integers.
+
+        For example, bond orders of aromatic systems are no longer set to the non-integer
+        value of ``1.5``, instead adopting bond orders of ``1`` and ``2``.
+
+        The implemented function walks a set of graphs constructed from all non-integer bonds,
+        converting the orders of aforementioned bonds to integers by alternating calls to
+        :func:`math.ceil` and :func:`math.floor`.
+        The implication herein is that both :math:`i` and :math:`i+1` are considered valid
+        (integer) values for any bond order within the :math:`(i, i+1)` interval.
+        Floats which can be represented exactly as an integer, *e.g.* :math:`1.0`,
+        are herein treated as integers.
+
+        Can be used for sanitizaing any Molecules passed to the
+        :mod:`rdkit<scm.plams.interfaces.molecule.rdkit>` module,
+        as its functions are generally unable to handle Molecules with non-integer bond orders.
+
+        By default this function will issue a warning if the total (summed) bond orders
+        before and after are not equal to each other within a given *tolerance*.
+        Accepted values are for *action* are ``"ignore"``, ``"warn"`` and ``"raise"``,
+        which respectivelly ignore such cases, issue a warning or raise a :exc:`MoleculeError`.
+
+        ..code:: python
+
+            >>> from scm.plams import Molecule
+
+            >>> benzene = Molecule(...)
+            >>> print(benzene)
+              Atoms:
+                1         C      1.193860     -0.689276      0.000000
+                2         C      1.193860      0.689276      0.000000
+                3         C      0.000000      1.378551      0.000000
+                4         C     -1.193860      0.689276      0.000000
+                5         C     -1.193860     -0.689276      0.000000
+                6         C     -0.000000     -1.378551      0.000000
+                7         H      2.132911     -1.231437     -0.000000
+                8         H      2.132911      1.231437     -0.000000
+                9         H      0.000000      2.462874     -0.000000
+               10         H     -2.132911      1.231437     -0.000000
+               11         H     -2.132911     -1.231437     -0.000000
+               12         H     -0.000000     -2.462874     -0.000000
+              Bonds:
+               (3)--1.5--(4)
+               (5)--1.5--(6)
+               (1)--1.5--(6)
+               (2)--1.5--(3)
+               (4)--1.5--(5)
+               (1)--1.5--(2)
+               (3)--1.0--(9)
+               (6)--1.0--(12)
+               (5)--1.0--(11)
+               (4)--1.0--(10)
+               (2)--1.0--(8)
+               (1)--1.0--(7)
+
+            >>> benzene.set_integer_bonds()
+            >>> print(benzene)
+              Atoms:
+                1         C      1.193860     -0.689276      0.000000
+                2         C      1.193860      0.689276      0.000000
+                3         C      0.000000      1.378551      0.000000
+                4         C     -1.193860      0.689276      0.000000
+                5         C     -1.193860     -0.689276      0.000000
+                6         C     -0.000000     -1.378551      0.000000
+                7         H      2.132911     -1.231437     -0.000000
+                8         H      2.132911      1.231437     -0.000000
+                9         H      0.000000      2.462874     -0.000000
+               10         H     -2.132911      1.231437     -0.000000
+               11         H     -2.132911     -1.231437     -0.000000
+               12         H     -0.000000     -2.462874     -0.000000
+              Bonds:
+               (3)--1.0--(4)
+               (5)--1.0--(6)
+               (1)--2.0--(6)
+               (2)--2.0--(3)
+               (4)--2.0--(5)
+               (1)--1.0--(2)
+               (3)--1.0--(9)
+               (6)--1.0--(12)
+               (5)--1.0--(11)
+               (4)--1.0--(10)
+               (2)--1.0--(8)
+               (1)--1.0--(7)
+
+        """
+        # Ignore, raise or warn
+        action_func = parse_action(action)
+
+        ceil = math.ceil
+        floor = math.floor
+        func_invert = {ceil: floor, floor: ceil}
+
+        def dfs(atom, func) -> None:
+            """Depth-first search algorithm for integer-ifying the bond orders."""
+            for b2 in atom.bonds:
+                if b2._visited:
+                    continue
+
+                b2._visited = True
+                b2.order = func(b2.order)  # func = ``math.ceil()`` or ``math.floor()``
+                del bond_dict[b2]
+
+                atom_new = b2.other_end(atom)
+                dfs(atom_new, func=func_invert[func])
+
+        def collect_and_mark_bonds(self):
+            order_before = []
+            order_before_append = order_before.append
+
+            # Mark all non-integer bonds; floats which can be represented exactly
+            # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
+            bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
+            for bond in self.bonds:
+                order = bond.order
+                order_before_append(order)
+                if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():  # Checking for ``is_integer()`` catches both float and np.float
+                    bond._visited = False
+                    bond_dict[bond] = None
+                else:
+                    bond._visited = True
+            return bond_dict, order_before
+
+        bond_dict, order_before = collect_and_mark_bonds(self)
+
+        while bond_dict:
+            b1, _ = bond_dict.popitem()
+            order = b1.order
+
+            # Start with either ``math.ceil()`` if the ceiling is closer than the floor;
+            # start with ``math.floor()`` otherwise
+            delta_ceil, delta_floor = ceil(order) - order, floor(order) - order
+            func = ceil if abs(delta_ceil) < abs(delta_floor) else floor
+
+            b1.order = func(order)
+            b1._visited = True
+            dfs(b1.atom1, func=func_invert[func])
+            dfs(b1.atom2, func=func_invert[func])
+
+        # Remove the Bond._visited attribute
+        order_after_sum = 0.0
+        for bond in self.bonds:
+            order_after_sum += bond.order
+            del bond._visited
+
+        # Check that the total (summed) bond order has not changed
+        order_before_sum = sum(order_before)
+        if abs(order_before_sum - order_after_sum) > tolerance:
+            err = MoleculeError(f"Bond orders before and after not equal to tolerance {tolerance!r}:\n"
+                                f"before: sum(...) == {order_before_sum!r}\n"
+                                f"after: sum(...) == {order_after_sum!r}")
+            try:
+                action_func(err)
+            except MoleculeError as ex:  # Restore the initial bond orders
+                for b, order in zip(mol.bonds, reversed(order_before)):
+                    b.order = order
+                raise ex
+
+
+    def index(self, value, start=1, stop=None):
+        """Return the first index of the specified Atom or Bond.
+
+        Providing an |Atom| will return its 1-based index, while a |Bond| returns a 2-tuple with the 1-based indices of its atoms.
+
+        Raises a |MoleculeError| if the provided is not an Atom/Bond or if the Atom/bond is not part of the molecule.
+
+        .. code:: python
+
+            >>> from scm.plams import Molecule, Bond, Atom
+
+            >>> mol = Molecule(...)
+            >>> atom: Atom = Molecule[1]
+            >>> bond: Bond = Molecule[1, 2]
+
+            >>> print(mol.index(atom))
+            1
+
+            >>> print(mol.index(bond))
+            (1, 2)
+
+        """
+        args = [start - 1 if start > 0 else start]
+        if stop is not None:  # Correct for the 1-based indices used in Molecule
+            args.append(stop - 1 if stop > 0 else stop)
+
+        try:
+            if isinstance(value, Atom):
+                return 1 + self.atoms.index(value, *args)
+            elif isinstance(value, Bond):
+                return 1 + self.atoms.index(value.atom1, *args), 1 + self.atoms.index(value.atom2, *args)
+
+        except ValueError as ex:  # Raised if the provided Atom/Bond is not in self
+            raise MoleculeError(f'Provided {value.__class__.__name__} is not in Molecule').with_traceback(ex.__traceback__)
+        else:  # Raised if value is neither an Atom nor Bond
+            raise MoleculeError(f"'value' expected an Atom or Bond; observed type: '{value.__class__.__name__}'")
+
+
+    def round_coords(self, decimals=0, inplace=True):
+        """Round the Cartesian coordinates of this instance to *decimals*.
+
+        By default, with ``inplace=True``, the coordinates of this instance are updated inplace.
+        If ``inplace=False`` then a new copy of this Molecule is returned with its
+        coordinates rounded.
+
+        .. code:: python
+
+            >>> from scm.plams import Molecule
+
+            >>> mol = Molecule(...)
+              Atoms:
+                1         H      1.234567      0.000000      0.000000
+                2         H      0.000000      0.000000      0.000000
+
+            >>> mol_rounded = round_coords(mol)
+            >>> print(mol_rounded)
+              Atoms:
+                1         H      1.000000      0.000000      0.000000
+                2         H      0.000000      0.000000      0.000000
+
+            >>> mol.round_coords(decimals=3)
+            >>> print(mol)
+              Atoms:
+                1         H      1.234000      0.000000      0.000000
+                2         H      0.000000      0.000000      0.000000
+
+        """
+        xyz = self.as_array()
+
+        # Follow the convention used in ``ndarray.round()``: always return floats,
+        # even if ndigits=None
+        xyz_round = xyz.round(decimals=decimals)
+
+        if inplace:
+            self.from_array(xyz_round)
+            return None
+        else:
+            mol_copy = self.copy()
+            mol_copy.from_array(xyz_round)
+            return mol_copy
+
+
 #===========================================================================
 #==== Geometry operations ==================================================
 #===========================================================================
@@ -1169,6 +1411,11 @@ class Molecule:
         return self.copy()
 
 
+    def __round__(self, ndigits=None):
+        """Magic method for rounding this instance's Cartesian coordinates; called by the builtin :func:`round` function."""
+        ndigits = 0 if ndigits is None else ndigits
+        return self.round_coords(ndigits, inplace=False)
+
 
 #===========================================================================
 #==== Converters ===========================================================
@@ -1257,9 +1504,8 @@ class Molecule:
 
         *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule. It should have the same length as the first dimenstion of *xyz_array*.
         """
-        ar = xyz_array.T
         atom_subset = atom_subset or self.atoms
-        for at, x, y, z in zip(atom_subset, ar[0], ar[1], ar[2]):
+        for at, (x, y, z) in zip(atom_subset, xyz_array):
             at.coords = (x, y, z)
 
 
