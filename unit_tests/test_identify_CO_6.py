@@ -1,4 +1,5 @@
-from scm.plams import Molecule, label
+from scm.plams import Molecule
+from scm.plams.mol.identify import label
 
 m1 = Molecule('xyz/CO_6_1.xyz')
 m2 = Molecule('xyz/CO_6_2.xyz')
@@ -16,6 +17,3 @@ def testNO():
     assert n1.label(4) != n2.label(4)
     assert n1.label(4) != n3.label(4)
     assert n2.label(4) != n3.label(4)
-
-
-

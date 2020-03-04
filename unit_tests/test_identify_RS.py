@@ -1,4 +1,5 @@
-from scm.plams import Molecule, label
+from scm.plams import Molecule
+from scm.plams.mol.identify import label
 
 m1 = Molecule('xyz/RS1.xyz')
 m2 = Molecule('xyz/RS2.xyz')
