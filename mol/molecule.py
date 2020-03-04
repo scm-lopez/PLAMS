@@ -11,8 +11,8 @@ from .bond import Bond
 from .pdbtools import PDBHandler, PDBRecord
 
 from ..core.errors import MoleculeError, PTError, FileError
-from ..core.functions import log, parse_action
-from ..core.private import smart_copy
+from ..core.functions import log
+from ..core.private import smart_copy, parse_action
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
 from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array

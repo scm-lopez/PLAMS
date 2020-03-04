@@ -315,33 +315,3 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
     # Grab heredoced block and parse it
     _, ret = bash_input[i:j].split('\n', maxsplit=1)
     return ret
-
-
-#===========================================================================
-
-def _raise(exc: Exception) -> NoReturn:
-    """Raise *exc*; this tiny function is here because ``lambda`` expressions can't handle the ``raise`` statement."""
-    raise exc
-
-
-#: Map a :class:`str` representation of an action to an actual callable.
-_ACTION_DICT: Dict[str, Callable[[Exception], None]] = {
-    'ignore': lambda n: None,
-    'raise': lambda n: _raise(n),
-    'warn': lambda n: warnings.warn(str(n), stacklevel=2)
-}
-
-
-def parse_action(action: str) -> Callable[[Exception], None]:
-    """Return a callable which takes an :exc:`Exception` as argument and performs some action base on the value of *action*.
-
-    * ``action = 'ignore'``: Do nothing.
-    * ``action = 'warn'``: Issue a warning.
-    * ``action = 'raise'``: Raise the passed exception.
-
-    """
-    try:
-        return _ACTION_DICT[action]
-    except KeyError as ex:
-        raise ValueError("`action` expected 'ignore', 'raise' or 'warn'; "
-                         f"observed value: {action!r}") from ex
