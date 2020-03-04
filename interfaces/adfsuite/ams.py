@@ -539,7 +539,7 @@ class AMSJob(SingleJob):
                     return special[spec_type](value)
             return value
 
-        def serialize(key, value, indent, end='end'):
+        def serialize(key, value, indent, end='End'):
             """Given a *key* and its corresponding *value* from the |Settings| instance produce a snippet of the input file representing this pair.
 
             If the value is a nested |Settings| instance, use recursive calls to build the snippet for the entire block. Indent the result with *indent* spaces.
@@ -559,7 +559,7 @@ class AMSJob(SingleJob):
                 for el in value:
                     if not el.startswith('_'):
                         if key.lower().startswith('engine') and el.lower() == 'input':
-                            ret += serialize(el, value[el], indent+2, 'endinput')
+                            ret += serialize(el, value[el], indent+2, 'EndInput')
                         else:
                             ret += serialize(el, value[el], indent+2)
 
@@ -581,9 +581,9 @@ class AMSJob(SingleJob):
         #prepare contents of 'system' block(s)
         more_systems = self._serialize_molecule()
         if more_systems:
-            if ig('system') in fullinput[ig('ams')]:
+            if ig('System') in fullinput[ig('ams')]:
                 #nonempty system block was already present in input.ams
-                system = fullinput[ig('ams')][ig('system')]
+                system = fullinput[ig('ams')][ig('System')]
                 system_list = system if isinstance(system, list) else [system]
 
                 system_list_set = Settings({(s._h if '_h' in s else ''):s   for s in system_list})
@@ -592,10 +592,10 @@ class AMSJob(SingleJob):
                 system_list_set += more_systems_set
                 system_list = list(system_list_set.values())
                 system = system_list[0] if len(system_list) == 1 else system_list
-                fullinput[ig('ams')][ig('system')] = system
+                fullinput[ig('ams')][ig('System')] = system
 
             else:
-                fullinput[ig('ams')][ig('system')] = more_systems[0] if len(more_systems) == 1 else more_systems
+                fullinput[ig('ams')][ig('System')] = more_systems[0] if len(more_systems) == 1 else more_systems
 
         txtinp = ''
         ams = fullinput.find_case('ams')
@@ -607,7 +607,7 @@ class AMSJob(SingleJob):
         #and then engines
         for engine in fullinput:
             if engine != ams:
-                txtinp += serialize('engine '+engine, fullinput[engine], 0, end='endengine') + '\n'
+                txtinp += serialize('Engine '+engine, fullinput[engine], 0, end='EndEngine') + '\n'
 
         return txtinp
 
@@ -629,7 +629,7 @@ class AMSJob(SingleJob):
         elif isinstance(self.molecule, dict):
             moldict = self.molecule
         else:
-            raise JobError("Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a dictionary or None".format(self.name))
+            raise JobError("Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a dictionary or None, and not {}".format(self.name, type(self.molecule)))
 
         ret = []
         for name, molecule in moldict.items():
@@ -640,14 +640,14 @@ class AMSJob(SingleJob):
             if len(molecule.lattice) in [1,2] and molecule.align_lattice():
                 log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self.name), 3)
 
-            newsystem.atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
+            newsystem.Atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
                     suffix=(atom.properties.suffix if 'suffix' in atom.properties else '')) for atom in molecule]
 
             if molecule.lattice:
-                newsystem.lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
+                newsystem.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
 
             if ig('charge') in molecule.properties:
-                newsystem.charge = molecule.properties[ig('charge')]
+                newsystem.Charge = molecule.properties[ig('charge')]
 
             ret.append(newsystem)
 
