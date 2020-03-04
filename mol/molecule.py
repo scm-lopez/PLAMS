@@ -769,8 +769,8 @@ class Molecule:
             raise MoleculeError(f"'value' expected an Atom or Bond; observed type: '{value.__class__.__name__}'")
 
 
-    def round(self, ndigits=None, inplace=True):
-        """Round the Cartesian coordinates of this instance to *ndigits*.
+    def round_coords(self, decimals=0, inplace=True):
+        """Round the Cartesian coordinates of this instance to *decimals*.
 
         By default, with ``inplace=True``, the coordinates of this instance are updated inplace.
         If ``inplace=False`` then a new copy of this Molecule is returned with its
@@ -785,13 +785,13 @@ class Molecule:
                 1         H      1.234567      0.000000      0.000000
                 2         H      0.000000      0.000000      0.000000
 
-            >>> mol_rounded = round(mol)
+            >>> mol_rounded = round_coords(mol)
             >>> print(mol_rounded)
               Atoms:
                 1         H      1.000000      0.000000      0.000000
                 2         H      0.000000      0.000000      0.000000
 
-            >>> mol.round(ndigits=3)
+            >>> mol.round_coords(decimals=3)
             >>> print(mol)
               Atoms:
                 1         H      1.234000      0.000000      0.000000
@@ -802,8 +802,7 @@ class Molecule:
 
         # Follow the convention used in ``ndarray.round()``: always return floats,
         # even if ndigits=None
-        ndigits_ = 0 if ndigits is None else ndigits
-        xyz_round = xyz.round(decimals=ndigits_)
+        xyz_round = xyz.round(decimals=decimals)
 
         if inplace:
             self.from_array(xyz_round)
@@ -1381,7 +1380,8 @@ class Molecule:
 
     def __round__(self, ndigits=None):
         """Magic method for rounding this instance's Cartesian coordinates; called by the builtin :func:`round` function."""
-        return self.round(ndigits, inplace=False)
+        ndigits = 0 if ndigits is None else ndigits
+        return self.round_coords(ndigits, inplace=False)
 
 
 #===========================================================================
