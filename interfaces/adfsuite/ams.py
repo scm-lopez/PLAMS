@@ -354,6 +354,7 @@ class AMSResults(Results):
         """
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleGradients'), engine)).reshape(-1,3)
 
+
     def get_timings(self):
         """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds (Jim Boelrijk).
         """
@@ -365,6 +366,7 @@ class AMSResults(Results):
         ret['system'] = float(system[0].split()[-1])
         ret['cpu'] = float(cpu[0].split()[-1])
         return ret
+
 
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
@@ -477,7 +479,8 @@ class AMSResults(Results):
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
         symbols = sectiondict['AtomSymbols'].split()
-        for at, crd, sym in zip(sectiondict['AtomicNumbers'], coords, symbols):
+        atnums = sectiondict['AtomicNumbers'] if isinstance(sectiondict['AtomicNumbers'], list) else [sectiondict['AtomicNumbers']]
+        for at, crd, sym in zip(atnums, coords, symbols):
             newatom = Atom(atnum=at, coords=crd, unit='bohr')
             if sym.startswith('Gh.'):
                 sym = sym[3:]
