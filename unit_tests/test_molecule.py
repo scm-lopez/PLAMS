@@ -44,8 +44,8 @@ def test_set_integer_bonds():
     np.testing.assert_array_equal([b.order for b in benzene.bonds], ref2)
 
 
-def test_round():
-    """Test :meth:`Molecule.set_integer_bonds`."""
+def test_round_coords():
+    """Test :meth:`Molecule.round_coords`."""
     benzene = BENZENE.copy()
     ref1 = np.array([[ 1., -1.,  0.],
                      [ 1.,  1.,  0.],
@@ -75,5 +75,5 @@ def test_round():
     benzene2 = round(benzene)
     np.testing.assert_array_equal(benzene2, ref1)
 
-    benzene.round(ndigits=2)
+    benzene.round_coords(decimals=2)
     np.testing.assert_allclose(benzene, ref2)
