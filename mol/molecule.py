@@ -708,7 +708,7 @@ class Molecule:
                 b2.order = func(b2.order)  # func = ``math.ceil()`` or ``math.floor()``
                 del bond_dict[b2]
 
-                atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
+                atom_new = b2.other_end(atom)
                 dfs(atom_new, func=func_invert[func])
 
         def collect_and_mark_bonds(self):
