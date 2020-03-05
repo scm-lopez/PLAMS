@@ -237,7 +237,7 @@ class Settings(dict):
         As a results, attempting to access keys absent from an arbitrary |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
 
         .. note::
-            The :meth:`.Settings.__missing__` method is (temporary) supressed at the class level to ensure consistent invokation by the Python interpreter.
+            The :meth:`.Settings.__missing__` method is (temporary) suppressed at the class level to ensure consistent invocation by the Python interpreter.
             See also `special method lookup`_.
 
         Example:

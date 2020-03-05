@@ -200,6 +200,7 @@ intersphinx_mapping = {'python3': ('http://docs.python.org/3.6', None)}
 
 autodoc_default_flags = ['members', 'private-members', 'special-members']
 autodoc_member_order = 'bysource'
+autodoc_typehints = 'none'
 
 rst_epilog = """
 .. |init| replace:: :func:`~scm.plams.core.functions.init`
