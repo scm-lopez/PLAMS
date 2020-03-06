@@ -1417,6 +1417,34 @@ class Molecule:
         return self.round_coords(ndigits, inplace=False)
 
 
+    def __getstate__(self) -> dict:
+        """Returns the object which is to-be pickled by, *e.g.*, :func:`pickle.dump`.
+
+        As :class:`Molecule` instances are heavily nested objects,
+        pickling them can raise a :exc:`RecursionError`.
+        This issue is herein avoided relying on the :meth:`Molecule.as_dict()` method.
+
+        See `Pickling Class Instances <https://docs.python.org/3/library/pickle.html#pickling-class-instances>`_
+        for more details.
+
+        """  # noqa
+        return self.as_dict()
+
+
+    def __setstate__(self, state: dict) -> None:
+        """Counterpart of :meth:`Molecule.__getstate__`; used for unpickling molecules."""
+        mol_new = self.from_dict(state)
+        self.__dict__ = mol_new.__dict__
+
+        # Molecule.from_dict() always returns a new instance
+        # Simply steal this instance's attributes and changed its Atoms/Bonds parent Molecule
+        for at in self.atoms:
+            at.mol = self
+        for bond in self.bonds:
+            bond.mol = self
+
+
+
 #===========================================================================
 #==== Converters ===========================================================
 #===========================================================================
