@@ -1411,6 +1411,22 @@ class Molecule:
         return self.copy()
 
 
+    def __deepcopy__(self, memo):
+        deepcopy = copy.deepcopy
+        cls = type(self)
+
+        dct = self.as_dict()
+        ret = cls.from_dict(dct)
+
+        # properties and the lattice are not copied by Molecule.as_dict()
+        ret.lattice = deepcopy(ret.lattice)
+        ret.properties = deepcopy(ret.properties)
+        for at in ret.atoms:
+            at.properties = deepcopy(at.properties)
+        for bond in ret.bonds:
+            bond.properties = deepcopy(bond.properties)
+
+
     def __round__(self, ndigits=None):
         """Magic method for rounding this instance's Cartesian coordinates; called by the builtin :func:`round` function."""
         ndigits = 0 if ndigits is None else ndigits
