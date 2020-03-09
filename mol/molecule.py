@@ -1433,8 +1433,15 @@ class Molecule:
 
     def __setstate__(self, state: dict) -> None:
         """Counterpart of :meth:`Molecule.__getstate__`; used for unpickling molecules."""
-        mol_new = self.from_dict(state)
-        self.__dict__ = mol_new.__dict__
+        try:
+            mol_new = self.from_dict(state)
+            self.__dict__ = mol_new.__dict__
+
+        # Raised if *state* is the result of a pickled Molecule created prior to the introduction
+        # of Molecule.__getstate__()
+        except TypeError:
+            self.__dict__ = state
+            return
 
         # Molecule.from_dict() always returns a new instance
         # Simply steal this instance's attributes and changed its Atoms/Bonds parent Molecule
