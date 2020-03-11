@@ -1426,6 +1426,8 @@ class Molecule:
         for bond in ret.bonds:
             bond.properties = deepcopy(bond.properties)
 
+        return ret
+
 
     def __round__(self, ndigits=None):
         """Magic method for rounding this instance's Cartesian coordinates; called by the builtin :func:`round` function."""
