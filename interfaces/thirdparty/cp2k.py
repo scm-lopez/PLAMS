@@ -1,6 +1,7 @@
 """Class to manipulate CP2K jobs."""
 import subprocess
 import shutil
+from pathlib import Path
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
@@ -368,7 +369,7 @@ class Cp2kJob(SingleJob):
         cp2k_command = self.settings.get("executable", "cp2k.popt")
 
         # Check the executable name
-        available_executables = (
+        available_executables = set({
             # Serial single core testing and debugging
             "sdbg",
             # Serial general single core usage
@@ -380,20 +381,24 @@ class Cp2kJob(SingleJob):
             # Parallel (only MPI) general usage, no threads
             "popt",
             # parallel (MPI + OpenMP) general usage, threading might improve scalability and memory usage
-            "psmp")
-        if not any((f"cp2k.{x}" == cp2k_command.lower() for x in available_executables)):
+            "psmp"})
+        suffix = Path(cp2k_command).suffix[1:]
+        if suffix not in available_executables:
             msg = f"unrecognized cp2k executable: {cp2k_command}"
             raise RuntimeError(msg)
 
-        # Try to run cp2k using mpirun and otherwise srun (if available)
-        command_tuple = ('mpirun', 'srun')
-        for command in command_tuple:
-            try:
-                subprocess.run([command, "--help"], stdout=subprocess.DEVNULL)
-                ret = f"{command} {cp2k_command}"
-                break
-            except OSError:
-                pass
+        # Try to run cp2k MPI binaries using mpirun and otherwise srun (if available)
+        if suffix in set({'sdbg', 'sopt'}):
+            ret = cp2k_command
+        else:
+            for command in ('mpirun', 'srun'):
+                try:
+                    subprocess.run([command, "--help"],
+                                   stdout=subprocess.DEVNULL)
+                    ret = f"{command} {cp2k_command}"
+                    break
+                except OSError:
+                    pass
 
         ret += ' -i {} -o {}'.format(self._filename('inp'),
                                      self._filename('out'))
