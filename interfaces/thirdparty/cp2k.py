@@ -369,7 +369,7 @@ class Cp2kJob(SingleJob):
         cp2k_command = self.settings.get("executable", "cp2k.popt")
 
         # Check the executable name
-        available_executables = set({
+        available_executables = {
             # Serial single core testing and debugging
             "sdbg",
             # Serial general single core usage
@@ -381,7 +381,7 @@ class Cp2kJob(SingleJob):
             # Parallel (only MPI) general usage, no threads
             "popt",
             # parallel (MPI + OpenMP) general usage, threading might improve scalability and memory usage
-            "psmp"})
+            "psmp"}
         suffix = Path(cp2k_command).suffix[1:]
         if suffix not in available_executables:
             msg = f"unrecognized cp2k executable: {cp2k_command}"
