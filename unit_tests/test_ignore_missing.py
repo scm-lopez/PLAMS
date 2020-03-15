@@ -1,6 +1,6 @@
 from threading import Thread
 
-from scm.plams import Settings
+from scm.plams import Settings, ReentranceError
 from scm.plams.core.settings import SupressMissing
 
 glob_var = {
@@ -76,3 +76,17 @@ def test_supress_missing():
     finally:
         for i in range(1, 5):
             glob_var[i] = set()
+
+
+def test_reentrance():
+    """Test that :meth:`Settings.supress_missing` cannot be entered in a reentrant manner."""
+    s = Settings()
+
+    try:
+        with s.supress_missing():
+            with s.supress_missing():
+                pass
+    except ReentranceError:
+        pass
+    else:
+        raise AssertionError("Failed to raise a 'ReentranceError'")

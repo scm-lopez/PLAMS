@@ -3,15 +3,17 @@ import threading
 import contextlib
 from functools import wraps
 
+from .errors import ReentranceError
+
 __all__ = ['Settings', 'ig']
 
 
 class SupressMissing(contextlib.AbstractContextManager):
-    """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method.
+    """A reusable, but non-reentrant, context manager for temporary disabling the :meth:`.Settings.__missing__` magic method.
 
     See :meth:`Settings.supress_missing` for more details.
 
-    """
+    """  # noqa
 
     def __init__(self, obj: type):
         """Initialize the context manager."""
@@ -33,11 +35,19 @@ class SupressMissing(contextlib.AbstractContextManager):
 
     def __enter__(self):
         """Enter the context manager: modify :meth:`.Settings.__missing__` at the class level."""
+        # Precaution against calling __enter__() in a recursive manner
+        if self.obj.__missing__ is self.missing_new:
+            raise ReentranceError(f"{self.__class__.__name__!r} instances cannot not be entered "
+                                  "in a reentrant manner")
+
         with self.lock:
             setattr(self.obj, '__missing__', self.missing_new)
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the context manager: restore :meth:`.Settings.__missing__` at the class level."""
+        if exc_type is ReentranceError:
+            return
+
         with self.lock:
             setattr(self.obj, '__missing__', self.missing)
 
@@ -285,7 +295,7 @@ class Settings(dict, metaclass=_SettingsMeta):
 
     @classmethod
     def supress_missing(cls):
-        """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method: all calls now raising a :exc:`KeyError`.
+        """A reusable, but non-reentrant, context manager for temporary disabling the :meth:`.Settings.__missing__` magic method: all calls now raising a :exc:`KeyError`.
 
         As a results, attempting to access keys absent from an arbitrary |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
 

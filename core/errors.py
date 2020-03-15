@@ -1,4 +1,4 @@
-__all__ = ['PlamsError', 'FileError', 'ResultsError', 'JobError', 'PTError', 'UnitsError', 'MoleculeError']
+__all__ = ['PlamsError', 'FileError', 'ResultsError', 'JobError', 'PTError', 'UnitsError', 'MoleculeError', 'ReentranceError']
 
 class PlamsError(Exception):
     """General PLAMS error."""
@@ -26,4 +26,8 @@ class UnitsError(PlamsError):
 
 class MoleculeError(PlamsError):
     """|Molecule| related error."""
+    pass
+
+class ReentranceError(PlamsError):
+    """An exception to-be raised when accesing a non-reentrant context manager in a reentrant manner."""
     pass
