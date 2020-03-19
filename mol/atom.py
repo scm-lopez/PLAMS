@@ -152,6 +152,15 @@ class Atom:
         return PT.get_connectors(self.atnum)
     connectors = property(_getconnectors)
 
+    def _ismetallic(self):
+        return PT.get_metallic(self.atnum)
+    is_metallic = property(_ismetallic)
+
+    def _iselectronegative(self):
+        return PT.get_electronegative(self.atnum)
+    is_electronegative = property(_iselectronegative)
+
+
 
     def translate(self, vector, unit='angstrom'):
         """Move this atom in space by *vector*, expressed in *unit*.

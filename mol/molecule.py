@@ -401,7 +401,7 @@ class Molecule:
         return frags
 
 
-    def guess_bonds(self, atom_subset=None):
+    def guess_bonds(self, atom_subset=None, dmax=1.28):
         """Try to guess bonds in the molecule based on types and positions of atoms.
 
         All previously existing bonds are removed. New bonds are generated based on interatomic distances and information about maximal number of bonds for each atom type (``connectors`` property, taken from |PeriodicTable|).
@@ -411,6 +411,10 @@ class Molecule:
         The algorithm used scales as *n log n* where *n* is the number of atoms.
 
         The *atom_subset* argument can be used to limit the bond guessing to a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
+
+        The *dmax* argument gives the maximum value for ratio of the bond length to the sum of atomic radii for the two atoms in the bond.
+
+        The bond order for any bond to a metal atom will be set to 1.
 
         .. warning::
 
@@ -438,97 +442,167 @@ class Molecule:
             def __gt__(self, other): return self.data > other.data
             def __ge__(self, other): return self.data >= other.data
 
-        self.delete_all_bonds()
+        def get_neighbors(atom_list, dmax):
+            """ adds attributes ._id, .free, and .cube to asll atoms in atom_list"""
+            cubesize = dmax*2.1*max([at.radius for at in atom_list])
 
-        dmax = 1.28
+            cubes = {}
+            for i,at in enumerate(atom_list, 1):
+                at._id = i
+                at.free = at.connectors
+                at.cube = tuple(map(lambda x: int(math.floor(x/cubesize)), at.coords))
+                if at.cube in cubes:
+                    cubes[at.cube].append(at)
+                else:
+                    cubes[at.cube] = [at]
 
-        atom_list = atom_subset or self.atoms
-        cubesize = dmax*2.1*max([at.radius for at in atom_list])
+            neighbors = {}
+            for cube in cubes:
+                neighbors[cube] = []
+                for i in range(cube[0]-1, cube[0]+2):
+                    for j in range(cube[1]-1, cube[1]+2):
+                        for k in range(cube[2]-1, cube[2]+2):
+                            if (i,j,k) in cubes:
+                                neighbors[cube] += cubes[(i,j,k)]
 
-        cubes = {}
-        for i,at in enumerate(atom_list, 1):
-            at._id = i
-            at.free = at.connectors
-            at.cube = tuple(map(lambda x: int(math.floor(x/cubesize)), at.coords))
-            if at.cube in cubes:
-                cubes[at.cube].append(at)
-            else:
-                cubes[at.cube] = [at]
+            return neighbors
 
-        neighbors = {}
-        for cube in cubes:
-            neighbors[cube] = []
-            for i in range(cube[0]-1, cube[0]+2):
-                for j in range(cube[1]-1, cube[1]+2):
-                    for k in range(cube[2]-1, cube[2]+2):
-                        if (i,j,k) in cubes:
-                            neighbors[cube] += cubes[(i,j,k)]
+        def find_and_add_bonds(atom_list, neighbors, dmax, from_atoms_subset=None, to_atoms_subset=None, ignore_free=False):
+            if from_atoms_subset is None:
+                from_atoms_subset = atom_list
+            elif not all([x in atom_list for x in from_atoms_subset]):
+                raise ValueError('from_atoms_subset must be a subset of atoms_subset')
+            if to_atoms_subset is None:
+                to_atoms_subset = atom_list
+            elif not all([x in atom_list for x in to_atoms_subset]):
+                raise ValueError('to_atoms_subset must be a subset of atoms_subset')
 
-        heap = []
-        for at1 in atom_list:
-            if at1.free > 0:
-                for at2 in neighbors[at1.cube]:
-                    if (at2.free > 0) and (at1._id < at2._id):
-                        ratio = at1.distance_to(at2)/(at1.radius+at2.radius)
+            heap = []
+            for at1 in from_atoms_subset:
+                if at1.free > 0 or ignore_free:
+                    for at2 in neighbors[at1.cube]:
+                        if not at2 in to_atoms_subset:
+                            continue
+                        if ignore_free:
+                            if at2 in from_atoms_subset:
+                                if at2._id <= at1._id:
+                                    continue
+                        else:
+                            if at2.free <= 0 or at2._id <= at1._id:
+                                continue
+                        # the bond guessing is more accurate with smaller metallic radii
+                        ratio = at1.distance_to(at2) / (at1.radius * (1 - 0.1 * at1.is_metallic) + at2.radius * (1 - 0.1 * at2.is_metallic))
                         if (ratio < dmax):
-                            heap.append(HeapElement(0, ratio, at1, at2))
-                            #I hate to do this, but I guess there's no other way :/ [MH]
-                            if (at1.atnum == 16 and at2.atnum == 8):
-                                at1.free = 6
-                            elif (at2.atnum == 16 and at1.atnum == 8):
-                                at2.free = 6
-                            elif (at1.atnum == 7):
-                                at1.free += 1
-                            elif (at2.atnum == 7):
-                                at2.free += 1
-        heapq.heapify(heap)
+                            if ignore_free:
+                                self.add_bond(at1, at2, 1)
+                            else:
+                                heap.append(HeapElement(0, ratio, at1, at2))
+                                # I hate to do this, but I guess there's no other way :/ [MiHa]
+                                if (at1.atnum == 16 and at2.atnum == 8):
+                                    at1.free = 6
+                                elif (at2.atnum == 16 and at1.atnum == 8):
+                                    at2.free = 6
+                                elif (at1.atnum == 7):
+                                    at1.free += 1
+                                elif (at2.atnum == 7):
+                                    at2.free += 1
+            if not ignore_free:
+                heapq.heapify(heap)
 
+                for at in atom_list:
+                    if at.atnum == 7:
+                        if at.free > 6:
+                            at.free = 4
+                        else:
+                            at.free = 3
+
+                while heap:
+                    val, o, r, at1, at2 = heapq.heappop(heap).unpack()
+                    step = 1 if o in [0, 2] else 0.5
+                    if at1.free >= step and at2.free >= step:
+                        o += step
+                        at1.free -= step
+                        at2.free -= step
+                        if o < 3:
+                            heapq.heappush(heap, HeapElement(o, r, at1, at2))
+                        else:
+                            self.add_bond(at1, at2, o)
+                    elif o > 0:
+                        if o == 1.5:
+                            o = Bond.AR
+                        self.add_bond(at1, at2, o)
+
+                def dfs(atom, par):
+                    atom.arom += 1000
+                    for b in atom.bonds:
+                        oe = b.other_end(atom)
+                        if b.is_aromatic() and oe.arom < 1000:
+                            if oe.arom > 2:
+                                return False
+                            if par and oe.arom == 1:
+                                b.order = 2
+                                return True
+                            if dfs(oe, 1 - par):
+                                b.order = 1 + par
+                                return True
+
+                for at in atom_list:
+                    at.arom = len(list(filter(Bond.is_aromatic, at.bonds)))
+
+                for at in atom_list:
+                    if at.arom == 1:
+                        dfs(at, 1)
+
+        def cleanup_atom_list(atom_list):
+            for at in atom_list:
+                del at.cube,at.free,at._id
+                if hasattr(at, 'arom'):
+                    del at.arom
+                if hasattr(at, '_metalbondcounter'):
+                    del at._metalbondcounter
+                if hasattr(at, '_electronegativebondcounter'):
+                    del at._electronegativebondcounter
+
+        self.delete_all_bonds()
+        atom_list = atom_subset or self.atoms
+
+        neighbors = get_neighbors(atom_list, dmax)
+
+        nonmetallic = [x for x in atom_list if not x.is_metallic]
+        metallic = [x for x in atom_list if x.is_metallic]
+        hydrogens = [x for x in atom_list if x.atnum == 1]
+        potentially_ignore_metal_bonds = [x for x in atom_list if x.symbol in ['C','N','S','P','As']]
+
+        # first guess bonds for non-metals. This also captures bond orders.
+        find_and_add_bonds(nonmetallic, neighbors, dmax=dmax)
+
+        # add stray hydrogens
+        stray_hydrogens = [x for x in hydrogens if len(x.bonds) == 0]
+        find_and_add_bonds(nonmetallic, neighbors, from_atoms_subset=stray_hydrogens, to_atoms_subset=nonmetallic, ignore_free=True, dmax=dmax)
+
+        # for obvious anions like carbonate, nitrate, sulfate, phosphate, and arsenate, do not allow metal atoms to bond to the central atom
+        new_atom_list = []
         for at in atom_list:
-            if at.atnum == 7:
-                if at.free > 6:
-                    at.free = 4
-                else:
-                    at.free = 3
+            if at in potentially_ignore_metal_bonds:
+                if len([x for x in at.bonds if x.other_end(at).is_electronegative]) >= 3:
+                    continue
+            new_atom_list.append(at)
+        find_and_add_bonds(atom_list, neighbors, from_atoms_subset=metallic, to_atoms_subset=new_atom_list, ignore_free=True, dmax=dmax)
 
-        while heap:
-            val, o, r, at1, at2 = heapq.heappop(heap).unpack()
-            step = 1 if o in [0,2] else 0.5
-            if at1.free >= step and at2.free >= step:
-                o += step
-                at1.free -= step
-                at2.free -= step
-                if o < 3:
-                    heapq.heappush(heap, HeapElement(o,r,at1,at2))
-                else:
-                    self.add_bond(at1,at2,o)
-            elif o > 0:
-                if o == 1.5:
-                    o = Bond.AR
-                self.add_bond(at1,at2,o)
+        # delete metal-metal bonds and metal-hydrogen bonds if the metal is bonded to enough electronegative atoms and not enough metal atoms
+        # (this means that the metal is a cation, so bonds should almost never be drawn unless it's a dimetal complex or a hydride/H2 ligand, but that should be rare)
+        for at in metallic:
+            at._metalbondcounter = len([x for x in at.bonds if x.other_end(at).is_metallic])
+            at._electronegativebondcounter = len([x for x in at.bonds if x.other_end(at).is_electronegative])
+            if at._electronegativebondcounter >= 3 or \
+                    (at._electronegativebondcounter >= 2 and at._metalbondcounter <= 2) or \
+                    (at._electronegativebondcounter >= 1 and at._metalbondcounter <= 0):
+                bonds_to_delete = [b for b in at.bonds if b.other_end(at).is_metallic or b.other_end(at).atnum == 1]
+                for b in bonds_to_delete:
+                    self.delete_bond(b)
 
-        def dfs(atom, par):
-            atom.arom += 1000
-            for b in atom.bonds:
-                oe = b.other_end(atom)
-                if b.is_aromatic() and oe.arom < 1000:
-                    if oe.arom > 2:
-                        return False
-                    if par and oe.arom == 1:
-                        b.order = 2
-                        return True
-                    if dfs(oe, 1-par):
-                        b.order = 1 + par
-                        return True
 
-        for at in atom_list:
-            at.arom = len(list(filter(Bond.is_aromatic, at.bonds)))
-
-        for at in atom_list:
-            if at.arom == 1:
-                dfs(at, 1)
-
-        for at in atom_list:
-            del at.cube,at.free,at._id,at.arom
+        cleanup_atom_list(atom_list)
 
 
     def in_ring(self, arg):
