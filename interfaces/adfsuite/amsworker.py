@@ -183,7 +183,7 @@ for x in ("coordinatetype", "usesymmetry", "optimizelattice", "maxiterations"):
     _arg2setting[x] = ('input', 'ams', 'geometryoptimization', x)
 
 for x in ("convenergy", "convgradients", "convstep", "convstressenergyperatom"):
-    _arg2setting[x] = ('input', 'ams', 'geometryoptimization', 'convergence', x)
+    _arg2setting[x] = ('input', 'ams', 'geometryoptimization', 'convergence', x[4:])
 
 _arg2setting['task'] = ('input', 'ams', 'task')
 _arg2setting['usesymmetry'] = ('input', 'ams', 'usesymmetry')
