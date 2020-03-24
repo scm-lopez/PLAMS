@@ -355,6 +355,13 @@ class AMSResults(Results):
         See :meth:`Job.ok<scm.plams.core.basejob.Job.ok>` for more information."""
         return self.job.ok()
 
+
+    def get_errormsg(self):
+        """Tries to get an an error message for a associated :attr:`job`. This method returns ``None`` if the associated job was successful.
+        See :meth:`Job.get_errormsg<scm.plams.core.basejob.Job.errormsg>` for more information."""
+        return self.job.get_errormsg()
+
+
     @property
     def name(self):
         """Retrun the :attr:`job.name` of the job associated with this results instance."""
@@ -505,6 +512,25 @@ class AMSJob(SingleJob):
                 log('Job {} reported warnings. Please check the the output'.format(self.name), 1)
             return True
         return False
+
+
+    def get_errormsg(self):
+        """Tries to get an an error message for a failed job. This method returns ``None`` for successful jobs."""
+        if self.ok():
+            return None
+        else:
+            # Something went wrong. The first place to check is the termination status on the ams.rkf.
+            # If the AMS driver stopped with a known error (called StopIt in the Fortran code), the error will be in there.
+            try:
+                msg = self.results.readrkf('General','termination status')
+                if msg == 'NORMAL TERMINATION with errors':
+                    # Apparently this wasn't a hard stop in the middle of the job.
+                    # Let's look for the last error in the logfile ...
+                    msg = self.results.grep_file('ams.log', 'ERROR: ')[-1].partition('ERROR: ')[2]
+            except:
+                msg = 'Could not determine error message. Please check the output manually.'
+            return msg
+
 
 
     def hash_input(self):

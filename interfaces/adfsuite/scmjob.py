@@ -242,6 +242,7 @@ class SCMJob(SingleJob):
             return False
         if 'NORMAL TERMINATION' in status:
             if 'errors' in status:
+                log('Job {} reported errors. Please check the the output'.format(self.name), 1)
                 return False
             if 'warnings' in status:
                 log('Job {} reported warnings. Please check the the output'.format(self.name), 1)

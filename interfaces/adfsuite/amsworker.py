@@ -90,6 +90,19 @@ class AMSWorkerResults:
         """
         return self.error is None
 
+    def get_errormsg(self):
+        if self.ok():
+            return None
+        else:
+            lines = str(self.error).splitlines()
+            if lines:
+                for line in reversed(lines):
+                    if 'ERROR: ' in line:
+                        return line.partition('ERROR: ')[2]
+                return lines[-1]
+            else:
+                return 'Could not determine error message. Please check the error.stdout and error.stderr manually.'
+
     @_restrict
     def get_energy(self, unit='au'):
         """Return the total energy, expressed in *unit*.
