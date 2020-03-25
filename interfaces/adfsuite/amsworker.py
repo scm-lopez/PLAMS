@@ -192,7 +192,7 @@ for x in ("prev_results", "quiet"):
 for x in ("gradients", "stresstensor", "hessian", "elastictensor", "charges", "dipolemoment", "dipolegradients"):
     _arg2setting[x] = ('input', 'ams', 'properties', x)
 
-for x in ("coordinatetype", "usesymmetry", "optimizelattice", "maxiterations"):
+for x in ("coordinatetype", "optimizelattice", "maxiterations"):
     _arg2setting[x] = ('input', 'ams', 'geometryoptimization', x)
 
 for x in ("convenergy", "convgradients", "convstep", "convstressenergyperatom"):
@@ -408,7 +408,7 @@ class AMSWorker:
         '''
 
         try:
-            task, args = AMSWorker._settings_to_args(s)
+            args = AMSWorker._settings_to_args(s)
             return True
         except NotImplementedError:
             return False
@@ -434,10 +434,8 @@ class AMSWorker:
             raise NotImplementedError("No Settings.input.ams.task found")
         elif args["task"].lower() not in ("singlepoint", "geometryoptimization"):
             raise NotImplementedError("Unexpected task {}".format(args["task"]))
-        else:
-            task = args.pop("task")
 
-        return (task, args)
+        return args
 
 
     @staticmethod
@@ -450,7 +448,13 @@ class AMSWorker:
         return s
 
 
-    def _solve(self, optimize, name, molecule, prev_results=None, quiet=True,
+    def evaluate(self, name, molecule, settings):
+        args = AMSWorker._settings_to_args(settings)
+
+        return self._solve(name, molecule, **args)
+
+
+    def _solve(self, name, molecule, task, prev_results=None, quiet=True,
                gradients=False, stresstensor=False, hessian=False, elastictensor=False,
                charges=False, dipolemoment=False, dipolegradients=False,
                method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
@@ -493,7 +497,7 @@ class AMSWorker:
             if self.use_restart_cache and prev_results is not None and prev_results.name in self.restart_cache:
                 args["prevTitle"] = prev_results.name
 
-            if optimize:
+            if task == 'geometryoptimization':
                 if method is not None: args["method"] = method
                 if coordinatetype is not None: args["coordinateType"] = coordinatetype
                 if usesymmetry is not None: args["useSymmetry"] = usesymmetry
@@ -525,13 +529,6 @@ class AMSWorker:
             self._start_subprocess()
             # ... and return an AMSWorkerResults object indicating our failure.
             return AMSWorkerResults(name, molecule, None, exc)
-
-
-    def evaluate(self, name, molecule, settings):
-        task, props = AMSWorker._settings_to_args(settings)
-        optimize = (task == 'geometryoptimization')
-
-        return self._solve(optimize, name, molecule, **props)
 
 
     def SinglePoint(self, name, molecule, prev_results=None, quiet=True,
