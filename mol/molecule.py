@@ -1212,21 +1212,37 @@ class Molecule:
         return s
 
 
-    def apply_strain(self, strain):
+    def apply_strain(self, strain, voigt_form=False):
         """Apply a strain deformation to a periodic system.
 
         This method can be used only for periodic systems (the ones with a non-empty ``lattice`` attribute). *strain* should be a container with n*n numerical values, where n is the size of the ``lattice``. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
+        If strain is passed in the voigt_form, it must be a vector or list of the form [11, 22, 33, 32, 31, 21].
         """
 
         n = len(self.lattice)
 
-        if n == 0:
-            raise MoleculeError('apply_strain: strain can only be applied to periodic systems')
+        if n != 3:
+            raise MoleculeError('apply_strain: strain can only be applied to 3D periodic systems')
 
-        try:
-            strain = np.array(strain).reshape(n,n)
-        except:
-            raise MoleculeError('apply_strain: could not convert the strain to a (%i,%i) numpy array'%(n,n))
+        if voigt_form:
+            if len(strain) != n * (n + 1) / 2:
+                raise MoleculeError('apply_strain: strain for %i-dim periodic system needs %i-sized vector in Voigt format'%(n,n*(n+1)/2))
+            try:
+                tmpstrain = np.diag(strain[:n])
+                tmpstrain[1,2] = strain[3]/2.0
+                tmpstrain[2,1] = strain[3]/2.0
+                tmpstrain[0,2] = strain[4]/2.0
+                tmpstrain[2,0] = strain[4]/2.0
+                tmpstrain[0,1] = strain[5]/2.0
+                tmpstrain[1,0] = strain[5]/2.0
+                strain = tmpstrain
+            except:
+                raise MoleculeError('apply_strain: could not convert the voigt strain to a (%i,%i) numpy array'%(n,n))
+        else:
+            try:
+                strain = np.array(strain).reshape(n,n)
+            except:
+                raise MoleculeError('apply_strain: could not convert the strain to a (%i,%i) numpy array'%(n,n))
 
         lattice_np = np.array(self.lattice)
         frac_coords_transf = np.linalg.inv(lattice_np.T)
