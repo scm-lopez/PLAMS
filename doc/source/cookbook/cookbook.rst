@@ -1,5 +1,5 @@
 Examples
-=========================
+========
 
 In this chapter we present example PLAMS scripts covering various applications, from very simple tasks like running the same calculation for multiple molecules, to rather advanced dynamic workflows with multiple internal dependencies.
 
@@ -11,18 +11,25 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
 
 
 Simple examples
--------------------------
+---------------
+
+.. note::
+
+    * PLAMS is an open source library, but in order to run these example scripts you will need a license for the AMS driver and for computational engines used in the examples. Contact license@scm.com for further questions.
+
+    * In order to run these examples the ``ADFBIN`` environment variable should be properly set. You can test this by typing ``$ADFBIN/plams -h`` in a terminal: this should print PLAMS' help message. If this is not the case (e.g. you get 'No such file or directory'), you need to set up the environmental variable ``$ADFBIN`` (see the `Linux Quickstart guide <../../Installation/Linux_Quickstart_Guide.html>`__ for details).
 
 .. toctree::
-
-    transfer_integrals
-    multijob
-
+ 
+   WaterOptimization
+   ManyJobsInParallel
+   ChargeTransferIntegralsADF
+   BasisSetBenchmark
 
 
 
 Advanced examples
--------------------------
+-----------------
 
 .. toctree::
 
@@ -34,7 +41,7 @@ Advanced examples
 .. _recipes:
 
 Recipes
--------------------------
+-------
 
 .. toctree::
 
