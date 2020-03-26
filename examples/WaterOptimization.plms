@@ -21,7 +21,7 @@ frequencies = result.get_frequencies(unit='cm^-1')
 optimized_molecule = result.get_main_molecule()
 
 # Unlike python lists, where the index of the first element is 0, 
-# the index of the first atom in the molecule object starts is 1
+# the index of the first atom in the molecule object is 1
 bond_angle = optimized_molecule[1].angle(optimized_molecule[2], optimized_molecule[3])
 
 print('== Results ==')
