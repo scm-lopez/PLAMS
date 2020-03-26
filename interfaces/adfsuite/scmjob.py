@@ -368,16 +368,17 @@ class SCMJob(SingleJob):
 
         """
         try:
-            from scm.input_parser.parse import input_to_settings
+            from scm.input_parser import InputParser
         except ImportError:  # Try to load the parser from $ADFHOME/scripting
             with UpdateSysPath():
-                from scm.input_parser.parse import input_to_settings
+                from scm.input_parser import InputParser
 
         s = Settings()
         with open(filename, 'r') as f:
             inp_file = parse_heredoc(f.read(), heredoc_delimit)
 
-        s.input = input_to_settings(inp_file, cls._command)
+        with InputParser as parser:
+            s.input = parser.to_settings(cls._command, inp_file)
         if not s.input:
             raise JobError(f"from_inputfile: failed to parse '{filename}'")
 

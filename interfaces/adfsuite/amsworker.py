@@ -183,6 +183,17 @@ class AMSWorkerError(PlamsError):
         else:
             return msg
 
+    def get_errormsg(self):
+        lines = str(self).splitlines()
+        if lines:
+            for line in reversed(lines):
+                if 'ERROR: ' in line:
+                    return line.partition('ERROR: ')[2]
+            return lines[-1]
+        else:
+            return 'Could not determine error message. Please check the error.stdout and error.stderr manually.'
+
+
 
 _arg2setting = {}
 
@@ -599,6 +610,19 @@ class AMSWorker:
         s = self._args_to_settings(**args)
         s.input.ams.task = 'geometryoptimization'
         return self.evaluate(name, molecule, s)
+
+
+    def ParseInput(self, program_name, text_input):
+        try:
+            reply = self._call("ParseInput", {"programName": program_name, "textInput": text_input})
+            json_input = reply[0]['parsedInput']['jsonInput']
+            return json_input
+        except AMSWorkerError as exc:
+            # This failed badly, also the worker is likely down. Let's grab some info, restart it ...
+            exc.stdout, exc.stderr = self.stop()
+            self._start_subprocess()
+            # ... and then reraise the exception for the caller.
+            raise
 
 
     def _check_process(self) :
