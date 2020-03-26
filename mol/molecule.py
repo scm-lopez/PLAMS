@@ -1501,10 +1501,49 @@ class Molecule:
         return self.copy()
 
 
+    def __deepcopy__(self, memo):
+        return self.copy()
+
+
     def __round__(self, ndigits=None):
         """Magic method for rounding this instance's Cartesian coordinates; called by the builtin :func:`round` function."""
         ndigits = 0 if ndigits is None else ndigits
         return self.round_coords(ndigits, inplace=False)
+
+
+    def __getstate__(self) -> dict:
+        """Returns the object which is to-be pickled by, *e.g.*, :func:`pickle.dump`.
+
+        As :class:`Molecule` instances are heavily nested objects,
+        pickling them can raise a :exc:`RecursionError`.
+        This issue is herein avoided relying on the :meth:`Molecule.as_dict()` method.
+
+        See `Pickling Class Instances <https://docs.python.org/3/library/pickle.html#pickling-class-instances>`_
+        for more details.
+
+        """  # noqa
+        return self.as_dict()
+
+
+    def __setstate__(self, state: dict) -> None:
+        """Counterpart of :meth:`Molecule.__getstate__`; used for unpickling molecules."""
+        try:
+            mol_new = self.from_dict(state)
+            self.__dict__ = mol_new.__dict__
+
+        # Raised if *state* is the result of a pickled Molecule created prior to the introduction
+        # of Molecule.__getstate__()
+        except TypeError:
+            self.__dict__ = state
+            return
+
+        # Molecule.from_dict() always returns a new instance
+        # Simply steal this instance's attributes and changed its Atoms/Bonds parent Molecule
+        for at in self.atoms:
+            at.mol = self
+        for bond in self.bonds:
+            bond.mol = self
+
 
 
 #===========================================================================
