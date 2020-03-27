@@ -14,7 +14,7 @@ from .scmjob import SCMJob, SCMResults
 
 
 
-__all__ = ['ReaxFFJob', 'ReaxFFResults', 'load_reaxff_control']
+__all__ = ['ReaxFFJob', 'ReaxFFResults', 'load_reaxff_control', 'reaxff_control_to_settings']
 
 
 
@@ -227,3 +227,72 @@ def load_reaxff_control(filename, keep_order=True):
                ret._order.append(key)
     return ret
 
+
+def reaxff_control_to_settings(fpath:str) -> Settings:
+    with open(fpath) as f:
+        lines = [i.strip().split() for i in f]
+    d = {}
+    for i in lines:
+        if len(i) > 1:
+            try: v = int(i[0])
+            except:
+                try:    v = float(i[0])
+                except: continue
+            d[i[1]] = v
+
+    s = Settings()
+    if 'icheck' in d and d['icheck'] > 0:
+        s.input.ams.task = 'singlepoint'
+        if d['icheck'] == 1:
+            s.input.ams.properties.gradients = True
+    elif 'imetho' in d:
+        v = d['imetho']
+        if v == 0 or v == 2: # TODO: 2 is MD minimization, how should this be handled?
+            s.input.ams.task = 'moleculardynamics'
+        elif v == 1:
+            s.input.ams.task = 'geometryoptimization'
+        else:
+            raise Exception(f"Could not understand imetho = {v}")
+    else:
+        raise Exception(f"Could not find a task. Is this a control file?")
+
+
+    if s.input.ams.task == 'moleculardynamics':
+        if 'nmdit'  in d: s.input.ams.moleculardynamics.nsteps   = d['nmdit']
+        if 'tstep'  in d: s.input.ams.moleculardynamics.timestep = d['tstep']
+        if 'mdtemp' in d: s.input.ams.moleculardynamics.initialvelocities.temperature = d['mdtemp']
+        if 'iout2'  in d: s.input.ams.moleculardynamics.samplingfreq = d['iout2']
+        if 'imdmet' in d:
+            if d['imdmet'] == 1 or d['imdmet'] == 4: # NVT or NPT
+                # T:
+                s.input.ams.moleculardynamics.thermostat.type = 'Berendsen'
+                s.input.ams.moleculardynamics.thermostat.temperature = d['mdtemp']
+                if 'tdamp1' in d:
+                    s.input.ams.moleculardynamics.thermostat.tau = d['tdamp1']
+                if 'itdmet' in d:
+                    s.input.ams.moleculardynamics.thermostat.berendsenapply = 'Local' if d['itdmet'] == 0 else 'Global'
+                # P:
+                if d['imdmet'] == 4: # NPT
+                    s.input.ams.moleculardynamics.barostat = 'Berendsen'
+                    if 'mdpres' in d:
+                        s.input.ams.moleculardynamics.barostat.pressure = d['mdpres']*1e9
+                    if 'pdamp1' in d:
+                        s.input.ams.moleculardynamics.barostat.tau = d['pdamp1']
+
+    elif s.input.ams.task == 'geometryoptimization':
+        if 'endmm' in d:
+            s.input.ams.geometryoptimization.convergence.gradients = d['endmm']
+        if 'imaxmo':
+            v = d['imaxmo']
+            s.input.ams.geometryoptimization.pretendconverged = True
+            if v == 0:
+                s.input.ams.geometryoptimization.method = 'ConjugateGradients'
+            else:
+                s.input.ams.geometryoptimization.convergence.step = v*1e-6
+        if 'imaxit' in d:
+            s.input.ams.geometryoptimization.pretendconverged = True
+            s.input.ams.geometryoptimization.maxiterations = d['imaxit']
+        if 'icelop' in d and d['icelop'] > 0:
+            s.input.ams.geometryoptimization.optimizelattice = True
+
+    return s
