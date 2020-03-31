@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import time
 import threading
 import queue
 import struct
@@ -10,6 +11,45 @@ import functools
 import numpy as np
 import collections
 from typing import *
+
+if os.name == 'nt':
+    import ctypes
+    import ctypes.wintypes
+    import msvcrt
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    def CheckHandle(result, func, arguments):
+        if result == ctypes.wintypes.HANDLE(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        else:
+            return result
+
+    CreateNamedPipe = kernel32.CreateNamedPipeW
+    CreateNamedPipe.restype = ctypes.wintypes.HANDLE
+    CreateNamedPipe.argtypes = [ctypes.c_wchar_p] + [ctypes.c_long]*6 + [ctypes.c_void_p]
+    CreateNamedPipe.errcheck = CheckHandle
+
+    PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
+    PIPE_ACCESS_DUPLEX = 0x00000003
+    PIPE_TYPE_BYTE = 0x00000000
+    PIPE_WAIT = 0x00000000
+    ERROR_PIPE_CONNECTED = 535
+
+    def CheckConnect(result, func, arguments):
+        if result == 0:
+            error = ctypes.get_last_error()
+            if error != ERROR_PIPE_CONNECTED:
+                raise ctypes.WinError(error)
+        return result
+
+    ConnectNamedPipe = kernel32.ConnectNamedPipe
+    ConnectNamedPipe.restype = ctypes.wintypes.BOOL
+    ConnectNamedPipe.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
+    ConnectNamedPipe.errcheck = CheckConnect
+
+spawn_lock = threading.Lock()
+
 
 try:
     import ubjson
@@ -283,14 +323,35 @@ class AMSWorker:
         del amsjob
 
         # Create the named pipes for communication.
-        for filename in ["call_pipe", "reply_pipe"]:
-            os.mkfifo(os.path.join(self.workerdir, filename))
+        if os.name == 'nt':
+            self._pipe_name = r"\\.\pipe\{}_amspipe".format(
+                    os.path.abspath(self.workerdir).translate(
+                        str.maketrans(r":\/", "___")
+                    )
+                )
+            pipe = CreateNamedPipe(self._pipe_name, PIPE_ACCESS_DUPLEX,
+                                   PIPE_TYPE_BYTE | PIPE_REJECT_REMOTE_CLIENTS | PIPE_WAIT,
+                                   1,            # Maximum number of instances
+                                   65536, 65536, # Output and input buffers in bytes
+                                   60000,        # Timeout in ms (unused unless someone calls Wait)
+                                   None)
+        else:
+            for filename in ["call_pipe", "reply_pipe"]:
+                os.mkfifo(os.path.join(self.workerdir, filename))
 
         # Launch the worker process
-        with open(os.path.join(self.workerdir, 'amsworker.in'), 'r') as amsinput, \
-             open(os.path.join(self.workerdir, 'ams.out'), 'w') as amsoutput, \
-             open(os.path.join(self.workerdir, 'ams.err'), 'w') as amserror:
-            self.proc = subprocess.Popen(['sh', 'amsworker.run'], cwd=self.workerdir, stdout=amsoutput, stdin=amsinput, stderr=amserror)
+
+        # spawn_lock is needed on Windows to workaround https://bugs.python.org/issue19575
+        # Without it, multiple AMSWorkers in a pool would call Popen() simultaneously,
+        # causing all the worker processes to inherit all the stdin/out/err file handles,
+        # creating a huge mess and preventing the deletion of these files when a worker quits.
+        # We can use spawn_lock on all platforms for simplicity without hurting performance
+        # because most of the work is serialized in the kernel anyway.
+        with spawn_lock:
+            with open(os.path.join(self.workerdir, 'amsworker.in'), 'r') as amsinput, \
+                open(os.path.join(self.workerdir, 'ams.out'), 'w') as amsoutput, \
+                open(os.path.join(self.workerdir, 'ams.err'), 'w') as amserror:
+                self.proc = subprocess.Popen(['sh', 'amsworker.run'], cwd=self.workerdir, stdout=amsoutput, stdin=amsinput, stderr=amserror)
 
         # Start a dedicated watcher thread to rescue us in case the worker never opens its end of the pipes.
         self._stop_watcher = threading.Event()
@@ -298,9 +359,15 @@ class AMSWorker:
         try:
             self._watcher.start()
 
-            # These two will block until either the worker is ready or the watcher steps in.
-            self.callpipe  = open(os.path.join(self.workerdir, 'call_pipe'), 'wb')
-            self.replypipe = open(os.path.join(self.workerdir, 'reply_pipe'), 'rb')
+            # This will block until either the worker is ready or the watcher steps in.
+            if os.name == 'nt':
+                ConnectNamedPipe(pipe, None)
+                pipefd = msvcrt.open_osfhandle(pipe, 0)
+                self.callpipe = os.fdopen(pipefd, 'r+b')
+                self.replypipe = self.callpipe
+            else:
+                self.callpipe  = open(os.path.join(self.workerdir, 'call_pipe'), 'wb')
+                self.replypipe = open(os.path.join(self.workerdir, 'reply_pipe'), 'rb')
         finally:
             # Both open()s are either done or have failed, we don't need the watcher thread anymore.
             self._stop_watcher.set()
@@ -327,10 +394,14 @@ class AMSWorker:
                 if not self._stop_watcher.is_set():
                     # ... but the main thread is still expecting someone to do it.
                     # Let's do it ourselves to unblock our main thread.
-                    with open(os.path.join(workerdir, 'call_pipe'), 'rb'), \
-                         open(os.path.join(workerdir, 'reply_pipe'), 'wb'):
-                        # Nothing to do here, just close the pipes again.
-                        pass
+                    if os.name == 'nt':
+                        with open(self._pipe_name, 'r+b'):
+                            pass
+                    else:
+                        with open(os.path.join(workerdir, 'call_pipe'), 'rb'), \
+                            open(os.path.join(workerdir, 'reply_pipe'), 'wb'):
+                            # Nothing to do here, just close the pipes again.
+                            pass
                 return
             except subprocess.TimeoutExpired:
                 # self.proc is still alive.
@@ -350,13 +421,45 @@ class AMSWorker:
         stdout = None
         stderr = None
 
-        # Stop the worker process.
+        # Tell the worker process to stop.
         if self.proc is not None:
             if self._check_process():
                 try:
                     self._call("Exit")
+                except AMSWorkerError:
+                    # The process is likely exiting already.
+                    pass
+
+        # Tear down the pipes. Ignore OSError telling us the pipes are already broken.
+        # This will also make the worker exit if it didn't get the Exit message above.
+        if self.callpipe is not None:
+            if not self.callpipe.closed:
+                try:
+                    self.callpipe.close()
+                except OSError:
+                    pass
+            self.callpipe = None
+        if self.replypipe is not None:
+            if not self.replypipe.closed:
+                try:
+                    self.replypipe.close()
+                except OSError:
+                    pass
+            self.replypipe = None
+
+        # Now that the pipes are down, the worker should certainly be exiting.
+        if self.proc is not None:
+            try:
+                self.proc.wait(timeout=self.timeout)
+            except subprocess.TimeoutExpired:
+                # Last resort, kill self.proc (first with terminate() to give it a chance to cleanup its children).
+                # Unfortunately, we can only kill self.proc (a "sh") and not its children, so this is likely
+                # to leave some processes around.
+                # TODO: Print a warning about this.
+                self.proc.terminate()
+                try:
                     self.proc.wait(timeout=self.timeout)
-                except (AMSWorkerError, subprocess.TimeoutExpired):
+                except subprocess.TimeoutExpired:
                     self.proc.kill()
                     self.proc.wait()
             self.proc = None
@@ -369,29 +472,31 @@ class AMSWorker:
         self.restart_cache.clear()
         self.restart_cache_deleted.clear()
 
-        # Tear down the pipes.
-        if self.callpipe is not None:
-            if not self.callpipe.closed:
-                try:
-                    self.callpipe.close()
-                except BrokenPipeError:
-                    pass
-            self.callpipe = None
-        if self.replypipe is not None:
-            if not self.replypipe.closed:
-                try:
-                    self.replypipe.close()
-                except BrokenPipeError:
-                    pass
-            self.readpipe = None
-
         # Remove the contents of the worker directory.
         for filename in os.listdir(self.workerdir):
             file_path = os.path.join(self.workerdir, filename)
-            if os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-            else:
-                os.unlink(file_path)
+
+            # Deleting some files can fail on Windows when we resort to killing self.proc above
+            # and some of the processes stay around keeping files open (like stdout or stderr).
+            # The only thing we can do is wait for a while, try again, and hope for the best.
+            num_attempts = 2
+            while True:
+                try:
+                    if os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                    else:
+                        os.unlink(file_path)
+                    break
+                except PermissionError as e:
+                    if os.name != 'nt':
+                        raise
+
+                    num_attempts -= 1
+                    if num_attempts > 0:
+                        time.sleep(1)
+                    else:
+                        # TODO: Print a warning if we run out of attempts.
+                        break
 
         return (stdout, stderr)
 
@@ -679,7 +784,7 @@ class AMSWorker:
             if method.startswith("Set"):
                 return None
             self.callpipe.flush()
-        except BrokenPipeError as exc:
+        except OSError as exc:
             raise AMSWorkerError('Error while sending a message') from exc
         if method == "Exit":
             return None
@@ -747,6 +852,7 @@ class AMSWorkerPool:
             raise PlamsError('Some AMSWorkers failed to start')
 
 
+    @staticmethod
     def _spawn_worker(workers, settings, i, wdr, wdp):
         workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=False)
 
@@ -814,6 +920,7 @@ class AMSWorkerPool:
 
 
 
+    @staticmethod
     def _execute_queue(worker, q, results):
         while True:
             item = q.get()
