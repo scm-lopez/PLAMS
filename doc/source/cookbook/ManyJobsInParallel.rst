@@ -1,15 +1,15 @@
 Many jobs in parallel
 =====================
 
-.. literalinclude:: ../../../examples/ManyJobsInParallel.plms
+.. literalinclude:: ../../../examples/ManyJobsInParallel.py
    :language: python
 
 .. note::
     To execute this PLAMS script:
     
-    * :download:`Download ManyJobsInParallel.plms <../../../examples/ManyJobsInParallel.plms>`
+    * :download:`Download ManyJobsInParallel.py <../../../examples/ManyJobsInParallel.py>`
     * :download:`Download molecules.tar <../../../../../../examples/plams/ManyJobsInParallel/molecules.tar>` and extract it
-    * ``$ADFIBN/plams ManyJobsInParallel.plms``
+    * ``$ADFIBN/plams ManyJobsInParallel.py``
 
 **Output**
 

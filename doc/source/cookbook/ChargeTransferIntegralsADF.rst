@@ -1,15 +1,15 @@
 Charge transfer integrals with ADF
 ==================================
 
-.. literalinclude:: ../../../examples/ChargeTransferIntegralsADF.plms
+.. literalinclude:: ../../../examples/ChargeTransferIntegralsADF.py
    :language: python
 
 .. note::
     To execute this PLAMS script:
     
-    * :download:`Download ChargeTransferIntegralsADF.plms <../../../examples/ChargeTransferIntegralsADF.plms>`
+    * :download:`Download ChargeTransferIntegralsADF.py <../../../examples/ChargeTransferIntegralsADF.py>`
     * :download:`Download BenzeneDimer.xyz <../../../../../../examples/plams/ChargeTransferIntegralsADF/BenzeneDimer.xyz>`
-    * ``$ADFIBN/plams ChargeTransferIntegralsADF.plms``
+    * ``$ADFIBN/plams ChargeTransferIntegralsADF.py``
 
 **Output**
 

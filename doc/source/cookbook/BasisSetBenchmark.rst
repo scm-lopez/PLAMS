@@ -1,14 +1,14 @@
 Benchmark accuracy of basis sets
 ================================
 
-.. literalinclude:: ../../../examples/BasisSetBenchmark.plms
+.. literalinclude:: ../../../examples/BasisSetBenchmark.py
    :language: python
 
 .. note::
     To execute this PLAMS script:
     
-    * :download:`Download BasisSetBenchmark.plms <../../../examples/BasisSetBenchmark.plms>`
-    * ``$ADFIBN/plams BasisSetBenchmark.plms``
+    * :download:`Download BasisSetBenchmark.py <../../../examples/BasisSetBenchmark.py>`
+    * ``$ADFIBN/plams BasisSetBenchmark.py``
 
 **Output**
 

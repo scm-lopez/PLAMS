@@ -31,6 +31,6 @@ setup(
     install_requires = ['dill>=0.2.4', 'numpy'],
     packages         = packages,
     package_dir      = {'scm.plams': '.'},
-    package_data     = {'scm.plams' : ['plams_defaults']},
+    package_data     = {'scm.plams' : ['plams_defaults', 'examples/*']},
     scripts          = [opj('scripts','plams')]
 )

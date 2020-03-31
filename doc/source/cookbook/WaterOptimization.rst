@@ -1,14 +1,14 @@
 Geometry optimization of water
 ==============================
 
-.. literalinclude:: ../../../examples/WaterOptimization.plms
+.. literalinclude:: ../../../examples/WaterOptimization.py
    :language: python
 
 .. note::
     To execute this PLAMS script:
     
-    * :download:`Download WaterOptimization.plms <../../../examples/WaterOptimization.plms>`
-    * ``$ADFIBN/plams WaterOptimization.plms``
+    * :download:`Download WaterOptimization.py <../../../examples/WaterOptimization.py>`
+    * ``$ADFIBN/plams WaterOptimization.py``
 
 **Output**
 
