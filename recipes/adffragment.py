@@ -2,7 +2,7 @@ from ..core.basejob import MultiJob
 from ..core.results import Results
 from ..core.settings import Settings
 from ..mol.molecule import Molecule
-from ..interfaces.adfsuite.adf import ADFJob
+from ..interfaces.adfsuite.ams import AMSJob
 
 
 __all__ = ['ADFFragmentJob', 'ADFFragmentResults']
@@ -25,8 +25,12 @@ class ADFFragmentResults(Results):
     def get_dipole_vector(self, unit='au'):
         return self.job.full.results.get_dipole_vector(unit)
 
-    def get_energy_decomposition(self, unit='au'):
-        return self.job.full.results.get_energy_decomposition(unit)
+    def get_energy_decomposition(self):
+        energy_section = self.job.full.results.read_rkf_section('Energy', file='adf')
+        ret = {}
+        for k in ['Electrostatic Energy', 'Kinetic Energy', 'Elstat Interaction', 'XC Energy']:
+            ret[k] = energy_section[k]
+        return ret
 
 
 class ADFFragmentJob(MultiJob):
@@ -39,19 +43,20 @@ class ADFFragmentJob(MultiJob):
         self.full_settings = full_settings or Settings()
 
     def prerun(self):
-        self.f1 = ADFJob(name=self.name+'_f1', molecule=self.fragment1, settings=self.settings)
-        self.f2 = ADFJob(name=self.name+'_f2', molecule=self.fragment2, settings=self.settings)
+        self.f1 = AMSJob(name=self.name+'_f1', molecule=self.fragment1, settings=self.settings)
+        self.f2 = AMSJob(name=self.name+'_f2', molecule=self.fragment2, settings=self.settings)
 
         for at in self.fragment1:
-            at.properties.adf.fragment = 'subsystem1'
+            at.properties.suffix = 'f=subsystem1'
         for at in self.fragment2:
-            at.properties.adf.fragment = 'subsystem2'
+            at.properties.suffix = 'f=subsystem2'
 
-        self.full = ADFJob(name = self.name + '_full',
+        self.full = AMSJob(name = self.name + '_full',
             molecule = self.fragment1 + self.fragment2,
             settings = self.settings + self.full_settings)
-        self.full.settings.input.fragments.subsystem1 = self.f1
-        self.full.settings.input.fragments.subsystem2 = self.f2
+
+        self.full.settings.input.ADF.fragments.subsystem1 = (self.f1, 'adf')
+        self.full.settings.input.ADF.fragments.subsystem2 = (self.f2, 'adf')
 
         self.children = [self.f1, self.f2, self.full]
 
