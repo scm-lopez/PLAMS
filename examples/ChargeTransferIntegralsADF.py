@@ -1,20 +1,21 @@
 # Add new results extraction method
 @add_to_class(ADFFragmentResults)
 def get_transfer_integrals(self):
-    return self.job.full.results._kf.read_section('TransferIntegrals')
+    return self.job.full.results.read_rkf_section('TransferIntegrals', file='adf')
 
 # Common settings for all 3 jobs
 # In the interest of computational speed we use a minimal basis
 # set. For more quantitatively meaningful results, you should use 
 # a larger basis.
 common = Settings()
-common.input.Basis.Type = 'SZ'
-common.input.Basis.Core = 'None'
-common.input.Symmetry = 'NoSym'
+common.input.AMS.Task = 'SinglePoint'
+common.input.ADF.Basis.Type = 'SZ'
+common.input.ADF.Basis.Core = 'None'
+common.input.ADF.Symmetry = 'NoSym'
 
 # Specific settings for full system job
 full = Settings()
-full.input.transferintegrals = True
+full.input.ADF.transferintegrals = True
 
 # Load XYZ file and separate it into 2 fragments
 mol = Molecule('BenzeneDimer.xyz')
