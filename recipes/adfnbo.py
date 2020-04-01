@@ -30,4 +30,4 @@ class ADFNBOJob(AMSJob):
             adfnbo_input = ['write', 'spherical', 'fock']
             log('WARNING: (thisjob).settings.adfnbo should be a list. Using default settings: write, fock, spherical', 1)
 
-        self.settings.runscript.post = 'cp '+os.path.join(self.path,'adf.rkf')+' TAPE21\n' '$ADFBIN/adfnbo <<eor\n' + '\n'.join(adfnbo_input) + '\neor\n\n$ADFBIN/gennbo6 FILE47\n'
+        self.settings.runscript.post = 'cp "'+os.path.join(self.path,'adf.rkf')+'" TAPE21\n' '$ADFBIN/adfnbo <<eor\n' + '\n'.join(adfnbo_input) + '\neor\n\n$ADFBIN/gennbo6 FILE47\n'
