@@ -1564,6 +1564,17 @@ class Molecule:
             mol.add_bond(b)
         return mol
 
+    @classmethod
+    def from_elements(cls, elements):
+        """Generate a new |Molecule| instance based on a list of *elements*.
+
+        By default it sets all coordinates to zero
+        """
+        mol = cls()
+        for el in elements :
+            at = Atom(symbol=el, coords=(0.0, 0.0, 0.0))
+            mol.add_atom(at)
+        return mol
 
     def as_array(self, atom_subset=None):
         """Return cartesian coordinates of this molecule's atoms as a numpy array.

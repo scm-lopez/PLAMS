@@ -202,6 +202,54 @@ class AMSResults(Results):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
             return mol
 
+    def get_history_variables(self, history_section='History') :
+        """ Return a set of keynames stored in the specified history section of the ``ams.rkf`` file.
+
+        The *history_section argument should be a string representing the name of the history section (``History`` or ``MDHistory``)*"""
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        keylist = [var for sec,var in main if sec==history_section]
+        # Now throw out all the last parts
+        return set([key.split('(')[0] for key in keylist if len(key.split('('))>1])
+
+    def get_history_property(self, varname, history_section='History') :
+        """ Return the values of *varname* in the history section *history_section."""
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        nentries = main.read(history_section,'nEntries')
+        as_block = self._values_stored_as_blocks(main, varname, history_section)
+        if as_block :
+            nblocks = main.read(history_section,'nBlocks')
+            values = [main.read(history_section,f"{varname}({iblock})",return_as_list=True) for iblock in range(1,nblocks+1)]
+            values = [val for blockvals in values for val in blockvals if isinstance(blockvals,list)]
+        else :
+            values = [main.read(history_section,f"{varname}({step})") for step in range(1,nentries+1)]
+        return values
+
+    def get_property_at_step(self, step, varname, history_section='History') :
+        """ Return the value of *varname* in the history section *history_section at step *step*."""
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        if step > main.read(history_section,'nEntries')-1 : return
+        as_block = self._values_stored_as_blocks(main, varname, history_section)
+        if as_block : 
+            import numpy
+            blocksize = main.read(history_section,'blockSize')
+            iblock = int(numpy.ceil(step/blocksize))
+            value = main.read(history_section,f"{varname}({iblock})")[(step%blocksize)-1]
+        else :
+            value = main.read(history_section,f"{varname}({step})")
+        return value
+
+    def _values_stored_as_blocks(self, main, varname, history_section) :
+        """Determines wether the values of varname in a trajectory rkf file are stored in blocks"""
+        nentries = main.read(history_section,'nEntries')
+        as_block = False
+        keylist = [var for sec,var in main if sec==history_section]
+        if 'nBlocks' in keylist :
+            if not f"{varname}({nentries})" in keylist :
+                as_block = True
+        return as_block
 
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
