@@ -721,6 +721,9 @@ class AMSJob(SingleJob):
             if molecule.lattice:
                 newsystem.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
 
+            if len(molecule.bonds)>0:
+                newsystem.BondOrders._1 = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
+
             if ig('charge') in molecule.properties:
                 newsystem.Charge = molecule.properties[ig('charge')]
 
