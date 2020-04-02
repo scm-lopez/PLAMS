@@ -124,7 +124,7 @@ class FuncReplacerABC(ContextManager[None], ABC):
 
             for name, func in self.func_new.items():
                 setattr(self.obj, name, func)
-            self._open = False
+            self._open = True
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Exit the context manager: restore all methods in :attr:`func_old` at the class level."""
