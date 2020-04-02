@@ -1,7 +1,13 @@
 ADF
--------------------------
+---
 
 .. currentmodule:: scm.plams.interfaces.adfsuite.adf
+
+.. note::
+
+    This page describes the old interface to the standalone ADF binary.
+    As ADF is now an AMS engine, you probably want to run it using |AMSJob|.
+
 
 ADF can be run from PLAMS using the |ADFJob| class and the corresponding |ADFResults|.
 The are subclasses of, respectively, |SCMJob| and |SCMResults|, which gather common pre-AMS logic for all members of the former ADFSuite.

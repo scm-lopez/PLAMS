@@ -213,7 +213,7 @@ class AMSResults(Results):
         return set([key.split('(')[0] for key in keylist if len(key.split('('))>1])
 
     def get_history_property(self, varname, history_section='History') :
-        """ Return the values of *varname* in the history section *history_section."""
+        """ Return the values of *varname* in the history section *history_section*."""
         if not 'ams' in self.rkfs: return
         main = self.rkfs['ams']
         nentries = main.read(history_section,'nEntries')
