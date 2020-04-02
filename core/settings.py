@@ -1,61 +1,17 @@
 import textwrap
-import threading
 import contextlib
-from functools import wraps
 
-from .errors import ReentranceError
+from .context import SupressMissing, Lower, Upper
 
 __all__ = ['Settings', 'ig']
-
-
-class SupressMissing(contextlib.AbstractContextManager):
-    """A reusable, but non-reentrant, context manager for temporary disabling the :meth:`.Settings.__missing__` magic method.
-
-    See :meth:`Settings.supress_missing` for more details.
-
-    """  # noqa
-
-    def __init__(self, obj: type):
-        """Initialize the context manager."""
-        self.lock = threading.Lock()
-
-        # Ensure that obj is a class, not a class instance
-        self.obj = obj if isinstance(obj, type) else type(obj)
-        self.missing = obj.__missing__
-
-        @wraps(self.missing)
-        def _missing(self, name):
-            raise KeyError(name)
-
-        self.missing_new = _missing
-
-    def __repr__(self):
-        """Return a :class:`str`-representation of this instance."""
-        return f'{self.__class__.__name__}(obj={self.obj!r})'
-
-    def __enter__(self):
-        """Enter the context manager: modify :meth:`.Settings.__missing__` at the class level."""
-        # Precaution against calling __enter__() in a recursive manner
-        if self.obj.__missing__ is self.missing_new:
-            raise ReentranceError(f"{self.__class__.__name__!r} instances cannot not be entered "
-                                  "in a reentrant manner")
-
-        with self.lock:
-            setattr(self.obj, '__missing__', self.missing_new)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Exit the context manager: restore :meth:`.Settings.__missing__` at the class level."""
-        if exc_type is ReentranceError:
-            return
-
-        with self.lock:
-            setattr(self.obj, '__missing__', self.missing)
 
 
 class _SettingsMeta(type):
     def __new__(mcls, name, bases, namespace, **kwargs):
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         cls._supress_missing = SupressMissing(cls)
+        cls._lower = Lower(cls)
+        cls._upper = Upper(cls)
         return cls
 
 
@@ -92,8 +48,10 @@ class Settings(dict, metaclass=_SettingsMeta):
 
     """
 
-    # To-be replaced with a single SupressMissing instance by the metaclass
+    # To-be replaced with SupressMissing, Lower and Upper instances by the metaclass
     _supress_missing: SupressMissing
+    _lower: Lower
+    _upper: Upper
 
     def __init__(self, *args, **kwargs):
         cls = type(self)
@@ -322,6 +280,55 @@ class Settings(dict, metaclass=_SettingsMeta):
         """
         return cls._supress_missing
 
+
+    @classmethod
+    def upper(cls):
+        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to upper case.
+
+        Example:
+
+        .. code:: python
+
+            >>> s = Settings()
+
+            >>> s.FOO = 'bar'  # __setitem__
+            >>> print(s.foo)
+            foo:    bar
+
+            >>> print(s.fOO)  # __getitem__
+            bar
+
+            >>> del s.FOO
+            >>> print('FOO' in s)  # __delitem__
+            False
+
+        """
+        return cls._upper
+
+
+    @classmethod
+    def lower(cls):
+        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to lower case.
+
+        Example:
+
+        .. code:: python
+
+            >>> s = Settings()
+
+            >>> s.foo = 'bar'  # __setitem__
+            >>> print(s)
+            FOO:    bar
+
+            >>> print(s.FoO)  # __getitem__
+            bar
+
+            >>> del s.foo  # __delitem__
+            >>> print('foo' in s)
+            False
+
+        """
+        return cls._lower
 
     def get_nested(self, key_tuple, supress_missing=False):
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.

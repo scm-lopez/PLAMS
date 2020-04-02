@@ -1,7 +1,7 @@
 from threading import Thread
 
 from scm.plams import Settings, ReentranceError
-from scm.plams.core.settings import SupressMissing
+from scm.plams.core.context import SupressMissing
 
 glob_var = {
     0: tuple(),
