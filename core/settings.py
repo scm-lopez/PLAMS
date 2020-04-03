@@ -283,7 +283,7 @@ class Settings(dict, metaclass=_SettingsMeta):
 
     @classmethod
     def upper(cls):
-        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to upper case.
+        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` (among others) to upper case.
 
         Example:
 
@@ -308,7 +308,7 @@ class Settings(dict, metaclass=_SettingsMeta):
 
     @classmethod
     def lower(cls):
-        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to lower case.
+        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` (among others) to lower case.
 
         Example:
 

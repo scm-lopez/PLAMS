@@ -85,8 +85,6 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
 
     """
 
-    __slots__ = ('_lock', '_open', 'obj', 'func_old', 'func_new')
-
     #: A class variable for keeping track of all :class:`FuncReplacerABC` instances.
     #: Used for ensuring all instances are singletons with respect to the passed object type.
     _type_cache: ClassVar[MutableMapping[type, 'FuncReplacerABC']]
@@ -250,9 +248,10 @@ class SupressMissing(FuncReplacerABC):
 
 
 class Lower(FuncReplacerABC):
-    """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to lower case."""  # noqa: E501
+    """A reusable, but non-reentrant, context manager for temporary converting all keys to lower case."""  # noqa: E501
 
-    replace_func = ('__delitem__', '__setitem__', '__getitem__')
+    replace_func = ('__delitem__', '__setitem__', '__getitem__', '__contains__',
+                    'get', 'pop', 'popitem', 'setdefault')
 
     @staticmethod
     def decorate(func):
@@ -268,9 +267,10 @@ class Lower(FuncReplacerABC):
 
 
 class Upper(FuncReplacerABC):
-    """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to upper case."""  # noqa: E501
+    """A reusable, but non-reentrant, context manager for temporary converting all keys to upper case."""  # noqa: E501
 
-    replace_func = ('__delitem__', '__setitem__', '__getitem__')
+    replace_func = ('__delitem__', '__setitem__', '__getitem__', '__contains__',
+                    'get', 'pop', 'popitem', 'setdefault')
 
     @staticmethod
     def decorate(func):
