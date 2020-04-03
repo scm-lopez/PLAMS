@@ -5,7 +5,7 @@ from abc import abstractmethod, ABCMeta
 from types import MappingProxyType
 from weakref import WeakKeyDictionary
 from functools import wraps
-from typing import (Any, Collection, Callable, Dict, Tuple, NoReturn,
+from typing import (Any, Collection, Callable, Dict, Tuple, NoReturn, ContextManager,
                     Type, Optional, ClassVar, MutableMapping, Mapping)
 
 from .errors import ReentranceError
@@ -27,7 +27,7 @@ class _FuncReplacerMeta(ABCMeta):
         return cls
 
 
-class FuncReplacerABC(metaclass=_FuncReplacerMeta):
+class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
     """An abstract context manager for temporary replacing one or more methods of a class.
 
     Subclasses will have to defined two attributes:
