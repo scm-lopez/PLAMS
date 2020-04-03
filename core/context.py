@@ -1,35 +1,64 @@
 """A module with various context managers."""
 
 import threading
-from abc import ABC, abstractmethod
+from abc import abstractmethod, ABCMeta
+from types import MappingProxyType
+from weakref import WeakKeyDictionary
 from functools import wraps
-from typing import Any, ContextManager, Collection, Callable, Dict
+from typing import (Any, Collection, Callable, Dict, Tuple, NoReturn,
+                    Type, Optional, ClassVar, MutableMapping, Mapping)
 
 from .errors import ReentranceError
 
-__all__ = []
+__all__ = ['FuncReplacerABC']
 
 
-class FuncReplacerABC(ContextManager[None], ABC):
+class _FuncReplacerMeta(ABCMeta):
+    """The metaclass of :class:`FuncReplacerABC`.
+
+    Used for setting the :attr:`FuncReplacerABC._type_cache` class variable,
+    a :class:`~weakref.WeakKeyDictionary` for keeping track of all class instance singletons.
+
+    """
+
+    def __new__(mcls, name, bases, namespace, **kwargs):
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+        cls._type_cache = WeakKeyDictionary()
+        return cls
+
+
+class FuncReplacerABC(metaclass=_FuncReplacerMeta):
     """An abstract context manager for temporary replacing one or more methods of a class.
 
     Subclasses will have to defined two attributes:
 
     * :attr:`FuncReplacerABC.replace_func`: A :class:`~collections.abc.Collection` with the
       names of all to-be replaced methods.
-    * :meth:`FuncReplacerABC.decorate`: A static method for altering/replacing the methods.
+    * :meth:`FuncReplacerABC.decorate`: A decorator for altering/replacing the methods.
 
-    Instances of this class are thread-safe (note that this does *not* include
-    :meth:`FuncReplacerABC.__init__` itself), resuable, but non-reentrant:
+    Instances of this class furthermore have the following properties:
+
+    * Entering and exiting is thread-safe (note that this does *not* include
+      :meth:`FuncReplacerABC.__init__` itself).
+    * They are immutable(-ish).
+    * They are singletons with respect to the passed object type.
+    * They are resuable but non-reentrant.
+
+    For example:
 
     .. code:: python
 
+        # Define a subclass
         >>> class Context(FuncReplacerABC):
-        ...     ...
+        ...     replace_func = ('__int__', ...)
+        ...
+        ...     @staticmethod
+        ...     def decorate(func): return ...
 
-        >>> manager = Context()
+        # Instantiate the new subclass
+        >>> manager = Context(...)
 
-        # Opening the context manager multiple times is completelly fine
+        # Opening the context manager multiple times is completely fine
         >>> with manager:
         ...     ...
         >>> with manager:
@@ -39,17 +68,34 @@ class FuncReplacerABC(ContextManager[None], ABC):
 
         # This is not fine
         >>> with manager:
-            >>> with manager:
-            ...     ...
-        ReentranceError("'Context' instances cannot not be entered in a reentrant manner")
+        ...     with manager:
+        ...         ...
+        ReentranceError: "'Context' instances cannot not be entered in a reentrant manner"
+
+        # Class instances are singletons with respect to the passed object type
+        >>> manager1 = Context(int)
+        >>> manager2 = Context(1)
+        >>> manager3 = Context(999)
+        >>> print(manager1 is manager2 is manager3)
+        True
+
+        # Fiddling with attributes is not fine
+        >>> del manager.obj
+        AttributeError: attribute 'obj' of 'Context' objects is not writable
 
     """
 
-    #: A private instance variable for ensuring the thread safety of
+    __slots__ = ('_lock', '_open', 'obj', 'func_old', 'func_new')
+
+    #: A class variable for keeping track of all :class:`FuncReplacerABC` instances.
+    #: Used for ensuring all instances are singletons with respect to the passed object type.
+    _type_cache: ClassVar[MutableMapping[type, 'FuncReplacerABC']]
+
+    #: An instance variable for ensuring the thread safety of
     #: :meth:`__enter__` and :meth:`__exit__` calls.
     _lock: threading.Lock
 
-    #: A private instance variable for keeping track of (potentially reentrant)
+    #: An instance variable for keeping track of (potentially reentrant)
     #: :meth:`__enter__` calls.
     _open: bool
 
@@ -57,13 +103,15 @@ class FuncReplacerABC(ContextManager[None], ABC):
     #: calling :meth:`__enter__`.
     obj: type
 
-    #: An instance variable containing a dictionary mapping the names of the to-be replaced
-    #: functions to the old functions.
-    func_old: Dict[str, Callable]
+    #: An instance variable containing a read-only :class:`~collections.abc.Mapping` whichs
+    #: maps the names of the to-be replaced functions to the old functions.
+    func_old: Mapping[str, Callable]
 
-    #: An instance variable containing a dictionary mapping the names of the to-be replaced
-    #: functions to the new functions.
-    func_new: Dict[str, Callable]
+    #: An instance variable containing a read-only :class:`~collections.abc.Mapping` whichs
+    #: maps the names of the to-be replaced functions to the new functions.
+    func_new: Mapping[str, Callable]
+
+    # Abstract methods and attributes
 
     @property
     @abstractmethod
@@ -77,7 +125,7 @@ class FuncReplacerABC(ContextManager[None], ABC):
             >>> class SubClass(FuncReplacerABC):
             ...     replace_func = ('name1', 'name2', 'name3', ...)  # Any Collection is fine
 
-        """
+        """  # noqa: E501
         raise NotImplementedError('Trying to get an abstract attribute')
 
     @staticmethod
@@ -86,6 +134,17 @@ class FuncReplacerABC(ContextManager[None], ABC):
         """Decorate all functions defined in :attr:`replace_func`."""
         raise NotImplementedError('Trying to call an abstract attribute')
 
+    # Various magic methods
+
+    def __new__(cls: Type['FuncReplacerABC'], obj: type) -> 'FuncReplacerABC':
+        """Construct a new :class:`FuncReplacerABC` instance."""
+        # If possible, return a cached FuncReplacerABC instance
+        type_obj = obj if isinstance(obj, type) else type(obj)
+        try:
+            return cls._type_cache[type_obj]
+        except KeyError:
+            return super().__new__(cls)
+
     def __init__(self, obj: type) -> None:
         """Initialize the context manager.
 
@@ -93,38 +152,73 @@ class FuncReplacerABC(ContextManager[None], ABC):
         this method is *not* thread-safe.
 
         """
-        self._lock = threading.Lock()
-        self._open = False
+        # Check if self is a cached (already initialized) instance
+        if vars(self):
+            return
+        cls = type(self)
+
+        setattr = super().__setattr__
+        setattr('_lock', threading.Lock())
+        setattr('_open', False)
 
         # Ensure that obj is a class, not a class instance
         type_obj = obj if isinstance(obj, type) else type(obj)
-        self.obj = type_obj
+        setattr('obj', type_obj)
 
         # Define the old and new method
-        self.func_old = {name: getattr(type_obj, name) for name in self.replace_func}
-        self.func_new = {name: self.decorate(func) for name, func in self.func_old.items()}
+        setattr('func_old', MappingProxyType({name: getattr(type_obj, name) for
+                                              name in cls.replace_func}))  # type: ignore
+        setattr('func_new', MappingProxyType({name: self.decorate(func) for
+                                              name, func in self.func_old.items()}))
 
-    def __eq__(self, obj: Any) -> bool:
-        """Implement :code:`self == obj`."""
-        if type(self) is not type(obj):
-            return False
-        return self.obj is getattr(obj, 'obj', None)
+        # Update the type cache
+        cls._type_cache[type_obj] = self
+
+    def __reduce__(self) -> Tuple[Type['FuncReplacerABC'], Tuple[type]]:
+        """Helper function for :mod:`pickle`."""
+        return (type(self), (self.obj,))
+
+    def __copy__(self) -> 'FuncReplacerABC':
+        """Implement :code:`copy.copy`."""
+        return self
+
+    def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> 'FuncReplacerABC':
+        """Implement :code:`copy.deepcopy`."""
+        return self
 
     def __repr__(self) -> str:
         """Implement :code:`repr(self)` and :code:`str(self)`."""
         return f'{self.__class__.__name__}(obj={self.obj!r})'
 
+    def __setattr__(self, name: str, value: Any) -> NoReturn:
+        """Implement :code:`setattr(self, name, value)`."""
+        raise self._attributeError(name)  # Attributes are read-only
+
+    def __delattr__(self, name: str) -> NoReturn:
+        """Implement :code:`delattr(self, name)`."""
+        raise self._attributeError(name)  # Attributes are read-only
+
+    def _attributeError(self, name: str) -> AttributeError:
+        """Return an :exc:`AttributeError`; attributes of this instance are read-only."""
+        if hasattr(self, name):
+            cls_name = self.__class__.__name__
+            return AttributeError(f"attribute {name!r} of {cls_name!r} objects is not writable")
+        else:
+            return AttributeError(f"{self.__class__.__name__!r} object has no attribute {name!r}")
+
+    # Context manager-related magic methods
+
     def __enter__(self) -> None:
         """Enter the context manager: modify all methods in :attr:`func_new` at the class level."""
+        if self._open:
+            raise ReentranceError(f"{self.__class__.__name__!r} instances cannot "
+                                  "not be entered in a reentrant manner")
+
         # Precaution against calling __enter__() in a recursive manner
         with self._lock:
-            if self._open:
-                raise ReentranceError(f"{self.__class__.__name__!r} instances cannot "
-                                      "not be entered in a reentrant manner")
-
             for name, func in self.func_new.items():
                 setattr(self.obj, name, func)
-            self._open = True
+        super().__setattr__('_open', True)
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Exit the context manager: restore all methods in :attr:`func_old` at the class level."""
@@ -134,7 +228,7 @@ class FuncReplacerABC(ContextManager[None], ABC):
         with self._lock:
             for name, func in self.func_old.items():
                 setattr(self.obj, name, func)
-            self._open = False
+        super().__setattr__('_open', False)
 
 
 class SupressMissing(FuncReplacerABC):
@@ -142,7 +236,7 @@ class SupressMissing(FuncReplacerABC):
 
     See :meth:`Settings.supress_missing` for more details.
 
-    """  # noqa
+    """  # noqa: E501
 
     replace_func = ('__missing__',)
 
@@ -156,13 +250,13 @@ class SupressMissing(FuncReplacerABC):
 
 
 class Lower(FuncReplacerABC):
-    """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to lower case."""
+    """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to lower case."""  # noqa: E501
 
     replace_func = ('__delitem__', '__setitem__', '__getitem__')
 
     @staticmethod
     def decorate(func):
-        """Decorate *func* such that the passed key is converted to lower case before being called."""
+        """Decorate *func* such that the passed key is converted to lower case before being called."""  # noqa: E501
         @wraps(func)
         def wrapper(self, key, *args, **kwargs):
             try:
@@ -174,13 +268,13 @@ class Lower(FuncReplacerABC):
 
 
 class Upper(FuncReplacerABC):
-    """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to upper case."""
+    """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` to upper case."""  # noqa: E501
 
     replace_func = ('__delitem__', '__setitem__', '__getitem__')
 
     @staticmethod
     def decorate(func):
-        """Decorate *func* such that the passed key is converted to upper case before being called."""
+        """Decorate *func* such that the passed key is converted to upper case before being called."""  # noqa: E501
         @wraps(func)
         def wrapper(self, key, *args, **kwargs):
             try:
