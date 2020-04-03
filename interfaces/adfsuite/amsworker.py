@@ -615,16 +615,16 @@ class AMSWorker:
                 args["prevTitle"] = prev_results.name
 
             if task == 'geometryoptimization':
-                if method is not None: args["method"] = method
-                if coordinatetype is not None: args["coordinateType"] = coordinatetype
-                if usesymmetry is not None: args["useSymmetry"] = usesymmetry
+                if method is not None: args["method"] = str(method)
+                if coordinatetype is not None: args["coordinateType"] = str(coordinatetype)
+                if usesymmetry is not None: args["useSymmetry"] = bool(usesymmetry)
                 if optimizelattice: args["optimizeLattice"] = True
-                if maxiterations is not None: args["maxIterations"] = maxiterations
+                if maxiterations is not None: args["maxIterations"] = int(maxiterations)
                 if pretendconverged: args["pretendConverged"] = True
-                if convenergy is not None: args["convEnergy"] = convenergy
-                if convgradients is not None: args["convGradients"] = convgradients
-                if convstep is not None: args["convStep"] = convstep
-                if convstressenergyperatom is not None: args["convStressEnergyPerAtom"] = convstressenergyperatom
+                if convenergy is not None: args["convEnergy"] = float(convenergy)
+                if convgradients is not None: args["convGradients"] = float(convgradients)
+                if convstep is not None: args["convStep"] = float(convstep)
+                if convstressenergyperatom is not None: args["convStressEnergyPerAtom"] = float(convstressenergyperatom)
                 results = self._call("Optimize", args)
             else:
                 results = self._call("Solve", args)
