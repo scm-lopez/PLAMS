@@ -3,7 +3,7 @@
 import threading
 from abc import abstractmethod, ABCMeta
 from types import MappingProxyType
-from weakref import WeakKeyDictionary
+from weakref import WeakValueDictionary
 from functools import wraps
 from typing import (Any, Collection, Callable, Dict, Tuple, NoReturn, ContextManager,
                     Type, Optional, ClassVar, MutableMapping, Mapping)
@@ -17,13 +17,13 @@ class _FuncReplacerMeta(ABCMeta):
     """The metaclass of :class:`FuncReplacerABC`.
 
     Used for setting the :attr:`FuncReplacerABC._type_cache` class variable,
-    a :class:`~weakref.WeakKeyDictionary` for keeping track of all class instance singletons.
+    a :class:`~weakref.WeakValueDictionary` for keeping track of all class instance singletons.
 
     """
 
     def __new__(mcls, name, bases, namespace, **kwargs):
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
-        cls._type_cache = WeakKeyDictionary()
+        cls._type_cache = WeakValueDictionary()
         return cls
 
 
