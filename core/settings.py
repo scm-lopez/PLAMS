@@ -1,7 +1,7 @@
 import textwrap
 import contextlib
 
-from .context import SupressMissing, Lower, Upper
+from .context import SupressMissing
 
 __all__ = ['Settings', 'ig']
 
@@ -10,8 +10,6 @@ class _SettingsMeta(type):
     def __new__(mcls, name, bases, namespace, **kwargs):
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         cls._supress_missing = SupressMissing(cls)
-        cls._lower = Lower(cls)
-        cls._upper = Upper(cls)
         return cls
 
 
@@ -50,8 +48,6 @@ class Settings(dict, metaclass=_SettingsMeta):
 
     # To-be replaced with SupressMissing, Lower and Upper instances by the metaclass
     _supress_missing: SupressMissing
-    _lower: Lower
-    _upper: Upper
 
     def __init__(self, *args, **kwargs):
         cls = type(self)
@@ -280,55 +276,6 @@ class Settings(dict, metaclass=_SettingsMeta):
         """
         return cls._supress_missing
 
-
-    @classmethod
-    def upper(cls):
-        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` (among others) to upper case.
-
-        Example:
-
-        .. code:: python
-
-            >>> s = Settings()
-
-            >>> s.FOO = 'bar'  # __setitem__
-            >>> print(s.foo)
-            foo:    bar
-
-            >>> print(s.fOO)  # __getitem__
-            bar
-
-            >>> del s.FOO
-            >>> print('FOO' in s)  # __delitem__
-            False
-
-        """
-        return cls._upper
-
-
-    @classmethod
-    def lower(cls):
-        """A reusable, but non-reentrant, context manager for temporary converting all keys passed to :meth:`__delitem__`, :meth:`__setitem__` and :meth:`__getitem__` (among others) to lower case.
-
-        Example:
-
-        .. code:: python
-
-            >>> s = Settings()
-
-            >>> s.foo = 'bar'  # __setitem__
-            >>> print(s)
-            FOO:    bar
-
-            >>> print(s.FoO)  # __getitem__
-            bar
-
-            >>> del s.foo  # __delitem__
-            >>> print('foo' in s)
-            False
-
-        """
-        return cls._lower
 
     def get_nested(self, key_tuple, supress_missing=False):
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.

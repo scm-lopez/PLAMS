@@ -247,7 +247,10 @@ class SupressMissing(FuncReplacerABC):
         return wrapper
 
 
-class Lower(FuncReplacerABC):
+# Work in progress context managers
+
+
+class _Lower(FuncReplacerABC):
     """A reusable, but non-reentrant, context manager for temporary converting all keys to lower case."""  # noqa: E501
 
     replace_func = ('__delitem__', '__setitem__', '__getitem__', '__contains__',
@@ -266,7 +269,7 @@ class Lower(FuncReplacerABC):
         return wrapper
 
 
-class Upper(FuncReplacerABC):
+class _Upper(FuncReplacerABC):
     """A reusable, but non-reentrant, context manager for temporary converting all keys to upper case."""  # noqa: E501
 
     replace_func = ('__delitem__', '__setitem__', '__getitem__', '__contains__',
