@@ -48,15 +48,12 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
 
     .. code:: python
 
-        # Define a subclass
+        # Define and instantiate a subclass
         >>> class Context(FuncReplacerABC):
         ...     replace_func = ('__int__', ...)
         ...
         ...     @staticmethod
         ...     def decorate(func): return ...
-
-        # Instantiate the new subclass
-        >>> manager = Context(...)
 
         # Opening the context manager multiple times is completely fine
         >>> with manager:
