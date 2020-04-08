@@ -1213,46 +1213,75 @@ class Molecule:
 
 
     def apply_strain(self, strain, voigt_form=False):
-        """Apply a strain deformation to a periodic system.
+        """Apply a strain deformation to a periodic system (i.e. with a non-empty ``lattice`` attribute).
+        The atoms in the unit cell will be strained accordingly, keeping the fractional atomic coordinates constant.
 
-        This method can be used only for periodic systems (the ones with a non-empty ``lattice`` attribute). *strain* should be a container with n*n numerical values, where n is the size of the ``lattice``. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
-        If strain is passed in the voigt_form, it must be a vector or list of the form [11, 22, 33, 32, 31, 21].
+        If ``voigt_form=False``, *strain* should be a container with n*n numerical values, where n is the number of ``lattice`` vectors. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (e.g. ``[e_xx, e_xy, e_xz, e_yx, e_yy, e_yz, e_zx, e_zy, e_zz]``) or in two-level fashion (e.g. ``[[e_xx, e_xy, e_xz],[e_yx, e_yy, e_yz],[e_zx, e_zy, e_zz]]``).
+        If ``voigt_form=True``, *strain* should be passed in voigt form (for 3D periodic systems: ``[e_xx, e_yy, e_zz, gamma_yz, gamma_xz, gamma_xy]``; for 2D periodic systems: ``[e_xx, e_yy, gamma_xy]``; for 1D periodic systems: ``[e_xx]``  with e_xy = gamma_xy/2,...). Example usage::
+
+            >>> graphene = Molecule('graphene.xyz')
+            >>> print(graphene)
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.230000      0.710141      0.000000 
+              Lattice:
+                    2.4600000000     0.0000000000     0.0000000000
+                    1.2300000000     2.1304224900     0.0000000000
+            >>> graphene.apply_strain([0.1,0.2,0.0], voigt_form=True)])
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.353000      0.852169      0.000000 
+              Lattice:
+                    2.7060000000     0.0000000000     0.0000000000
+                    1.3530000000     2.5565069880     0.0000000000
         """
 
         n = len(self.lattice)
 
-        if n != 3:
-            raise MoleculeError('apply_strain: strain can only be applied to 3D periodic systems')
+        if n==0:
+            raise MoleculeError('apply_strain: can only be used for perdiodic systems.')
+
+        if n in [1,2] and self.align_lattice(convention='AMS'):
+            raise MoleculeError('apply_strain: the lattice vectors should follow the convention of AMS (i.e. for 1D-periodic systems the lattice vector should be along the x-axis, while for 2D-periodic systems the two vectors should be on the XY plane. Consider using the align_lattice function.')
+
+        def from_voigt_to_matrix(strain_voigt, n):
+            if len(strain_voigt) != n*(n+1)/2:
+                raise MoleculeError('apply_strain: strain for %i-dim periodic system needs %i-sized vector in Voigt format'%(n,n*(n+1)/2))
+            
+            strain_matrix = np.diag(strain_voigt[:n])
+            if n == 2:
+                strain_matrix[1,0] = strain_voigt[2]/2.0
+                strain_matrix[0,1] = strain_voigt[2]/2.0
+            elif n == 3:
+                strain_matrix[1,2] = strain_voigt[3]/2.0
+                strain_matrix[2,1] = strain_voigt[3]/2.0
+                strain_matrix[0,2] = strain_voigt[4]/2.0
+                strain_matrix[2,0] = strain_voigt[4]/2.0
+                strain_matrix[0,1] = strain_voigt[5]/2.0
+                strain_matrix[1,0] = strain_voigt[5]/2.0
+            return strain_matrix
 
         if voigt_form:
-            if len(strain) != n * (n + 1) / 2:
-                raise MoleculeError('apply_strain: strain for %i-dim periodic system needs %i-sized vector in Voigt format'%(n,n*(n+1)/2))
-            try:
-                tmpstrain = np.diag(strain[:n])
-                tmpstrain[1,2] = strain[3]/2.0
-                tmpstrain[2,1] = strain[3]/2.0
-                tmpstrain[0,2] = strain[4]/2.0
-                tmpstrain[2,0] = strain[4]/2.0
-                tmpstrain[0,1] = strain[5]/2.0
-                tmpstrain[1,0] = strain[5]/2.0
-                strain = tmpstrain
-            except:
-                raise MoleculeError('apply_strain: could not convert the voigt strain to a (%i,%i) numpy array'%(n,n))
+            strain = from_voigt_to_matrix(strain,n)
         else:
             try:
                 strain = np.array(strain).reshape(n,n)
             except:
                 raise MoleculeError('apply_strain: could not convert the strain to a (%i,%i) numpy array'%(n,n))
 
-        lattice_np = np.array(self.lattice)
-        frac_coords_transf = np.linalg.inv(lattice_np.T)
-        deformed_lattice = lattice_np.dot(np.eye(n) + strain)
+        if n==1:
+            lattice_mat = np.array([[self.lattice[0][0]]])
+        else:
+            lattice_mat = np.array(self.lattice)[:n,:n]
 
-        xyz_array = self.as_array()
-        fractional_coords = xyz_array@frac_coords_transf.T
+        strained_lattice = lattice_mat.dot(np.eye(n) + strain)
+        coords = self.as_array()
+        frac_coords_transf = np.linalg.inv(lattice_mat.T)
+        fractional_coords = coords[:,:n]@frac_coords_transf.T
+        coords[:,:n] = (strained_lattice.T@fractional_coords.T).T
 
-        self.from_array((deformed_lattice.T@fractional_coords.T).T)
-        self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
+        self.from_array(coords)
+        self.lattice = [tuple(vec + [0.0]*(3-len(vec))) for vec in strained_lattice.tolist()]
 
 
     def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
