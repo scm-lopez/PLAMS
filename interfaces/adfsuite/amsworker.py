@@ -1,5 +1,6 @@
 import os
 import shutil
+import signal
 import subprocess
 import time
 import threading
@@ -16,6 +17,7 @@ if os.name == 'nt':
     import ctypes
     import ctypes.wintypes
     import msvcrt
+    import psutil
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
@@ -27,7 +29,7 @@ if os.name == 'nt':
 
     CreateNamedPipe = kernel32.CreateNamedPipeW
     CreateNamedPipe.restype = ctypes.wintypes.HANDLE
-    CreateNamedPipe.argtypes = [ctypes.c_wchar_p] + [ctypes.c_long]*6 + [ctypes.c_void_p]
+    CreateNamedPipe.argtypes = [ctypes.c_wchar_p] + [ctypes.wintypes.DWORD]*6 + [ctypes.c_void_p]
     CreateNamedPipe.errcheck = CheckHandle
 
     PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
@@ -47,6 +49,11 @@ if os.name == 'nt':
     ConnectNamedPipe.restype = ctypes.wintypes.BOOL
     ConnectNamedPipe.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
     ConnectNamedPipe.errcheck = CheckConnect
+
+    GetConsoleProcessList = kernel32.GetConsoleProcessList
+    GetConsoleProcessList.restype = ctypes.wintypes.DWORD
+    GetConsoleProcessList.argtypes = (ctypes.wintypes.LPDWORD, ctypes.wintypes.DWORD)
+
 
 spawn_lock = threading.Lock()
 
@@ -351,7 +358,13 @@ class AMSWorker:
             with open(os.path.join(self.workerdir, 'amsworker.in'), 'r') as amsinput, \
                 open(os.path.join(self.workerdir, 'ams.out'), 'w') as amsoutput, \
                 open(os.path.join(self.workerdir, 'ams.err'), 'w') as amserror:
-                self.proc = subprocess.Popen(['sh', 'amsworker.run'], cwd=self.workerdir, stdout=amsoutput, stdin=amsinput, stderr=amserror)
+                self.proc = subprocess.Popen(['sh', 'amsworker.run'], cwd=self.workerdir,
+                                             stdout=amsoutput, stdin=amsinput, stderr=amserror,
+                                             # Put all worker processes into a dedicated process group
+                                             # to enable mass-killing in stop().
+                                             start_new_session=(os.name == 'posix'),
+                                             creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+                                             )
 
         # Start a dedicated watcher thread to rescue us in case the worker never opens its end of the pipes.
         self._stop_watcher = threading.Event()
@@ -412,6 +425,51 @@ class AMSWorker:
         return self
 
 
+    if os.name == 'nt':
+        def _find_worker_processes(self):
+            # This is a convoluted workaround for the fact that the MSYS sh.exe on Windows likes to
+            # launch commands as detached grandchildren, not direct children, so we can't track them
+            # down just by following PPIDs. We thus have to resort to heuristics to find all processes
+            # that we need to kill. It'd be best to use Win32 Job objects for this, but the "subprocess"
+            # module doesn't let us add the created child to a Job early enough.
+
+            # Get the PIDs of all processes sharing this console.
+            bufsize = 1024
+            while True:
+                console_pids = (ctypes.wintypes.DWORD * bufsize)()
+                n = GetConsoleProcessList(console_pids, bufsize)
+                if n == 0:
+                    raise ctypes.WinError(ctypes.get_last_error())
+                elif n > bufsize:
+                    bufsize *= 2
+                else:
+                    break
+
+            # Convert PIDs to Process objects ASAP to minimize the potential for races with PID reuse.
+            console_procs = []
+            for pid in console_pids[0:n]:
+                try:
+                    console_procs.append(psutil.Process(pid))
+                except psutil.Error:
+                    # The process exited in the meantime or we can't access it, just skip it.
+                    pass
+
+            # Find all "(ba)sh.exe" processes on this console that are running in self.workerdir
+            # and add them to worker_procs including all descendants.
+            worker_procs = set()
+            for proc in console_procs:
+                if proc in worker_procs:
+                    continue
+                try:
+                    if proc.exe().endswith("sh.exe") and proc.cwd() == self.workerdir:
+                        worker_procs.add(proc)
+                        worker_procs.update(proc.children(recursive=True))
+                except psutil.Error:
+                    pass
+
+            return worker_procs
+
+
     def stop(self):
         """Stops the worker process and removes its working directory.
 
@@ -452,16 +510,29 @@ class AMSWorker:
             try:
                 self.proc.wait(timeout=self.timeout)
             except subprocess.TimeoutExpired:
-                # Last resort, kill self.proc (first with terminate() to give it a chance to cleanup its children).
-                # Unfortunately, we can only kill self.proc (a "sh") and not its children, so this is likely
-                # to leave some processes around.
-                # TODO: Print a warning about this.
-                self.proc.terminate()
-                try:
-                    self.proc.wait(timeout=self.timeout)
-                except subprocess.TimeoutExpired:
-                    self.proc.kill()
-                    self.proc.wait()
+                if os.name == 'nt':
+                    worker_procs = self._find_worker_processes()
+                    # Send Ctrl-Break to the entire process group under self.proc.
+                    # Ctrl-C is less reliable in convincing processes to quit.
+                    os.kill(self.proc.pid, signal.CTRL_BREAK_EVENT)
+                    dead, alive = psutil.wait_procs(worker_procs, timeout=self.timeout)
+                    for p in alive:
+                        # Forcefully kill any descendant that is still running.
+                        p.kill()
+                    psutil.wait_procs(alive)
+                else:
+                    # Using SIGINT guarantees that the "sh" we're running as self.proc (and the "sh" running
+                    # the start script etc.) will wait until its children have exited before exiting itself.
+                    # The wait() thus doesn't return until all the descendants including ams.exe are gone.
+                    # If we used SIGTERM instead, the "sh"s would exit immediately.
+                    os.killpg(self.proc.pid, signal.SIGINT)
+                    try:
+                        self.proc.wait(timeout=self.timeout)
+                    except subprocess.TimeoutExpired:
+                        # This is guaranteed to stop everything, so we don't really have to wait for all processes.
+                        os.killpg(self.proc.pid, signal.SIGKILL)
+
+                self.proc.wait()
             self.proc = None
             with open(os.path.join(self.workerdir, 'ams.out'), 'r') as amsoutput:
                 stdout = amsoutput.readlines()
@@ -475,28 +546,10 @@ class AMSWorker:
         # Remove the contents of the worker directory.
         for filename in os.listdir(self.workerdir):
             file_path = os.path.join(self.workerdir, filename)
-
-            # Deleting some files can fail on Windows when we resort to killing self.proc above
-            # and some of the processes stay around keeping files open (like stdout or stderr).
-            # The only thing we can do is wait for a while, try again, and hope for the best.
-            num_attempts = 2
-            while True:
-                try:
-                    if os.path.isdir(file_path):
-                        shutil.rmtree(file_path)
-                    else:
-                        os.unlink(file_path)
-                    break
-                except PermissionError as e:
-                    if os.name != 'nt':
-                        raise
-
-                    num_attempts -= 1
-                    if num_attempts > 0:
-                        time.sleep(1)
-                    else:
-                        # TODO: Print a warning if we run out of attempts.
-                        break
+            if os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+            else:
+                os.unlink(file_path)
 
         return (stdout, stderr)
 
