@@ -17,7 +17,6 @@ if os.name == 'nt':
     import ctypes
     import ctypes.wintypes
     import msvcrt
-    import psutil
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
@@ -60,6 +59,8 @@ spawn_lock = threading.Lock()
 
 try:
     import ubjson
+    if os.name == 'nt':
+        import psutil
     __all__ = ['AMSWorker', 'AMSWorkerResults', 'AMSWorkerError', 'AMSWorkerPool']
 except ImportError:
     __all__ = []
