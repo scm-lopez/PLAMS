@@ -5,12 +5,16 @@ from abc import abstractmethod, ABCMeta
 from types import MappingProxyType
 from weakref import WeakValueDictionary
 from functools import wraps
-from typing import (Any, Collection, Callable, Dict, Tuple, NoReturn, ContextManager,
-                    Type, Optional, ClassVar, MutableMapping, Mapping)
+from typing import (
+    Any, Collection, Callable, Dict, Tuple, NoReturn, ContextManager, cast,
+    Type, Optional, ClassVar, MutableMapping, Mapping, TypeVar, Generic, Union
+)
 
 from .errors import ReentranceError
 
 __all__ = ['FuncReplacerABC']
+
+FT = TypeVar('FT', bound='FuncReplacerABC')
 
 
 class _FuncReplacerMeta(ABCMeta):
@@ -81,7 +85,6 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
         AttributeError: attribute 'obj' of 'Context' objects is not writable
 
     """
-
     #: A class variable for keeping track of all :class:`FuncReplacerABC` instances.
     #: Used for ensuring all instances are singletons with respect to the passed object type.
     _type_cache: ClassVar[MutableMapping[type, 'FuncReplacerABC']]
@@ -127,20 +130,20 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
     @abstractmethod
     def decorate(func: Callable) -> Callable:
         """Decorate all functions defined in :attr:`replace_func`."""
-        raise NotImplementedError('Trying to call an abstract attribute')
+        raise NotImplementedError('Trying to call an abstract method')
 
     # Various magic methods
 
-    def __new__(cls: Type['FuncReplacerABC'], obj: type) -> 'FuncReplacerABC':
+    def __new__(cls: Type[FT], obj: Union[type, Any]) -> FT:
         """Construct a new :class:`FuncReplacerABC` instance."""
         # If possible, return a cached FuncReplacerABC instance
-        type_obj = obj if isinstance(obj, type) else type(obj)
+        type_obj = cast(type, obj if isinstance(obj, type) else type(obj))
         try:
-            return cls._type_cache[type_obj]
+            return cast(FT, cls._type_cache[type_obj])
         except KeyError:
             return super().__new__(cls)
 
-    def __init__(self, obj: type) -> None:
+    def __init__(self, obj: Union[type, Any]) -> None:
         """Initialize the context manager.
 
         Note that, contrary to :meth:`__enter__` and :meth:`__exit__`,
@@ -157,7 +160,7 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
         setattr('_open', False)
 
         # Ensure that obj is a class, not a class instance
-        type_obj = obj if isinstance(obj, type) else type(obj)
+        type_obj = cast(type, obj if isinstance(obj, type) else type(obj))
         setattr('obj', type_obj)
 
         # Define the old and new method
@@ -169,15 +172,15 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
         # Update the type cache
         cls._type_cache[type_obj] = self
 
-    def __reduce__(self) -> Tuple[Type['FuncReplacerABC'], Tuple[type]]:
+    def __reduce__(self: FT) -> Tuple[Type[FT], Tuple[type]]:
         """Helper function for :mod:`pickle`."""
         return (type(self), (self.obj,))
 
-    def __copy__(self) -> 'FuncReplacerABC':
+    def __copy__(self: FT) -> FT:
         """Implement :code:`copy.copy`."""
         return self
 
-    def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> 'FuncReplacerABC':
+    def __deepcopy__(self: FT, memo: Optional[Dict[int, Any]] = None) -> FT:
         """Implement :code:`copy.deepcopy`."""
         return self
 
