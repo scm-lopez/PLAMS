@@ -71,6 +71,8 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
         >>> with manager:
         ...     with manager:
         ...         ...
+        Traceback (most recent call last):
+          ...
         ReentranceError: "'Context' instances cannot not be entered in a reentrant manner"
 
         # Class instances are singletons with respect to the passed object type
@@ -82,9 +84,12 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
 
         # Fiddling with attributes is not fine
         >>> del manager.obj
+        Traceback (most recent call last):
+          ...
         AttributeError: attribute 'obj' of 'Context' objects is not writable
 
     """
+
     #: A class variable for keeping track of all :class:`FuncReplacerABC` instances.
     #: Used for ensuring all instances are singletons with respect to the passed object type.
     _type_cache: ClassVar[MutableMapping[type, 'FuncReplacerABC']]
@@ -102,11 +107,11 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
     obj: type
 
     #: An instance variable containing a read-only :class:`~collections.abc.Mapping` whichs
-    #: maps the names of the to-be replaced functions to the old functions.
+    #: maps the names of the to-be replaced methods to the original methods.
     func_old: Mapping[str, Callable]
 
     #: An instance variable containing a read-only :class:`~collections.abc.Mapping` whichs
-    #: maps the names of the to-be replaced functions to the new functions.
+    #: maps the names of the to-be replaced methods to the new methods.
     func_new: Mapping[str, Callable]
 
     # Abstract methods and attributes
@@ -177,23 +182,23 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
         return (type(self), (self.obj,))
 
     def __copy__(self: FT) -> FT:
-        """Implement :code:`copy.copy`."""
+        """Implement :func:`copy.copy(self)<copy.copy>`."""
         return self
 
     def __deepcopy__(self: FT, memo: Optional[Dict[int, Any]] = None) -> FT:
-        """Implement :code:`copy.deepcopy`."""
+        """Implement :func:`copy.deepcopy(self, memo=memo)<copy.deepcopy>`."""
         return self
 
     def __repr__(self) -> str:
-        """Implement :code:`repr(self)` and :code:`str(self)`."""
+        """Implement :func:`repr(self)<repr>` and :func:`str(self)<str>`."""
         return f'{self.__class__.__name__}(obj={self.obj!r})'
 
     def __setattr__(self, name: str, value: Any) -> NoReturn:
-        """Implement :code:`setattr(self, name, value)`."""
+        """Implement :func:`setattr(self, name, value)<setattr>`."""
         raise self._attributeError(name)  # Attributes are read-only
 
     def __delattr__(self, name: str) -> NoReturn:
-        """Implement :code:`delattr(self, name)`."""
+        """Implement :func:`delattr(self, name)<delattr>`."""
         raise self._attributeError(name)  # Attributes are read-only
 
     def _attributeError(self, name: str) -> AttributeError:
