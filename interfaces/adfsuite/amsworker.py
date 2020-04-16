@@ -594,11 +594,11 @@ class AMSWorker:
 
         args = {}
         for key, val in s.flatten().items():
-            kl = tuple(x.lower() for x in key)
+            kl = tuple(x.lower() if isinstance(x, str) else x for x in key )
             try:
                 args[_setting2arg[kl]] = val
             except KeyError:
-                raise NotImplementedError("Unexpected key {}".format(".".join(key)))
+                raise NotImplementedError("Unexpected key {}".format(".".join(str(k) for k in key)))
 
         if "task" not in args:
             raise NotImplementedError("No Settings.input.ams.task found")
