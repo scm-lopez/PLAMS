@@ -6,8 +6,8 @@ from types import MappingProxyType
 from weakref import WeakValueDictionary
 from functools import wraps
 from typing import (
-    Any, Collection, Callable, Dict, Tuple, NoReturn, ContextManager, cast,
-    Type, Optional, ClassVar, MutableMapping, Mapping, TypeVar, Generic, Union
+    Any, Collection, Callable, Dict, Tuple, NoReturn, cast,
+    Type, Optional, ClassVar, MutableMapping, Mapping, TypeVar, Union
 )
 
 from .errors import ReentranceError
@@ -26,12 +26,17 @@ class _FuncReplacerMeta(ABCMeta):
     """
 
     def __new__(mcls, name, bases, namespace, **kwargs):
+        # Automatically add the __slots__ attribute to all FuncReplacerABC subclasses
+        # This has to be done before the actual class is constructed
+        if name != 'FuncReplacerABC':
+            namespace['__slots__'] = FuncReplacerABC.__slots__[1:]
+
         cls = super().__new__(mcls, name, bases, namespace, **kwargs)
         cls._type_cache = WeakValueDictionary()
         return cls
 
 
-class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
+class FuncReplacerABC(metaclass=_FuncReplacerMeta):
     """An abstract context manager for temporary replacing one or more methods of a class.
 
     Subclasses will have to defined two attributes:
@@ -89,6 +94,8 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
         AttributeError: attribute 'obj' of 'Context' objects is not writable
 
     """
+
+    __slots__ = ('__weakref__', '_type_cache', '_lock', '_open', 'obj', 'func_old', 'func_new')
 
     #: A class variable for keeping track of all :class:`FuncReplacerABC` instances.
     #: Used for ensuring all instances are singletons with respect to the passed object type.
@@ -156,22 +163,22 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
 
         """
         # Check if self is a cached (already initialized) instance
-        if vars(self):
+        if hasattr(self, 'obj'):
             return
         cls = type(self)
 
-        setattr = super().__setattr__
-        setattr('_lock', threading.Lock())
-        setattr('_open', False)
+        setattr_ = super().__setattr__
+        setattr_('_lock', threading.Lock())
+        setattr_('_open', False)
 
         # Ensure that obj is a class, not a class instance
         type_obj = cast(type, obj if isinstance(obj, type) else type(obj))
-        setattr('obj', type_obj)
+        setattr_('obj', type_obj)
 
         # Define the old and new method
-        setattr('func_old', MappingProxyType({name: getattr(type_obj, name) for
+        setattr_('func_old', MappingProxyType({name: getattr(type_obj, name) for
                                               name in cls.replace_func}))  # type: ignore
-        setattr('func_new', MappingProxyType({name: self.decorate(func) for
+        setattr_('func_new', MappingProxyType({name: self.decorate(func) for
                                               name, func in self.func_old.items()}))
 
         # Update the type cache
@@ -180,6 +187,10 @@ class FuncReplacerABC(ContextManager[None], metaclass=_FuncReplacerMeta):
     def __reduce__(self: FT) -> Tuple[Type[FT], Tuple[type]]:
         """Helper function for :mod:`pickle`."""
         return (type(self), (self.obj,))
+
+    def __hash__(self) -> int:
+        """Implement :func:`hash(self)<hash>`."""
+        return hash(self.__reduce__())
 
     def __copy__(self: FT) -> FT:
         """Implement :func:`copy.copy(self)<copy.copy>`."""
