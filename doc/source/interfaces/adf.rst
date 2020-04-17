@@ -3,10 +3,11 @@ ADF
 
 .. currentmodule:: scm.plams.interfaces.adfsuite.adf
 
-.. note::
+.. warning::
 
     This page describes the old interface to the standalone ADF binary.
-    As ADF is now an AMS engine, you probably want to run it using |AMSJob|.
+    Starting from AMS2020, ADF is an AMS engine and should be run using |AMSJob|.
+    If you are running AMS2019 or older version, you should still use |ADFJob|
 
 
 ADF can be run from PLAMS using the |ADFJob| class and the corresponding |ADFResults|.

@@ -9,10 +9,10 @@ All possible input keywords and options are covered, as well as extraction of ar
 
     How do I run X using PLAMS?
 
-    * ADF      : |ADFJob|
+    * ADF      : |AMSJob| with ADF engine
     * BAND     : |AMSJob| with BAND engine
     * DFTB     : |AMSJob| with DFTB engine
-    * ReaxFF   : |ReaxFFJob| **or** |AMSJob| with ReaxFF engine
+    * ReaxFF   : |AMSJob| with ReaxFF engine
     * MOPAC    : |AMSJob| with MOPAC engine
     * UFF      : |AMSJob| with UFF engine
     * Densf    : |DensfJob|
