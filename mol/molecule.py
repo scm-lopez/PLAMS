@@ -130,20 +130,18 @@ class Molecule:
 
         ret = smart_copy(self, owncopy=['properties'], without=['atoms','bonds'])
 
+        bro = {} # mapping of original to copied atoms
         for at in atoms:
             at_copy = smart_copy(at, owncopy=['properties'], without=['mol','bonds'])
             ret.add_atom(at_copy)
-            at._bro = at_copy
+            bro[at] = at_copy
 
         for bo in self.bonds:
-            if hasattr(bo.atom1, '_bro') and hasattr(bo.atom2, '_bro'):
+            if (bo.atom1 in bro) and (bo.atom2 in bro):
                 bo_copy = smart_copy(bo, owncopy=['properties'], without=['atom1', 'atom2', 'mol'])
-                bo_copy.atom1 = bo.atom1._bro
-                bo_copy.atom2 = bo.atom2._bro
+                bo_copy.atom1 = bro[bo.atom1]
+                bo_copy.atom2 = bro[bo.atom2]
                 ret.add_bond(bo_copy)
-
-        for at in atoms:
-            del at._bro
 
         return ret
 
