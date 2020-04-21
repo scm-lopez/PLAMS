@@ -17,9 +17,9 @@ for name, smiles in mol_smiles.items():
 
 # Initialize the common settings:
 common_settings = Settings()
-common_settings.input.AMS.Task = 'SinglePoint'
-common_settings.input.AMS.System.Symmetrize = 'Yes'
-common_settings.input.ADF.Basis.Core = 'None'
+common_settings.input.ams.Task = 'SinglePoint'
+common_settings.input.ams.System.Symmetrize = 'Yes'
+common_settings.input.adf.Basis.Core = 'None'
 
 basis = ['QZ4P', 'TZ2P', 'TZP', 'DZP', 'DZ', 'SZ']
 reference_basis = 'QZ4P'
@@ -29,7 +29,7 @@ results = {}
 for bas in basis:
     for name, molecule in molecules.items():
         settings = common_settings.copy()
-        settings.input.ADF.Basis.Type = bas
+        settings.input.adf.Basis.Type = bas
         job = AMSJob(name=name+'_'+bas, molecule=molecule, settings=settings)
         results[(name,bas)] = job.run()
 

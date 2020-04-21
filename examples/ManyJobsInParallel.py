@@ -14,8 +14,8 @@ config.job.runscript.nproc = 1
 molecules = read_molecules('molecules')
 
 settings = Settings()
-settings.input.AMS.Task = 'GeometryOptimization'
-settings.input.DFTB.Model = 'GFN1-xTB'
+settings.input.ams.Task = 'GeometryOptimization'
+settings.input.dftb.Model = 'GFN1-xTB'
 
 results = []
 for name, molecule in sorted(molecules.items()):

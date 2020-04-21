@@ -29,11 +29,11 @@ class GammaJob(MultiJob):
         for charge, spin in zip(charges, self.spins):
             name = '{}_charge_{}'.format(self.name, charge)
             newjob = AMSJob(name=name, molecule=self.molecule, settings=self.settings)
-            newjob.settings.input.AMS.System.charge = charge
-            newjob.settings.input.ADF.xc.rangesep = "gamma={:f}".format(self.gamma)
+            newjob.settings.input.ams.System.charge = charge
+            newjob.settings.input.adf.xc.rangesep = "gamma={:f}".format(self.gamma)
             if spin != 0:
-                newjob.settings.input.ADF.unrestricted = True
-                newjob.settings.input.ADF.SpinPolarization = spin
+                newjob.settings.input.adf.unrestricted = True
+                newjob.settings.input.adf.SpinPolarization = spin
 
             self.children.append(newjob)
 
@@ -83,11 +83,11 @@ config.default_jobrunner = JobRunner(parallel=True, maxjobs=multiprocessing.cpu_
 # ================================
 
 s = Settings()
-s.input.AMS.task = 'SinglePoint'
-s.input.ADF.basis.type = 'DZP'
-s.input.ADF.basis.core = 'None'
-s.input.ADF.xc.gga = 'PBE'
-s.input.ADF.xc.xcfun = True
+s.input.ams.task = 'SinglePoint'
+s.input.adf.basis.type = 'DZP'
+s.input.adf.basis.core = 'None'
+s.input.adf.xc.gga = 'PBE'
+s.input.adf.xc.xcfun = True
 s.runscript.nproc = 1
 
 # The molecule (here we just use H2)

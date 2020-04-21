@@ -8,14 +8,14 @@ def get_transfer_integrals(self):
 # set. For more quantitatively meaningful results, you should use 
 # a larger basis.
 common = Settings()
-common.input.AMS.Task = 'SinglePoint'
-common.input.ADF.Basis.Type = 'SZ'
-common.input.ADF.Basis.Core = 'None'
-common.input.ADF.Symmetry = 'NoSym'
+common.input.ams.Task = 'SinglePoint'
+common.input.adf.Basis.Type = 'SZ'
+common.input.adf.Basis.Core = 'None'
+common.input.adf.Symmetry = 'NoSym'
 
 # Specific settings for full system job
 full = Settings()
-full.input.ADF.transferintegrals = True
+full.input.adf.transferintegrals = True
 
 # Load XYZ file and separate it into 2 fragments
 mol = Molecule('BenzeneDimer.xyz')

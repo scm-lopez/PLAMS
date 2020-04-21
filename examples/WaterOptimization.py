@@ -9,9 +9,9 @@ molecule.add_atom(Atom(symbol='H', coords=(1,0,0)))
 molecule.add_atom(Atom(symbol='H', coords=(0,1,0)))
 
 settings = Settings()
-settings.input.AMS.Task = 'GeometryOptimization'
-settings.input.AMS.Properties.NormalModes = 'Yes'
-settings.input.DFTB.Model = 'GFN1-xTB'
+settings.input.ams.Task = 'GeometryOptimization'
+settings.input.ams.Properties.NormalModes = 'Yes'
+settings.input.dftb.Model = 'GFN1-xTB'
 
 job = AMSJob(molecule=molecule, settings=settings, name='water_optimization')
 result = job.run()
