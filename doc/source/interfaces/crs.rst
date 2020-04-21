@@ -113,8 +113,8 @@ Which yields the following input:
     end
 
 
-ADFJob and CRSJob
-~~~~~~~~~~~~~~~~~
+ADF and CRSJob
+~~~~~~~~~~~~~~
 
 By default all COSMO-RS solvation energies produced with ADF (*i.e.* DFT) surface charges
 are with respect to gas-phase atomic fragments, rather than the gas-phase molecule.

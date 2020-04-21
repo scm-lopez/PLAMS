@@ -1,5 +1,5 @@
-Helim dimer dissociation curve 
-==============================
+Helium dimer dissociation curve 
+===============================
 
 .. literalinclude:: ../../../examples/He2DissociationCurve.py
    :language: python

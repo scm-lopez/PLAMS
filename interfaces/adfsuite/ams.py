@@ -355,8 +355,7 @@ class AMSResults(Results):
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleGradients'), engine)).reshape(-1,3)
 
     def get_timings(self):
-        """This functions is for AMSJob results only. ADFJob already has a built in function for this.
-        Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds (Jim Boelrijk).
+        """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds (Jim Boelrijk).
         """
         ret = {}
         cpu = self.grep_output('Total cpu time:')

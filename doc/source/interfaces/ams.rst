@@ -1,5 +1,5 @@
-AMS driver
--------------------------
+AMS driver and engines
+----------------------
 
 .. currentmodule:: scm.plams.interfaces.adfsuite.ams
 

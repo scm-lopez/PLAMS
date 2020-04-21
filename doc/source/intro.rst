@@ -132,8 +132,7 @@ The following special boxes appear within this documentation:
 It is assumed that the reader has some basic understanding of Python programming language.
 Gentle introduction to Python can be found in the excellent :ref:`Python Tutorial<tutorial-index>` and other parts of the official Python documentation.
 
-Majority of examples presented within this document use as an external binary either ADF or AMS.
-Please refer to the corresponding program's manual if some clarification is needed.
+Majority of examples presented within this document use external programs from the Amsterda Modeling Suite. Please refer to the corresponding program's manual if some clarification is needed.
 
 The last section presents a collection of real life example scripts that cover various possible applications of PLAMS.
 Due to early stage of the project this section is not yet too extensive.
