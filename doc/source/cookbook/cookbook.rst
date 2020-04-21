@@ -15,8 +15,9 @@ Simple examples
    He2DissociationCurve
    WaterOptimization
    ManyJobsInParallel
-   ChargeTransferIntegralsADF
    BasisSetBenchmark
+   ExcitationsWorkflow
+   ChargeTransferIntegralsADF
 
 Advanced examples
 -----------------

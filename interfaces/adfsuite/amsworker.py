@@ -66,7 +66,7 @@ except ImportError:
     __all__ = []
 
 from ...mol.molecule import Molecule
-from ...core.settings import Settings
+from ...core.settings import Settings, ig
 from ...core.errors import PlamsError, JobError, ResultsError
 from ...tools.units import Units
 from ...core.functions import config, log
@@ -139,6 +139,7 @@ class AMSWorkerResults:
         return self.error is None
 
     def get_errormsg(self):
+        """Attempts to retreive a human readable error message from a crashed job. Returns ``None`` for jobs without errors."""
         if self.ok():
             return None
         else:
@@ -251,7 +252,7 @@ for x in ("prev_results", "quiet"):
 for x in ("gradients", "stresstensor", "hessian", "elastictensor", "charges", "dipolemoment", "dipolegradients"):
     _arg2setting[x] = ('input', 'ams', 'properties', x)
 
-for x in ("coordinatetype", "optimizelattice", "maxiterations", "pretendconverged"):
+for x in ("coordinatetype", "optimizelattice", "maxiterations", "pretendconverged", "calcpropertiesonlyifconverged"):
     _arg2setting[x] = ('input', 'ams', 'geometryoptimization', x)
 
 for x in ("convenergy", "convgradients", "convstep", "convstressenergyperatom"):
@@ -267,9 +268,9 @@ _setting2arg = {s: a for a, s in _arg2setting.items()}
 class AMSWorker:
     """A class representing a running instance of the AMS driver as a worker process.
 
-    Users need to supply a |Settings| instance representing the input of the AMS driver process (see :ref:`AMS_preparing_input`), but **not including** the ``Task`` keyword in the input (the ``input.ams.Task`` key in the |Settings| instance). The |Settings| instance should also not contain a system specification in the ``input.ams.System`` block. Often the settings of the AMS driver in worker mode will come down to just the engine block.
+    Users need to supply a |Settings| instance representing the input of the AMS driver process (see :ref:`AMS_preparing_input`), but **not including** the ``Task`` keyword in the input (the ``input.ams.Task`` key in the |Settings| instance). The |Settings| instance should also not contain a system specification in the ``input.ams.System`` block, the ``input.ams.Properties`` block, or the ``input.ams.GeometryOptimization`` block. Often the settings of the AMS driver in worker mode will come down to just the engine block.
 
-    The AMS driver will then start up as a worker, communicating with PLAMS via named pipes created in a temporary directory (determined by the *workerdir_root* and *workerdir_prefix* arguments). This temporary directory might also contain temporary files used by the worker process. Note that while an |AMSWorker| instance exists, the associated worker process can be assumed to be running and ready: If it crashes for some reason it is automatically restarted.
+    The AMS driver will then start up as a worker, communicating with PLAMS via named pipes created in a temporary directory (determined by the *workerdir_root* and *workerdir_prefix* arguments). This temporary directory might also contain temporary files used by the worker process. Note that while an |AMSWorker| instance exists, the associated worker process can be assumed to be running and ready: If it crashes for some reason, it is automatically restarted.
 
     The recommended way to start an |AMSWorker| is as a context manager:
 
@@ -298,19 +299,21 @@ class AMSWorker:
         self.restart_cache = set()
         self.restart_cache_deleted = set()
 
+        # Check if the settings we have are actually suitable for a PipeWorker.
+        # They should not contain certain keywords and blocks.
+        if 'ams' in settings.input:
+            if ig('Task') in settings.input.ams:
+                raise JobError('Settings for AMSWorker should not contain a Task')
+            if ig('System') in settings.input.ams:
+                raise JobError('Settings for AMSWorker should not contain a System block')
+            if ig('Properties') in settings.input.ams:
+                raise JobError('Settings for AMSWorker should not contain the Properties block')
+            if ig('GeometryOptimization') in settings.input.ams:
+                raise JobError('Settings for AMSWorker should not contain the GeometryOptimization block')
+
         # Make a copy of the Settings instance so we do not modify the outside world and fix the task to be "Pipe".
         self.settings = settings.copy()
         self.settings.input.ams.task = 'pipe'
-
-        # Check if the settings we have are actually suitable for a PipeWorker.
-        # They should not contain the Task keyword and no System block.
-        if 'ams' in settings.input:
-            task = settings.input.ams.find_case('task')
-            if task in settings.input.ams:
-                raise JobError('Settings for AMSWorker should not contain a Task')
-            system = settings.input.ams.find_case('system')
-            if system in settings.input.ams:
-                raise JobError('Settings for AMSWorker should not contain a System block')
 
         # Create the directory in which we will run the worker.
         self.workerdir = tempfile.mkdtemp(dir=workerdir_root, prefix=workerdir_prefix+'_')
@@ -357,8 +360,8 @@ class AMSWorker:
         # because most of the work is serialized in the kernel anyway.
         with spawn_lock:
             with open(os.path.join(self.workerdir, 'amsworker.in'), 'r') as amsinput, \
-                open(os.path.join(self.workerdir, 'ams.out'), 'w') as amsoutput, \
-                open(os.path.join(self.workerdir, 'ams.err'), 'w') as amserror:
+                 open(os.path.join(self.workerdir, 'ams.out'), 'w') as amsoutput, \
+                 open(os.path.join(self.workerdir, 'ams.err'), 'w') as amserror:
                 self.proc = subprocess.Popen(['sh', 'amsworker.run'], cwd=self.workerdir,
                                              stdout=amsoutput, stdin=amsinput, stderr=amserror,
                                              # Put all worker processes into a dedicated process group
@@ -572,7 +575,7 @@ class AMSWorker:
 
 
     @staticmethod
-    def supports(s:Settings) -> bool:
+    def _supports_settings(s:Settings) -> bool:
         '''
         Check if a |Settings| object is supported by |AMSWorker|.
         '''
@@ -611,16 +614,13 @@ class AMSWorker:
     @staticmethod
     def _args_to_settings(**kwargs) -> Settings:
         s = Settings()
-
         for key, val in kwargs.items():
             s.set_nested(_arg2setting[key], val)
-
         return s
 
 
-    def evaluate(self, name, molecule, settings):
+    def _solve_from_settings(self, name, molecule, settings):
         args = AMSWorker._settings_to_args(settings)
-
         return self._solve(name, molecule, **args)
 
 
@@ -628,7 +628,7 @@ class AMSWorker:
                gradients=False, stresstensor=False, hessian=False, elastictensor=False,
                charges=False, dipolemoment=False, dipolegradients=False,
                method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
-               maxiterations=None, pretendconverged=None,
+               maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
                convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
 
         if self.use_restart_cache and name in self.restart_cache:
@@ -675,6 +675,7 @@ class AMSWorker:
                 if optimizelattice: args["optimizeLattice"] = True
                 if maxiterations is not None: args["maxIterations"] = int(maxiterations)
                 if pretendconverged: args["pretendConverged"] = True
+                if not calcpropertiesonlyifconverged: args["calcPropertiesIfNotConverged"] = True
                 if convenergy is not None: args["convEnergy"] = float(convenergy)
                 if convgradients is not None: args["convGradients"] = float(convgradients)
                 if convstep is not None: args["convStep"] = float(convstep)
@@ -742,14 +743,14 @@ class AMSWorker:
         del args['molecule']
         s = self._args_to_settings(**args)
         s.input.ams.task = 'singlepoint'
-        return self.evaluate(name, molecule, s)
+        return self._solve_from_settings(name, molecule, s)
 
 
     def GeometryOptimization(self, name, molecule, prev_results=None, quiet=True,
                              gradients=False, stresstensor=False, hessian=False, elastictensor=False,
                              charges=False, dipolemoment=False, dipolegradients=False,
                              method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
-                             maxiterations=None, pretendconverged=None,
+                             maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
                              convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
         """Performs a geometry optimization on the |Molecule| instance *molecule* and returns an instance of |AMSWorkerResults| containing the results from the optimized geometry.
 
@@ -761,6 +762,7 @@ class AMSWorker:
         - *optimizelattice*: Optimize the lattice vectors together with atomic positions.
         - *maxiterations*: Maximum number of iterations allowed.
         - *pretendconverged*: If set to true, non converged geometry optimizations will be considered successful.
+        - *calcpropertiesonlyifconverged*: Calculate properties (e.g. the Hessian) only if the optimization converged.
         - *convenergy*: Convergence criterion for the energy (in Hartree).
         - *convgradients*: Convergence criterion for the gradients (in Hartree/Bohr).
         - *convstep*: Convergence criterion for displacements (in Bohr).
@@ -772,7 +774,7 @@ class AMSWorker:
         del args['molecule']
         s = self._args_to_settings(**args)
         s.input.ams.task = 'geometryoptimization'
-        return self.evaluate(name, molecule, s)
+        return self._solve_from_settings(name, molecule, s)
 
 
     def ParseInput(self, program_name, text_input):
@@ -915,10 +917,10 @@ class AMSWorkerPool:
         return self
 
 
-    def evaluate(self, items):
+    def _solve_from_settings(self, items):
         """Request to pool to execute calculations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects.
 
-        The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`evaluate <AMSWorker.evaluate>` method of the pool's |AMSWorker| instances.
+        The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`_solve_from_settings <AMSWorker._solve_from_settings>` method of the pool's |AMSWorker| instances.
         """
 
         results = [None]*len(items)
@@ -932,13 +934,32 @@ class AMSWorkerPool:
             if len(item) == 3:
                 name, mol, settings = item
             else:
-                raise JobError('AMSWorkerPool.evaluate expects a list containing only 3-tuples (name, molecule, settings).')
+                raise JobError('AMSWorkerPool._solve_from_settings expects a list containing only 3-tuples (name, molecule, settings).')
             q.put((i, name, mol, settings))
 
         for t in threads: q.put(None) # signal for the thread to end
         for t in threads: t.join()
 
         return results
+
+
+    def _prep_solve_from_settings(self, method, items):
+
+        solve_items = []
+        for item in items:
+            if len(item) == 2:
+                name, mol = item
+                kwargs = {}
+            elif len(item) == 3:
+                name, mol, kwargs = item
+            else:
+                raise JobError(f'AMSWorkerPool.{method}s expects a list containing only 2-tuples (name, molecule) and/or 3-tuples (name, molecule, kwargs).')
+            s = AMSWorker._args_to_settings(**kwargs)
+            s.input.ams.task = method.lower()
+
+            solve_items.append((name, mol, s))
+
+        return solve_items
 
 
     def SinglePoints(self, items):
@@ -955,22 +976,18 @@ class AMSWorkerPool:
                                              "stresstensor": len(molecules[name].lattice) != 0
                                           }) for name in sorted(molecules) ])
         """
+        solve_items = self._prep_solve_from_settings('SinglePoint', items)
+        return self._solve_from_settings(solve_items)
 
-        evalitems = []
-        for item in items:
-            if len(item) == 2:
-                name, mol = item
-                kwargs = {}
-            elif len(item) == 3:
-                name, mol, kwargs = item
-            else:
-                raise JobError('AMSWorkerPool.SinglePoints expects a list containing only 2-tuples (name, molecule) and/or 3-tuples (name, molecule, kwargs).')
-            s = AMSWorker._args_to_settings(**kwargs)
-            s.input.ams.task = 'singlepoint'
 
-            evalitems.append((name, mol, s))
 
-        return self.evaluate(evalitems)
+    def GeometryOptimizations(self, items):
+        """Request to pool to execute geometry optimizations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects for the optimized geometries.
+
+        The *items* argument is expected to be an iterable of 2-tuples ``(name, molecule)`` and/or 3-tuples ``(name, molecule, kwargs)``, which are passed on to the :meth:`GeometryOptimization <AMSWorker.GeometryOptimization>` method of the pool's |AMSWorker| instances. (Here ``kwargs`` is a dictionary containing the optional keyword arguments and their values for this method.)
+        """
+        solve_items = self._prep_solve_from_settings('GeometryOptimization', items)
+        return self._solve_from_settings(solve_items)
 
 
 
@@ -982,7 +999,7 @@ class AMSWorkerPool:
                 if item is None:
                     break
                 i, name, mol, settings = item
-                results[i] = worker.evaluate(name, mol, settings)
+                results[i] = worker._solve_from_settings(name, mol, settings)
             finally:
                 q.task_done()
 
