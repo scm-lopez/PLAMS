@@ -55,8 +55,8 @@ class ADFFragmentJob(MultiJob):
             molecule = self.fragment1 + self.fragment2,
             settings = self.settings + self.full_settings)
 
-        self.full.settings.input.ADF.fragments.subsystem1 = (self.f1, 'adf')
-        self.full.settings.input.ADF.fragments.subsystem2 = (self.f2, 'adf')
+        self.full.settings.input.adf.fragments.subsystem1 = (self.f1, 'adf')
+        self.full.settings.input.adf.fragments.subsystem2 = (self.f2, 'adf')
 
         self.children = [self.f1, self.f2, self.full]
 
