@@ -120,6 +120,11 @@ class JobManager:
         h = job.hash()
         if h in self.hashes and self.hashes[h] == job:
             del self.hashes[h]
+        if isinstance(job, MultiJob):
+            for child in job:
+                self.remove_job(child)
+            for otherjob in job.other_jobs():
+                self.remove_job(otherjob)
 
 
 

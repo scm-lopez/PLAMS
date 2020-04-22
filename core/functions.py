@@ -128,15 +128,14 @@ def load_all(path, jobmanager=None):
 #===========================================================================
 
 
-def delete_job(job, jobmanager=None):
-    """Delete the job folder from the disk and remove it from *jobmanager*. Mark job as 'deleted'.
+def delete_job(job):
+    """Remove *job* from its corresponding |JobManager| and delete the job folder from the disk. Mark *job* as 'deleted'."""
 
-    If *jobmanager* is ``None``, use the default job manager from ``config.default_jobmanager``."""
-    if jobmanager is None:
-        jobmanager = config.default_jobmanager
+    #In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
+    if job.jobmanager is not None:
+        job.jobmanager.remove_job(job)
+        shutil.rmtree(job.path)
 
-    jobmanager.remove_job(job)
-    shutil.rmtree(job.path)
     job.status = 'deleted'
     job._log_status(5)
 
@@ -152,7 +151,6 @@ def read_molecules(folder, formats=None):
     The optional argument *formats* can be used to narrow down the search to files with specified extensions::
 
         molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
-
     """
     from ..mol.molecule import Molecule
     extensions = formats or list(Molecule._readformat.keys())
