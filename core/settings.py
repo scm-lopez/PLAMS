@@ -2,7 +2,7 @@ import textwrap
 import contextlib
 from functools import wraps
 
-__all__ = ['Settings', 'ig']
+__all__ = ['Settings']
 
 
 class Settings(dict):
@@ -40,10 +40,10 @@ class Settings(dict):
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
         for k,v in self.items():
-            if isinstance(v, dict):
+            if isinstance(v, dict) and not isinstance(v, Settings):
                 self[k] = Settings(v)
             if isinstance(v, list):
-                self[k] = [Settings(i) if isinstance(i, dict) else i for i in v]
+                self[k] = [Settings(i) if (isinstance(i, dict) and not isinstance(i, Settings)) else i for i in v]
 
 
     def copy(self):
@@ -186,26 +186,6 @@ class Settings(dict):
 
     def find_case(self, key):
         """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*.
-
-        When |Settings| are used in case-insensitive contexts, this helps preventing multiple occurences of the same key with different case::
-
-            >>> s = Settings()
-            >>> s.system.key1 = 'value1'
-            >>> s.System.key2 = 'value2'
-            >>> print(s)
-            System:
-                key2:    value2
-            system:
-                key1:    value1
-
-            >>> t = Settings()
-            >>> t.system.key1 = 'value1'
-            >>> t[t.find_case('System')].key2 = 'value2'
-            >>> print(t)
-            system:
-                key1:    value1
-                key2:    value2
-
         """
         lowkey = key.lower()
         for k in self:
@@ -418,33 +398,25 @@ class Settings(dict):
 
 
     def __contains__(self, name):
-        """Like regular ``__contains`__``, but if the key is an "ig" string, ignore the case."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        return dict.__contains__(self, name)
+        """Like regular ``__contains`__``, but ignore the case."""
+        return dict.__contains__(self, self.find_case(name))
 
 
     def __getitem__(self, name):
-        """Like regular ``__getitem__``, but if the key is an "ig" string, ignore the case."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        return dict.__getitem__(self, name)
+        """Like regular ``__getitem__``, but ignore the case."""
+        return dict.__getitem__(self, self.find_case(name))
 
 
     def __setitem__(self, name, value):
-        """Like regular ``__setitem__``, but if the value is a dict, convert it to |Settings|."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        if isinstance(value, dict):
+        """Like regular ``__setitem__``, but ignore the case and if the value is a dict, convert it to |Settings|."""
+        if isinstance(value, dict) and not isinstance(value, Settings):
             value = Settings(value)
-        dict.__setitem__(self, name, value)
+        dict.__setitem__(self, self.find_case(name), value)
 
 
     def __delitem__(self, name):
-        """Like regular ``__detitem__``, but if the key is an "ig" string, ignore the case."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        return dict.__delitem__(self, name)
+        """Like regular ``__detitem__``, but ignore the case."""
+        return dict.__delitem__(self, self.find_case(name))
 
 
     def __getattr__(self, name):
@@ -490,13 +462,6 @@ class Settings(dict):
     __iadd__ = soft_update
     __add__ = merge
     __copy__ = copy
-
-
-
-class ig(str):
-    """Special string that makes |Settings| work case-insensitive. Behaves exactly like the built-in `str` type. Usage: ``s = ig('abcdef')``."""
-    pass
-
 
 
 class SupressMissing(contextlib.AbstractContextManager):
