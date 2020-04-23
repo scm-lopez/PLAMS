@@ -211,7 +211,7 @@ class Settings(dict):
 
 
     @classmethod
-    def supress_missing(cls):
+    def suppress_missing(cls):
         """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method: all calls now raising a :exc:`KeyError`.
 
         As a results, attempting to access keys absent from an arbitrary |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
@@ -226,7 +226,7 @@ class Settings(dict):
 
             >>> s = Settings()
 
-            >>> with s.supress_missing():
+            >>> with s.suppress_missing():
             ...     s.a.b.c = True
             KeyError: 'a'
 
@@ -237,15 +237,15 @@ class Settings(dict):
         .. _`special method lookup`: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
 
         """
-        return SupressMissing(cls)
+        return SuppressMissing(cls)
 
 
-    def get_nested(self, key_tuple, supress_missing=False):
+    def get_nested(self, key_tuple, suppress_missing=False):
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
         The :meth:`.Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
 
-        Setting *supress_missing* to ``True`` will internally open the :meth:`.Settings.supress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
 
         .. code:: python
 
@@ -256,20 +256,20 @@ class Settings(dict):
             True
         """
         s = self
-        with contextlib.suppress() if not supress_missing else s.supress_missing():
+        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
             for k in key_tuple:
                 s = s[k]
         return s
 
 
 
-    def set_nested(self, key_tuple, value, supress_missing=False):
+    def set_nested(self, key_tuple, value, suppress_missing=False):
         """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
         The :meth:`.Settings.__getitem__` method is called recursively on this instance, followed by :meth:`.Settings.__setitem__`, until all keys in key_tuple are exhausted.
 
 
-        Setting *supress_missing* to ``True`` will internally open the :meth:`.Settings.supress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
 
         .. code:: python
 
@@ -281,7 +281,7 @@ class Settings(dict):
                 c: 	True
         """
         s = self
-        with contextlib.suppress() if not supress_missing else s.supress_missing():
+        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
             for k in key_tuple[:-1]:
                 s = s[k]
         s[key_tuple[-1]] = value
@@ -391,7 +391,7 @@ class Settings(dict):
 
         will not work.
 
-        The behaviour of this method can be supressed by initializing the :class:`.Settings.supress_missing` context manager.
+        The behaviour of this method can be suppressed by initializing the :class:`.Settings.suppress_missing` context manager.
         """
         self[name] = Settings()
         return self[name]
@@ -467,16 +467,16 @@ class Settings(dict):
     __copy__ = copy
 
 
-class SupressMissing(contextlib.AbstractContextManager):
-    """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method. See :meth:`Settings.supress_missing` for more details."""
+class SuppressMissing(contextlib.AbstractContextManager):
+    """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method. See :meth:`Settings.suppress_missing` for more details."""
     def __init__(self, obj: type):
-        """Initialize the :class:`SupressMissing` context manager."""
+        """Initialize the :class:`SuppressMissing` context manager."""
         # Ensure that obj is a class, not a class instance
         self.obj = obj if isinstance(obj, type) else type(obj)
         self.missing = obj.__missing__
 
     def __enter__(self):
-        """Enter the :class:`SupressMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
+        """Enter the :class:`SuppressMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
         @wraps(self.missing)
         def __missing__(self, name): raise KeyError(name)
 
@@ -484,5 +484,5 @@ class SupressMissing(contextlib.AbstractContextManager):
         setattr(self.obj, '__missing__', __missing__)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        """Exit the :class:`SupressMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
+        """Exit the :class:`SuppressMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
         setattr(self.obj, '__missing__', self.missing)
