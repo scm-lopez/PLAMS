@@ -448,11 +448,14 @@ class Settings(dict):
         for key, value in self.items():
             ret += ' '*indent + str(key) + ': \t'
             if isinstance(value, Settings):
-                ret += '\n' + value._str(indent+len(str(key))+1)
+                if len(value) == 0:
+                    ret += '<empty Settings>\n'
+                else:
+                    ret += '\n' + value._str(indent+len(str(key))+1)
             else:  # Apply consistent indentation at every '\n' character
                 indent_str = ' ' * (2 + indent + len(str(key))) + '\t'
                 ret += textwrap.indent(str(value), indent_str)[len(indent_str):] + '\n'
-        return ret
+        return ret if ret else '<empty Settings>'
 
 
     def __str__(self):
