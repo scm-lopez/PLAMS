@@ -546,6 +546,18 @@ class MultiJob(Job):
                 yield attr
 
 
+    def remove_child(self, job):
+        """Remove *job* from children."""
+
+        rm = None
+        for i, j in (self.children.items() if isinstance(self.children, dict) else enumerate(self.children)):
+            if j == job:
+                rm = i
+                break
+        if rm is not None:
+            del self.children[rm]
+
+
     def _get_ready(self):
         """Get ready for :meth:`~MultiJob._execute`. Count children jobs and set their ``parent`` attribute."""
         self._active_children = len(self.children)

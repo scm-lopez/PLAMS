@@ -136,6 +136,9 @@ def delete_job(job):
         job.jobmanager.remove_job(job)
         shutil.rmtree(job.path)
 
+    if job.parent is not None:
+        job.parent.remove_child(job)
+
     job.status = 'deleted'
     job._log_status(5)
 
