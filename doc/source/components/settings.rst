@@ -139,51 +139,23 @@ This is done on purpose to ensure that Python magic methods work properly.
 Case sensitivity
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-|Settings|, just like regular Python dictionaries, are case sensitive::
+|Settings| are case-preserving but case-insensitive. That means every key is stored in its original form, but when looked up (for example, to access value, test existence or delete), any casing can be used::
 
     >>> s = Settings()
     >>> s.foo = 'bar'
-    >>> s.FOO = 283
-    >>> print(s)
-    FOO:    283
-    foo:    bar
-
-This is good, since the data stored in |Settings| (for example, input keywords) is, in general, case sensitive. However, sometimes this becomes a problem. For example, imagine you're writing an interface to some external binary which is case-insensitive and requires key ``Charge`` in the input. You want to check if the user has already placed such a key herself, or if it needs to be added by your code:
-
-    >>> s = Settings()
-    >>> s.input.Charge = 1
-    ...
-    >>> if 'charge' not in s.input:
-    >>>     s.input.charge = 0
-    ...
-    >>> print(s)
-    input:
-          Charge:   1
-          charge:   0
-
-To help in such situations, the |Settings| class comes together with a special "ignore-case string" ``ig``. ``ig`` works and behaves exactly like the regular Python string ``str`` (that means ``ig`` is, in fact, case sensitive), but when an instance of ``ig`` is used as a |Settings| key, the case is ignored::
-
-    >>> s = Settings()
-    >>> s.Charge = 1
-    >>> 'charge' in s
-    False
-    >>> ig('charge') in s
+    >>> s.System.one = 1
+    >>> s.system.two = 2
+    >>> print(s.FOO)
+    bar
+    >>> 'Foo' in s
     True
-    >>> s[ig('charge')] = -1
     >>> print(s)
-    Charge:     -1
-    >>> x = s[ig('chaRGE')]
-    >>> print(x)
-    -1
-    >>> s.frozen = [3,6]
-    >>> s[ig('FROZEN')].append(5)
-    >>> print(s)
-    Charge:     -1
-    frozen:     [3,6,5]
-
-.. note::
-
-    ``ig`` strings cannot be used together with the dot notation. Please use the bracket notation.
+    foo:    bar
+    System:
+       one:     1
+       two:     2
+    >>> 'oNe' in s.SYSTEM
+    True
 
 
 
