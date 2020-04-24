@@ -845,7 +845,7 @@ class AMSJob(SingleJob):
             return mol
 
         # Raises a KeyError if the `system` key is absent
-        with s.supress_missing():
+        with s.suppress_missing():
             try:
                 settings_list = s.input.ams.pop('system')
             except KeyError:  # The block s.input.ams.system is absent
@@ -854,7 +854,7 @@ class AMSJob(SingleJob):
         # Create a new dictionary with system headers as keys and molecules as values
         moldict = {}
         for settings_block in settings_list:
-            key = str(settings_block._h)
+            key = str(settings_block._h) if ('_h' in settings_block) else '' # Empty string used as default system name.
             if key in moldict:
                 raise KeyError(f"Duplicate system headers found in s.input.ams.system: {repr(key)}")
             moldict[key] = read_mol(settings_block)
