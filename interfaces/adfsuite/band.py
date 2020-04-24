@@ -1,7 +1,6 @@
 from .scmjob import SCMJob, SCMResults
 from ...core.errors import ResultsError
 from ...core.functions import log
-from ...core.settings import ig
 from ...tools.units import Units
 
 __all__ = ['BANDJob', 'BANDResults']
@@ -119,7 +118,7 @@ class BANDJob(SCMJob):
 
     def _serialize_mol(self):
         s = self.settings.input
-        s[ig('units')][ig('length')] = 'angstrom'
+        s.units.length = 'angstrom'
 
         if len(self.molecule.lattice) in [1,2] and self.molecule.align_lattice():
             log("The lattice supplied for job {} did not follow the convention required by BAND. I rotated the whole system for you. You're welcome".format(self._full_name()), 3)
