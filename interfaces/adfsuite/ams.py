@@ -8,7 +8,7 @@ from ...core.errors import FileError, JobError, ResultsError, PTError
 from ...core.functions import config, log, parse_heredoc
 from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
-from ...core.settings import Settings
+from ...core.settings import Settings, ig
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...tools.kftools import KFFile
@@ -232,7 +232,7 @@ class AMSResults(Results):
         main = self.rkfs['ams']
         if step > main.read(history_section,'nEntries')-1 : return
         as_block = self._values_stored_as_blocks(main, varname, history_section)
-        if as_block :
+        if as_block : 
             import numpy
             blocksize = main.read(history_section,'blockSize')
             iblock = int(numpy.ceil(step/blocksize))
@@ -394,7 +394,7 @@ class AMSResults(Results):
                 return None
             s = Settings()
             s.input = inp
-            del s.input.ams.system
+            del s.input[ig('ams')][ig('system')]
             s.soft_update(config.job)
             return s
         return None
@@ -640,7 +640,7 @@ class AMSJob(SingleJob):
                         # REB: For the hybrid engine. How todeal with the space in el (Engine DFTB)? Replace by underscore?
                         elif key.lower().startswith('engine') and el.lower().startswith('engine') :
                             engine = ' '.join(el.split('_'))
-                            ret += serialize(engine, value[el], indent+2, end='EndEngine') + '\n'
+                            ret += serialize(engine, value[el], indent+2, end='EndEngine') + '\n'                                
                         else:
                             ret += serialize(el, value[el], indent+2)
 
@@ -663,9 +663,9 @@ class AMSJob(SingleJob):
         #prepare contents of 'system' block(s)
         more_systems = self._serialize_molecule()
         if more_systems:
-            if 'system' in fullinput.ams:
+            if ig('System') in fullinput[ig('ams')]:
                 #nonempty system block was already present in input.ams
-                system = fullinput.ams.system
+                system = fullinput[ig('ams')][ig('System')]
                 system_list = system if isinstance(system, list) else [system]
 
                 system_list_set = Settings({(s._h if '_h' in s else ''):s   for s in system_list})
@@ -674,10 +674,10 @@ class AMSJob(SingleJob):
                 system_list_set += more_systems_set
                 system_list = list(system_list_set.values())
                 system = system_list[0] if len(system_list) == 1 else system_list
-                fullinput.ams.system = system
+                fullinput[ig('ams')][ig('System')] = system
 
             else:
-                fullinput.ams.system = more_systems[0] if len(more_systems) == 1 else more_systems
+                fullinput[ig('ams')][ig('System')] = more_systems[0] if len(more_systems) == 1 else more_systems
 
         txtinp = ''
         ams = fullinput.find_case('ams')
@@ -731,8 +731,8 @@ class AMSJob(SingleJob):
             if len(molecule.bonds)>0:
                 newsystem.BondOrders._1 = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
 
-            if 'charge' in molecule.properties:
-                newsystem.Charge = molecule.properties.charge
+            if ig('charge') in molecule.properties:
+                newsystem.Charge = molecule.properties[ig('charge')]
 
             ret.append(newsystem)
 

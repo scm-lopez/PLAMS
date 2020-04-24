@@ -1,5 +1,6 @@
 from ..interfaces.adfsuite.ams import AMSJob
 from ..core.functions import log
+from ..core.settings import ig
 import os
 
 __all__ = ['ADFNBOJob']
@@ -8,11 +9,12 @@ class ADFNBOJob(AMSJob):
 
     def prerun(self):
         s = self.settings.input.ADF
-        s.fullfock = True
-        s.aomat2file = True
-        s.symmetry = 'NoSym'
-        s.basis.core = 'None'
-        if 'save' in s:
+        s[ig('fullfock')] = True
+        s[ig('aomat2file')] = True
+        s[ig('symmetry')] = 'NoSym'
+        s[ig('basis')][ig('core')] = 'None'
+        save = s.find_case('save')
+        if save in s:
             if isinstance(s.save, str):
                 s.save += ' TAPE15'
             elif isinstance(s.save, list):
@@ -20,7 +22,7 @@ class ADFNBOJob(AMSJob):
             else:
                 log("WARNING: 'SAVE TAPE15' could not be added to the input settings of {}. Make sure (thisjob).settings.input.save is a string or a list.".format(self.name), 1)
         else:
-            s.save = 'TAPE15'
+            s[save] = 'TAPE15'
 
         if isinstance(self.settings.adfnbo, list):
             adfnbo_input = self.settings.adfnbo

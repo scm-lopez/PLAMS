@@ -1,4 +1,5 @@
 from .scmjob import SCMJob, SCMResults
+from ...core.settings import ig
 
 __all__ = ['UFFJob', 'UFFResults']
 
@@ -29,22 +30,22 @@ class UFFJob(SCMJob):
                 suffix_dict = atom.properties.uff.copy()
                 if 'charge' not in suffix_dict:
                     suffix_dict.charge = 0.0
-            s.system.atoms['_'+str(i+1)] = atom.str(suffix=suffix, suffix_dict=suffix_dict, space=18, decimal=10)
+            s[ig('system')]['atoms']['_'+str(i+1)] = atom.str(suffix=suffix, suffix_dict=suffix_dict, space=18, decimal=10)
 
         if 'ignore_bonds' not in self.settings:
             self.molecule.set_atoms_id()
             for i,bond in enumerate(self.molecule.bonds):
-                s.system.bonds['_'+str(i+1)] = '{:6d}  {:6d}  {:6.2f}'.format(bond.atom1.id, bond.atom2.id, bond.order)
+                s[ig('system')]['bonds']['_'+str(i+1)] = '{:6d}  {:6d}  {:6.2f}'.format(bond.atom1.id, bond.atom2.id, bond.order)
             self.molecule.unset_atoms_id()
 
         if self.molecule.lattice:
             for i,vec in enumerate(self.molecule.lattice):
-                s.system.lattice['_'+str(i+1)] = '{:16.10f} {:16.10f} {:16.10f}'.format(*vec)
+                s[ig('system')]['lattice']['_'+str(i+1)] = '{:16.10f} {:16.10f} {:16.10f}'.format(*vec)
 
     def _remove_mol(self):
         s = self.settings.input
 
-        if 'system' in s:
+        if ig('system') in s:
             for k in ['atoms', 'bonds', 'lattice']:
-                if k in s.system:
-                    del s.system[k]
+                if k in s[ig('system')]:
+                    del s[ig('system')][k]

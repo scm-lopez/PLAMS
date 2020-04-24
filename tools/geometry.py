@@ -16,6 +16,11 @@ def rotation_matrix(vec1, vec2):
     vec1, vec2 = np.array(vec1), np.array(vec2)
     a = vec1/np.linalg.norm(vec1)
     b = vec2/np.linalg.norm(vec2)
+
+    # avoid division by zero in case of antiparallel vectors
+    if abs(1+np.dot(a,b)) < 1E-8:
+        return -np.eye(3)
+    
     v1,v2,v3 = np.cross(a,b)
     M = np.array([[0, -v3, v2], [v3, 0, -v1], [-v2, v1, 0]])
     return (np.identity(3) + M + np.dot(M,M)/(1+np.dot(a,b)))

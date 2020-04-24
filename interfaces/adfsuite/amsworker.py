@@ -66,7 +66,7 @@ except ImportError:
     __all__ = []
 
 from ...mol.molecule import Molecule
-from ...core.settings import Settings
+from ...core.settings import Settings, ig
 from ...core.errors import PlamsError, JobError, ResultsError
 from ...tools.units import Units
 from ...core.functions import config, log
@@ -85,13 +85,13 @@ def _restrict(func):
             return func(self, *args, **kwargs)
         else:
             if config.ignore_failure:
-                log('WARNING: Trying to obtain results of a failed calculation {}'.format(self._full_name()), 3)
+                log('WARNING: Trying to obtain results of a failed calculation {}'.format(self.name), 3)
                 try:
                     ret = func(self, *args, **kwargs)
                 except:
-                    log('Obtaining results of {} failed. Returned value is None'.format(self._full_name()), 3)
+                    log('Obtaining results of {} failed. Returned value is None'.format(self.name), 3)
                     return None
-                log('Obtaining results of {} successful. However, no guarantee that they make sense'.format(self._full_name()), 3)
+                log('Obtaining results of {} successful. However, no guarantee that they make sense'.format(self.name), 3)
                 return ret
             else:
                 raise ResultsError('Using Results obtained from a failed calculation')
@@ -302,13 +302,13 @@ class AMSWorker:
         # Check if the settings we have are actually suitable for a PipeWorker.
         # They should not contain certain keywords and blocks.
         if 'ams' in settings.input:
-            if 'Task' in settings.input.ams:
+            if ig('Task') in settings.input.ams:
                 raise JobError('Settings for AMSWorker should not contain a Task')
-            if 'System' in settings.input.ams:
+            if ig('System') in settings.input.ams:
                 raise JobError('Settings for AMSWorker should not contain a System block')
-            if 'Properties' in settings.input.ams:
+            if ig('Properties') in settings.input.ams:
                 raise JobError('Settings for AMSWorker should not contain the Properties block')
-            if 'GeometryOptimization' in settings.input.ams:
+            if ig('GeometryOptimization') in settings.input.ams:
                 raise JobError('Settings for AMSWorker should not contain the GeometryOptimization block')
 
         # Make a copy of the Settings instance so we do not modify the outside world and fix the task to be "Pipe".

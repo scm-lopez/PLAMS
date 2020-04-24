@@ -1,4 +1,4 @@
-from scm.plams import Settings, JobError, ADFJob, CRSJob, Molecule, ADFResults, CRSResults
+from scm.plams import Settings, JobError, ADFJob, CRSJob, Molecule, ADFResults, ig, CRSResults
 
 __all__ = ['run_crs_adf']
 
@@ -98,10 +98,10 @@ def run_crs_adf(settings_adf, settings_crs,
     _validate_settings_adf(_settings_adf)
 
     # Decapitalize the "solvation" and "allpoints" keys
-    if 'solvation' in _settings_adf.settings.input:
-        _settings_adf.input.solvation = _settings_adf.settings.input.pop('solvation')
-    if 'allpoints' in _settings_adf.settings.input:
-        _settings_adf.input.allpoints = _settings_adf.settings.input.pop('allpoints')
+    if ig('solvation') in _settings_adf.settings.input:
+        _settings_adf.input.solvation = _settings_adf.settings.input.pop(ig('solvation'))
+    if ig('allpoints') in _settings_adf.settings.input:
+        _settings_adf.input.allpoints = _settings_adf.settings.input.pop(ig('allpoints'))
 
     # Create the COSMO surfaces for the solute
     solvent_list = [run_adfjob(mol, _settings_adf, **kwargs) for mol in solvents]

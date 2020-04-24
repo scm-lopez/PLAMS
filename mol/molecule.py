@@ -1349,15 +1349,19 @@ class Molecule:
             raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule').with_traceback(ex.__traceback__)
 
         try:
-            _is_atom = [isinstance(i, Atom) and i.mol is self for i in ligand_connector]
+            _is_atom = [isinstance(i, Atom) and i.mol is ligand for i in ligand_connector]
             assert all(_is_atom) and len(_is_atom) == 2
         except (TypeError, AssertionError) as ex:
             raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand').with_traceback(ex.__traceback__)
 
+
+        _ligand = ligand.copy()
+        _ligand_connector = [_ligand[ligand.index(atom)] for atom in ligand_connector]
+
         if len(self.bonds) == 0:
             self.guess_bonds()
-        if len(ligand.bonds) == 0:
-            ligand.guess_bonds()
+        if len(_ligand.bonds) == 0:
+            _ligand.guess_bonds()
 
         def dfs(atom, stay, go, delete, msg):
             for N in atom.neighbors():
@@ -1370,7 +1374,7 @@ class Molecule:
                     dfs(N, stay, go, delete, msg)
 
         stay, go = connector
-        stay_lig, go_lig = ligand_connector
+        stay_lig, go_lig = _ligand_connector
 
         #remove 'go' and all connected atoms from self
         atoms_to_delete = {go}
@@ -1378,26 +1382,26 @@ class Molecule:
         for atom in atoms_to_delete:
             self.delete_atom(atom)
 
-        #remove 'go_lig' and all connected atoms from ligand
+        #remove 'go_lig' and all connected atoms from _ligand
         atoms_to_delete = {go_lig}
         dfs(go, stay_lig, go_lig, atoms_to_delete, 'ligand_connector')
         for atom in atoms_to_delete:
-            ligand.delete_atom(atom)
+            _ligand.delete_atom(atom)
 
-        #move the ligand such that 'go_lig' is in (0,0,0) and rotate it to its desired position
+        #move the _ligand such that 'go_lig' is in (0,0,0) and rotate it to its desired position
         vec = np.array(stay.vector_to(go))
         vec_lig = np.array(go_lig.vector_to(stay_lig))
 
-        ligand.translate(go_lig.vector_to((0,0,0)))
-        ligand.rotate(rotation_matrix(vec_lig, vec))
+        _ligand.translate(go_lig.vector_to((0,0,0)))
+        _ligand.rotate(rotation_matrix(vec_lig, vec))
 
-        #rotate the ligand along the bond to create 'steps' copies
+        #rotate the _ligand along the bond to create 'steps' copies
         angles = [i*(2*np.pi/steps) for i in range(1, steps)]
         axis_matrices = [axis_rotation_matrix(vec, angle) for angle in angles]
-        xyz_ligand = ligand.as_array()
+        xyz_ligand = _ligand.as_array()
         xyz_ligands = np.array([xyz_ligand] + [xyz_ligand@matrix for matrix in axis_matrices])
 
-        #move all the ligand copies to the right position
+        #move all the _ligand copies to the right position
         if bond_length is None:
             bond_length = stay.radius + stay_lig.radius
         vec *= bond_length / np.linalg.norm(vec)
@@ -1405,12 +1409,12 @@ class Molecule:
         trans_vec =  np.array(stay_lig.vector_to(position))
         xyz_ligands += trans_vec
 
-        #find the best ligand orientation
+        #find the best _ligand orientation
         if cost_func_mol:
             best_score = np.inf
             for lig in xyz_ligands:
-                ligand.from_array(lig)
-                score = cost_func_mol(self, ligand)
+                _ligand.from_array(lig)
+                score = cost_func_mol(self, _ligand)
                 if score < best_score:
                     best_score = score
                     best_lig = lig
@@ -1425,9 +1429,9 @@ class Molecule:
                 best = np.sum(np.exp(-dist_matrix), axis=(1, 2)).argmin()
             best_lig = xyz_ligands[best]
 
-        #add the best ligand to the molecule
-        ligand.from_array(best_lig)
-        self.add_molecule(ligand)
+        #add the best _ligand to the molecule
+        _ligand.from_array(best_lig)
+        self.add_molecule(_ligand)
         self.add_bond(stay, stay_lig)
 
 
@@ -1670,6 +1674,7 @@ class Molecule:
             shift = 1 if (len(lst) > 4 and lst[0] == str(i)) else 0
             num = lst[0+shift]
             if isinstance(num, str):
+                #num = str(num.split(".")[0])
                 num = PT.get_atomic_number(num)
             self.add_atom(Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
 
