@@ -187,6 +187,8 @@ class Settings(dict):
     def find_case(self, key):
         """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*.
         """
+        if not isinstance(key, str):
+            return key
         lowkey = key.lower()
         for k in self:
             if k.lower() == lowkey:
