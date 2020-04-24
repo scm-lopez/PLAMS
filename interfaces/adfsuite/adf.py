@@ -200,7 +200,7 @@ class ADFResults(SCMResults):
 
             s = Settings()
             s.input = inp
-            del s.input[ig('atoms')]
+            del s.input.atoms
             s.soft_update(config.job)
             return s
         return None
