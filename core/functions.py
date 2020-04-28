@@ -27,7 +27,7 @@ def init(path=None, folder=None):
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
 
     *   If ``$PLAMSDEFAULTS`` variable is in your environment and it points to a file, this file is used (executed as a Python script).
-    *   If ``$ADFHOME`` variable is in your environment and ``$ADFHOME/scripting/scm/plams/plams_defaults`` exists, it is used.
+    *   If ``$AMSHOME`` variable is in your environment and ``$AMSHOME/scripting/scm/plams/plams_defaults`` exists, it is used.
     *   Otherwise, the path ``../plams_defaults`` relative to the current file (``functions.py``) is checked. If defaults file is not found there, an exception is raised.
 
     Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.
@@ -38,12 +38,12 @@ def init(path=None, folder=None):
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
         defaults = expandvars('$PLAMSDEFAULTS')
-    elif 'ADFHOME' in os.environ and isfile(opj(expandvars('$ADFHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')):
-        defaults = opj(expandvars('$ADFHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')
+    elif 'AMSHOME' in os.environ and isfile(opj(expandvars('$AMSHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')):
+        defaults = opj(expandvars('$AMSHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')
     else:
         defaults = opj(dirname(dirname(__file__)), 'plams_defaults')
         if not isfile(defaults):
-            raise PlamsError('plams_defaults not found, please set PLAMSDEFAULTS or ADFHOME in your environment')
+            raise PlamsError('plams_defaults not found, please set PLAMSDEFAULTS or AMSHOME in your environment')
     with open(defaults, 'r') as f:
         exec(compile(f.read(), defaults, 'exec'))
 
@@ -270,7 +270,7 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
 
         #!/bin/bash
 
-        $ADFBIN/adf << eor
+        $AMSBIN/adf << eor
         ATOMS
             1.H  0.0  0.0  0.0
             2.H  1.0  0.0  0.0

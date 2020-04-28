@@ -31,7 +31,7 @@ class ReaxFFResults(SCMResults):
 class ReaxFFJob(SingleJob):
     _filenames = {'inp':'control', 'run':'$JN.run', 'out':'$JN.out', 'err': '$JN.err'}
     _result_type = ReaxFFResults
-    ffield_path = opj('$ADFHOME','atomicdata','ForceFields','ReaxFF')
+    ffield_path = opj('$AMSHOME','atomicdata','ForceFields','ReaxFF')
     default_cell_size = 100.0
 
     check = SCMJob.check
@@ -51,13 +51,13 @@ class ReaxFFJob(SingleJob):
     def get_runscript(self):
         """Generate a runscript.
 
-        Returned string is just ``$ADFBIN/reaxff``, possibly prefixed with ``export NSCM=(number)`` if ``settings.runscript.nproc`` is present.
+        Returned string is just ``$AMSBIN/reaxff``, possibly prefixed with ``export NSCM=(number)`` if ``settings.runscript.nproc`` is present.
         """
         s = self.settings.runscript
         ret = ''
         if 'nproc' in s:
             ret += 'export NSCM={}\n'.format(s.nproc)
-        ret += '$ADFBIN/reaxff'
+        ret += '$AMSBIN/reaxff'
         if s.stdout_redirect:
             ret += ' >'+self._filename('out')
         ret += '\n\n'
@@ -105,7 +105,7 @@ class ReaxFFJob(SingleJob):
     def _write_ffield(self, ffield):
         """Copy to the job folder a force field file indicated by *ffield**.
 
-        *ffield* should be a string with a path to some external file or with a filename present in ``$ADFHOME/atomicdata/ForceFields/ReaxFF``. The location of this search folder is defined by ``ffield_path`` class attribute).
+        *ffield* should be a string with a path to some external file or with a filename present in ``$AMSHOME/atomicdata/ForceFields/ReaxFF``. The location of this search folder is defined by ``ffield_path`` class attribute).
 
         Given file is always coied to the job folder as ``ffield``, due to ReaxFF program requirements.
         """

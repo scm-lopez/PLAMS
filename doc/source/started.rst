@@ -32,8 +32,8 @@ Installing PLAMS
 
 You can install PLAMS on your computer using one of the following ways:
 
-1.  If you are using Amsterdam Modeling Suite, PLAMS is shipped as a part of ``scm`` Python package (``$ADFHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``startpython`` command).
-    The launch script is added to ``$ADFBIN``, so it should be directly visible from your command line (as long as ``$ADFBIN`` is in your ``$PATH``).
+1.  If you are using Amsterdam Modeling Suite, PLAMS is shipped as a part of ``scm`` Python package (``$AMSHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``startpython`` command).
+    The launch script is added to ``$AMSBIN``, so it should be directly visible from your command line (as long as ``$AMSBIN`` is in your ``$PATH``).
 
 2.  The latest PLAMS stable release can be installed directly from PyPi by typing ``pip install plams`` in your command line.
     The launch scipt will be installed along other global system executables (platform dependent) and should be visible from your command line.
@@ -62,7 +62,7 @@ Updating PLAMS
 PLAMS is still a relatively new project and new developments based on users' feedback are added frequently.
 Because of that some users might prefer to use the recent development version (``master`` branch on GitHub) rather than the usual stable release (``release`` branch).
 
-If you're running PLAMS as a part of Amsterdam Modeling Suite you can update the library to the recent development snapshot simply by downloading a ZIP archive from PLAMS `GitHub page <https://github.com/SCM-NV/PLAMS>`_ and replacing contents of ``$ADFHOME/scripting/scm/plams`` with the contents of that archive.
+If you're running PLAMS as a part of Amsterdam Modeling Suite you can update the library to the recent development snapshot simply by downloading a ZIP archive from PLAMS `GitHub page <https://github.com/SCM-NV/PLAMS>`_ and replacing contents of ``$AMSHOME/scripting/scm/plams`` with the contents of that archive.
 
 If you obtained PLAMS using Git or ``pip`` please use the usual Git or ``pip`` methods to pull a new version (``git pull`` or ``pip install --upgrade plams``)
 

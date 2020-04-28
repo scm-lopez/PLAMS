@@ -298,18 +298,18 @@ class CRSJob(SCMJob):
 
     @staticmethod
     def cos_to_coskf(filename: str) -> str:
-        """Convert a .cos file into a .coskf file with the :code:`$ADFBIN/cosmo2kf` command.
+        """Convert a .cos file into a .coskf file with the :code:`$AMSBIN/cosmo2kf` command.
 
         Returns the filename of the new .coskf file.
 
         """
         filename_out = filename + 'kf'
         try:
-            adfbin = os.environ['ADFBIN']
+            amsbin = os.environ['AMSBIN']
         except KeyError:
-            raise EnvironmentError("cos_to_coskf: Failed to load 'cosmo2kf' from '$ADFBIN/'; "
-                                   "the 'ADFBIN' environment variable has not been set")
+            raise EnvironmentError("cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; "
+                                   "the 'AMSBIN' environment variable has not been set")
 
-        args = [os.path.join(adfbin, 'cosmo2kf'), filename, filename_out]
+        args = [os.path.join(amsbin, 'cosmo2kf'), filename, filename_out]
         subprocess.run(args)
         return filename_out

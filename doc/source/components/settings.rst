@@ -171,7 +171,7 @@ It is visible in the main PLAMS namespace so every time you wish to adjust some 
     config.sleepstep = 10
 
 These changes are going to affect only the script they are called from.
-If you wish to permanently change some setting for all PLAMS executions, you can do it by editing ``plams_defaults``, which is located in the root folder of the package (``$ADFHOME/scripting/scm/plams``).
+If you wish to permanently change some setting for all PLAMS executions, you can do it by editing ``plams_defaults``, which is located in the root folder of the package (``$AMSHOME/scripting/scm/plams``).
 
 .. note::
 

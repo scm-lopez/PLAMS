@@ -534,12 +534,12 @@ class AMSJob(SingleJob):
         """Generate the runscript. Returned string is of the form::
 
             unset AMS_SWITCH_LOGFILE_AND_STDOUT
-            AMS_JOBNAME=jobname AMS_RESULTSDIR=. $ADFBIN/ams [-n nproc] <jobname.in [>jobname.out]
+            AMS_JOBNAME=jobname AMS_RESULTSDIR=. $AMSBIN/ams [-n nproc] <jobname.in [>jobname.out]
 
         ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``.
         """
         ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
-        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
+        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $AMSBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
@@ -774,7 +774,7 @@ class AMSJob(SingleJob):
         """
         try:
             from scm.input_parser import InputParser
-        except ImportError:  # Try to load the parser from $ADFHOME/scripting
+        except ImportError:  # Try to load the parser from $AMSHOME/scripting
             with UpdateSysPath():
                 from scm.input_parser import InputParser
 

@@ -46,7 +46,7 @@ class UnifacResults(CRSResults):
             ret = None
             with open(runfile, 'r') as f:
                 for i in f:
-                    if '"$ADFBIN"/unifac' in i:
+                    if '"$AMSBIN"/unifac' in i:
                         ret = i.split()
                         arg_list[-1] = arg_list[-1].rstrip('\\')
                     else:
@@ -55,7 +55,7 @@ class UnifacResults(CRSResults):
                     while i.endswith('\\'):  # The input might be spread over multiple lines
                         i = next(f)
                         ret += i.split().rstrip('\\')
-                    del ret[0]  # Delete ``"$ADFBIN"/unifac``
+                    del ret[0]  # Delete ``"$AMSBIN"/unifac``
                     break
             return ret
 
@@ -185,7 +185,7 @@ class UnifacJob(SingleJob):
         kwargs = {self._sanitize_key(k): self._sanitize_value(v) for k, v in iterator}
         kwargs_iter = chain.from_iterable(kwargs.items())
         args = ' '.join(i for i in kwargs_iter)
-        return f'"$ADFBIN"/unifac {args}'
+        return f'"$AMSBIN"/unifac {args}'
 
     """###################################### New methods ######################################"""
 

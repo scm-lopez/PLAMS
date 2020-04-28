@@ -220,12 +220,12 @@ class SCMJob(SingleJob):
     def get_runscript(self):
         """Generate a runscript. Returned string is of the form::
 
-            $ADFBIN/name [-n nproc] <jobname.in [>jobname.out]
+            $AMSBIN/name [-n nproc] <jobname.in [>jobname.out]
 
         ``name`` is taken from the class attribute ``_command``. ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``.
         """
         s = self.settings.runscript
-        ret = '$ADFBIN/'+self._command
+        ret = '$AMSBIN/'+self._command
         if 'nproc' in s:
             ret += ' -n ' + str(s.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
@@ -370,7 +370,7 @@ class SCMJob(SingleJob):
         """
         try:
             from scm.input_parser import InputParser
-        except ImportError:  # Try to load the parser from $ADFHOME/scripting
+        except ImportError:  # Try to load the parser from $AMSHOME/scripting
             with UpdateSysPath():
                 from scm.input_parser import InputParser
 

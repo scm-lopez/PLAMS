@@ -64,11 +64,11 @@ def saferun(*args, **kwargs):
 
 
 class UpdateSysPath(AbstractContextManager):
-    """A context manager for temporary adding ``$ADFHOME/scripting`` to :data:`sys.path`.
+    """A context manager for temporary adding ``$AMSHOME/scripting`` to :data:`sys.path`.
 
-    While the context manager is opened modules can be imported (directly) from the ``$ADFHOME/scripting`` directory,
+    While the context manager is opened modules can be imported (directly) from the ``$AMSHOME/scripting`` directory,
     allowing one access to the python modules distributed with ADF.
-    An :exc:`EnvironmentError` is raised if the ``ADFHOME`` environment variable has not been set.
+    An :exc:`EnvironmentError` is raised if the ``AMSHOME`` environment variable has not been set.
 
     Usage example:
 
@@ -76,7 +76,7 @@ class UpdateSysPath(AbstractContextManager):
         >>> import sys
         >>> import os
 
-        >>> scripting = os.path.join(os.environ['ADFHOME'], 'scripting')
+        >>> scripting = os.path.join(os.environ['AMSHOME'], 'scripting')
         >>> with UpdateSysPath():
         ...     print(scripting in sys.path)  # The context manager is opened
         True
@@ -88,9 +88,9 @@ class UpdateSysPath(AbstractContextManager):
 
     def __init__(self, path: str = None) -> None:
         try:
-            parser_path = path if path is not None else opj(os.environ['ADFHOME'], 'scripting')
+            parser_path = path if path is not None else opj(os.environ['AMSHOME'], 'scripting')
         except KeyError as ex:
-            raise EnvironmentError("The 'ADFHOME' environment variable has not been set").with_traceback(ex.__traceback__)
+            raise EnvironmentError("The 'AMSHOME' environment variable has not been set").with_traceback(ex.__traceback__)
 
         if parser_path not in sys.path:
             sys.path.append(parser_path)
