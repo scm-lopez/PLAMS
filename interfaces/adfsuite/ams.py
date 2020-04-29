@@ -536,10 +536,13 @@ class AMSJob(SingleJob):
             unset AMS_SWITCH_LOGFILE_AND_STDOUT
             AMS_JOBNAME=jobname AMS_RESULTSDIR=. $AMSBIN/ams [-n nproc] <jobname.in [>jobname.out]
 
-        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``.
+        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS.
         """
         ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
-        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $AMSBIN/ams'.format(self.name)
+        if 'preamble_lines' in self.settings.runscript:
+            for line in self.settings.runscript.preamble_lines:
+                ret += f'{line}\n'
+        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
