@@ -9,8 +9,7 @@ One of the ingredients for computing hopping rates in Marcus theory is the  reor
 
    & (E^\text{state A}_\text{at optimal geometry of state B} - E^\text{state B}_\text{at optimal geometry of state B})
 
-where states A and B are two electronic states, e.g. neutral and anion (**see the example usage below**).
-
+where states A and B are two electronic configurations, e.g. neutral and anion (**see the example usage below**).
 
 In this recipe we build a job class ``ReorganizationEnergyJob`` by extending |MultiJob|. Our job will perform four |AMSJob| calcualtions: two geometry optimizations for states A anb B, followed by two single point calculations (state A at the optimal geometry of state B and state B at the optimal geometry of state A).
 
