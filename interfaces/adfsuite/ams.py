@@ -542,7 +542,7 @@ class AMSJob(SingleJob):
         if 'preamble_lines' in self.settings.runscript:
             for line in self.settings.runscript.preamble_lines:
                 ret += f'{line}\n'
-        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
+        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $AMSBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
