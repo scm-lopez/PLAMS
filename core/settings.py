@@ -191,8 +191,11 @@ class Settings(dict):
             return key
         lowkey = key.lower()
         for k in self:
-            if k.lower() == lowkey:
-                return k
+            try:
+                if k.lower() == lowkey:
+                    return k
+            except (AttributeError, TypeError):
+                pass
         return key
 
 
