@@ -101,8 +101,16 @@ class Job:
 
         self.settings.run.soft_update(Settings(kwargs))
 
-        jobrunner = jobrunner or config.default_jobrunner
-        jobmanager = jobmanager or config.default_jobmanager
+        if jobrunner is None:
+            if 'default_jobrunner' in config:
+                jobrunner = config.default_jobrunner
+            else:
+                raise PlamsError('No default jobrunner found. This probably means that PLAMS init() was not called.')
+        if jobmanager is None:
+            if 'default_jobmanager' in config:
+                jobmanager = config.default_jobmanager
+            else:
+                raise PlamsError('No default jobmanager found. This probably means that PLAMS init() was not called.')
 
         jobrunner._run_job(self, jobmanager)
         return self.results
