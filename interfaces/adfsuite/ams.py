@@ -489,6 +489,9 @@ class AMSResults(Results):
                 sym, name = sym.split('.', 1)
                 newatom.properties.name = name
             ret.add_atom(newatom)
+        if 'bondOrders' in sectiondict:
+            for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
+                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
         if sectiondict['Charge'] != 0:
             ret.properties.charge = sectiondict['Charge']
         if 'nLatticeVectors' in sectiondict:

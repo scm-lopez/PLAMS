@@ -389,6 +389,7 @@ class Molecule:
                 m = Molecule()
                 dfs(src, m)
                 frags.append(m)
+                frags[-1].lattice = self.lattice
 
         for at in clone.atoms:
             del at._visited
@@ -1245,7 +1246,7 @@ class Molecule:
         def from_voigt_to_matrix(strain_voigt, n):
             if len(strain_voigt) != n*(n+1)/2:
                 raise MoleculeError('apply_strain: strain for %i-dim periodic system needs %i-sized vector in Voigt format'%(n,n*(n+1)/2))
-            
+
             strain_matrix = np.diag(strain_voigt[:n])
             if n == 2:
                 strain_matrix[1,0] = strain_voigt[2]/2.0
@@ -1280,6 +1281,28 @@ class Molecule:
 
         self.from_array(coords)
         self.lattice = [tuple(vec + [0.0]*(3-len(vec))) for vec in strained_lattice.tolist()]
+
+
+    def map_to_central_cell(self, around_origin=True):
+        """Maps all atoms to the original cell. If *around_origin=True* the atoms will be mapped to the cell with fractional coordinates [-0.5,0.5], otherwise to the the cell in which all fractional coordinates are in the [0:1] interval."""
+
+        n = len(self.lattice)
+        if n==0:
+            raise MoleculeError('map_to_central_cell: can only be used for perdiodic systems.')
+        elif n==1:
+            lattice_mat = np.array([[self.lattice[0][0]]])
+        else:
+            lattice_mat = np.array(self.lattice)[:n,:n]
+
+        coords = self.as_array()
+        frac_coords_transf = np.linalg.inv(lattice_mat.T)
+        fractional_coords = coords[:,:n]@frac_coords_transf.T
+        if around_origin:
+            fractional_coords = fractional_coords - np.rint(fractional_coords)
+        else:
+            fractional_coords = fractional_coords - np.floor(fractional_coords)
+        coords[:,:n] = (lattice_mat.T@fractional_coords.T).T
+        self.from_array(coords)
 
 
     def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
