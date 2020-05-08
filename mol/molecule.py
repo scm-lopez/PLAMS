@@ -639,33 +639,138 @@ class Molecule:
     def supercell(self, *args):
         """Return a new |Molecule| instance representing a supercell build by replicating this |Molecule| along its lattice vectors.
 
-        The number of arguments supplied to this method should be equal the number of lattice vectors this molecule has. Each argument should be a positive integer.
+        One should provide in input an integer matrix :math:`T_{i,j}` representing the supercell transformation (:math:`\\vec{a}_i' = \sum_j T_{i,j}\\vec{a}_j`). The size of the matrix should match the number of lattice vectors, i.e. 3x3 for 3D periodic systems, 2x2 for 2D periodic systems and one number for 1D periodic systems. The matrix can be provided in input as either a nested list or as a numpy matrix.
 
-        The returned |Molecule| is fully distinct from the current one, in a sense that it contains a different set of |Atom| and |Bond| instances. However, each atom of the returned |Molecule| carries an additional information about its origin within the supercell. If ``atom`` is an |Atom| instance in the supercell, ``atom.properties.supercell.origin`` points to the |Atom| instance of the original molecule that was copied to create ``atom``, while ``atom.properties.supercell.index`` stores the tuple (with lentgh equal to the number of lattice vectors) with cell index. For example, ``atom.properties.supercell.index == (2,1,0)`` means that ``atom`` is a copy of ``atom.properties.supercell.origin`` that was translated twice along the first lattice vector, once along the second vector, and not translated along the thid vector. Values in cell indices are always non-negative (translation always occurs in the positive direction of lattice vectors).
+        For a diagonal supercell expansion (i.e. :math:`T_{i \\neq j}=0`) one can provide in input n positive integers instead of a matrix, where n is number of lattice vectors in the molecule. e.g. This ``mol.supercell([[2,0],[0,2]])`` is equivalent to ``mol.supercell(2,2)``.
+
+        The returned |Molecule| is fully distinct from the current one, in a sense that it contains a different set of |Atom| and |Bond| instances. However, each atom of the returned |Molecule| carries an additional information about its origin within the supercell. If ``atom`` is an |Atom| instance in the supercell, ``atom.properties.supercell.origin`` points to the |Atom| instance of the original molecule that was copied to create ``atom``, while ``atom.properties.supercell.index`` stores the tuple (with length equal to the number of lattice vectors) with cell index. For example, ``atom.properties.supercell.index == (2,1,0)`` means that ``atom`` is a copy of ``atom.properties.supercell.origin`` that was translated twice along the first lattice vector, once along the second vector, and not translated along the third vector.
+    
+        Example usage:
+ 
+        .. code-block:: python
+            
+            >>> graphene = Molecule('graphene.xyz')
+            >>> print(graphene)
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.230000      0.710000      0.000000 
+              Lattice:
+                    2.4600000000     0.0000000000     0.0000000000
+                    1.2300000000     2.1304224933     0.0000000000
+            
+            >>> graphene_supercell = graphene.supercell(2,2) # diagonal supercell expansion
+            >>> print(graphene_supercell)
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.230000      0.710000      0.000000 
+                3         C      1.230000      2.130422      0.000000 
+                4         C      2.460000      2.840422      0.000000 
+                5         C      2.460000      0.000000      0.000000 
+                6         C      3.690000      0.710000      0.000000 
+                7         C      3.690000      2.130422      0.000000 
+                8         C      4.920000      2.840422      0.000000 
+              Lattice:
+                    4.9200000000     0.0000000000     0.0000000000
+                    2.4600000000     4.2608449866     0.0000000000
+            
+            >>> diamond = Molecule('diamond.xyz')
+            >>> print(diamond)
+              Atoms: 
+                1         C     -0.446100     -0.446200     -0.446300 
+                2         C      0.446400      0.446500      0.446600 
+              Lattice:
+                    0.0000000000     1.7850000000     1.7850000000
+                    1.7850000000     0.0000000000     1.7850000000
+                    1.7850000000     1.7850000000     0.0000000000
+            
+            >>> diamond_supercell = diamond.supercell([[-1,1,1],[1,-1,1],[1,1,-1]])
+            >>> print(diamond_supercell)
+              Atoms: 
+                1         C     -0.446100     -0.446200     -0.446300 
+                2         C      0.446400      0.446500      0.446600 
+                3         C      1.338900      1.338800     -0.446300 
+                4         C      2.231400      2.231500      0.446600 
+                5         C      1.338900     -0.446200      1.338700 
+                6         C      2.231400      0.446500      2.231600 
+                7         C     -0.446100      1.338800      1.338700 
+                8         C      0.446400      2.231500      2.231600 
+              Lattice:
+                    3.5700000000     0.0000000000     0.0000000000
+                    0.0000000000     3.5700000000     0.0000000000
+                    0.0000000000     0.0000000000     3.5700000000
         """
 
-        if len(args) != len(self.lattice):
-            raise MoleculeError('supercell: The lattice has {} vectors, but {} arguments were given'. format(len(self.lattice), len(args)))
+        def diagonal_supercell(*args):
+            supercell_lattice = [tuple(n*np.array(vec)) for n, vec in zip(args, self.lattice)]
+            cell_translations = [t for t in itertools.product(*[range(arg) for arg in args])]
+            return supercell_lattice, cell_translations
 
-        if not all(isinstance(arg, int) and arg > 0 for arg in args):
-            raise MoleculeError('supercell: arguments should be positive integers')
 
-        lattice = [np.array(v) for v in self.lattice]
+        def general_supercell(S):
+            determinant = int(round(np.linalg.det(S)))
+            if determinant < 1:
+                raise MoleculeError(f'supercell: The determinant of the supercell transformation should be one or larger. Determinant: {determinant}.')
+
+            supercell_lattice = [tuple(vec) for vec in S@np.array(self.lattice)]
+
+            max_supercell_index = np.max(abs(S))
+            all_possible_translations = itertools.product(range(-max_supercell_index,max_supercell_index+1), repeat=len(self.lattice))
+            S_inv = np.linalg.inv(S)
+
+            tol = 1E-10
+            cell_translations = []
+            for index in all_possible_translations:
+                fractional_coord = np.dot(index,S_inv)
+                if all(fractional_coord > -tol) and all(fractional_coord < 1.0-tol):
+                    cell_translations.append(index)
+
+            if len(cell_translations) != determinant:
+                raise MoleculeError(f'supercell: Failed to find the appropriate supercell translations. We expected to find {determinant} cells, but we found {len(cell_translations)}')
+
+            return supercell_lattice, cell_translations
+
+
+        if len(args)==0:
+            raise MoleculeError('supercell: This function needs input arguments...')
+
+        if all(isinstance(arg, int) for arg in args):
+            # diagonal supercell expansion
+            if len(args) != len(self.lattice):
+                raise MoleculeError('supercell: The lattice has {} vectors, but {} arguments were given'. format(len(self.lattice), len(args)))
+            supercell_lattice, cell_translations = diagonal_supercell(*args)
+
+        elif len(args)==1 and hasattr(args[0],'__len__'):
+            # general_supercell
+            try:
+                S = np.array(args[0], dtype=int)
+                assert S.shape == (len(self.lattice),len(self.lattice))
+            except:
+                n = len(self.lattice)
+                raise MoleculeError(f'supercell: For {n}D system the supercell method expects a {n}x{n} integer matrix (provided as a nested list or as numpy array) or {n} integers.')
+
+            supercell_lattice, cell_translations = general_supercell(S)
+
+        else:
+            raise MoleculeError(f'supercell: invalid input {args}.')
 
         tmp = self.copy()
         for parent, son in zip(self, tmp):
             son.properties.supercell.origin = parent
 
         ret = Molecule()
-        for index in itertools.product(*[range(arg) for arg in args]):
+        for index in cell_translations:
             newmol = tmp.copy()
             for atom in newmol:
                 atom.properties.supercell.index = index
-            newmol.translate(sum(i*v for i,v in zip(index, lattice)))
+            newmol.translate(sum(i*np.array(vec) for i,vec in zip(index, self.lattice)))
             ret += newmol
 
-        ret.lattice = [tuple(n*vec) for n, vec in zip(args, lattice)]
+        ret.lattice = supercell_lattice
         return ret
+
+
+
+
 
 
     def unit_cell_volume(self, unit='angstrom'):
@@ -701,7 +806,7 @@ class Molecule:
         Accepted values are for *action* are ``"ignore"``, ``"warn"`` and ``"raise"``,
         which respectivelly ignore such cases, issue a warning or raise a :exc:`MoleculeError`.
 
-        ..code:: python
+        .. code-block:: python
 
             >>> from scm.plams import Molecule
 
