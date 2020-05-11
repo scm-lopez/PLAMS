@@ -17,6 +17,7 @@ from .settings import Settings
 __all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules']
 
 config = Settings()
+config.init = False
 
 #===========================================================================
 
@@ -35,6 +36,9 @@ def init(path=None, folder=None):
     .. warning::
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
+
+    if config.init == True:
+        return
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
         defaults = expandvars('$PLAMSDEFAULTS')
@@ -62,6 +66,8 @@ def init(path=None, folder=None):
     except ImportError:
         log('WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling', 1)
 
+    config.init = True
+
 
 #===========================================================================
 
@@ -73,6 +79,9 @@ def finish(otherJM=None):
 
     If you used some other job managers than just the default one, they need to be passed as *otherJM* list.
     """
+    if config.init == False:
+        return
+
     for thread in threading.enumerate():
         if thread.name == 'plamsthread':
             thread.join()
@@ -86,6 +95,8 @@ def finish(otherJM=None):
 
     if config.erase_workdir is True:
         shutil.rmtree(config.default_jobmanager.workdir)
+
+    config.init = False
 
 
 #===========================================================================
