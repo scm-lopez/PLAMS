@@ -33,6 +33,27 @@ class TrajectoryFile (object) :
                 if self.mode == 'r' :
                         self.read_header()
 
+        def __iter__ (self) :
+                """
+                Magic method that makes this an iterator
+                """
+                return self
+
+        def __next__ (self) :
+                """
+                Magic method that makes this an iterator
+                """
+                if self.mode[0] == 'r' :
+                        return self.read_next()
+                else :
+                        raise Exception('Cannot iterate over writable trajectoryfile')
+
+        def __len__ (self) :
+                """
+                Magic method that allows checking the length of an iterator
+                """
+                return self.get_length()
+
         def __enter__ (self) :
                 """
                 Magic method that allows use with *with* statement
