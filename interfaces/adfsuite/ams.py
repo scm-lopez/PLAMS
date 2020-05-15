@@ -387,7 +387,7 @@ class AMSResults(Results):
             user_input = self.readrkf('General', 'user input')
             try:
                 from scm.input_parser import InputParser
-                with InputParser as parser:
+                with InputParser() as parser:
                     inp = parser.to_settings('ams', user_input)
             except:
                 log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path, 5))
@@ -489,7 +489,7 @@ class AMSResults(Results):
                 sym, name = sym.split('.', 1)
                 newatom.properties.name = name
             ret.add_atom(newatom)
-        if 'bondOrders' in sectiondict:
+        if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
             for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
                 ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
         if sectiondict['Charge'] != 0:
