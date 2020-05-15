@@ -138,11 +138,18 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
                 rd_atom.SetChiralTag(Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW)
         e.AddAtom(rd_atom)
 
+    # Mapping of PLAMS bond orders to RDKit bond types:
+    def plams_to_rd_bonds(bo):
+        if bo > 1.4 and bo < 1.6:
+            return 12 # bond type for aromatic bond
+        else:
+            return int(bo)
+
     # Add bonds to the RDKit molecule
     for bond in plams_mol.bonds:
         a1 = plams_mol.atoms.index(bond.atom1)
         a2 = plams_mol.atoms.index(bond.atom2)
-        e.AddBond(a1, a2, Chem.BondType(bond.order))
+        e.AddBond(a1, a2, Chem.BondType(plams_to_rd_bonds(bond.order)))
     rdmol = e.GetMol()
 
     # Check for cis/trans information
