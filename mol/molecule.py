@@ -17,6 +17,7 @@ from ..core.settings import Settings
 from ..tools.periodic_table import PT
 from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array
 from ..tools.units import Units
+from ..tools.kftools import KFFile
 
 __all__ = ['Molecule']
 
@@ -2093,6 +2094,41 @@ class Molecule:
         pdb.add_record(PDBRecord('END'))
         pdb.write(f)
 
+    @staticmethod
+    def _mol_from_rkf_section(sectiondict):
+        """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
+
+        ret = Molecule()
+        coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
+        symbols = sectiondict['AtomSymbols'].split()
+        atnums = sectiondict['AtomicNumbers'] if isinstance(sectiondict['AtomicNumbers'], list) else [sectiondict['AtomicNumbers']]
+        for at, crd, sym in zip(atnums, coords, symbols):
+            newatom = Atom(atnum=at, coords=crd, unit='bohr')
+            if sym.startswith('Gh.'):
+                sym = sym[3:]
+                newatom.properties.ghost = True
+            if '.' in sym:
+                sym, name = sym.split('.', 1)
+                newatom.properties.name = name
+            ret.add_atom(newatom)
+        if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
+            for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
+                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
+        if sectiondict['Charge'] != 0:
+            ret.properties.charge = sectiondict['Charge']
+        if 'nLatticeVectors' in sectiondict:
+            ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
+        if 'EngineAtomicInfo' in sectiondict:
+            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
+            for at, suffix in zip(ret, suffixes):
+                at.properties.suffix = suffix
+        return ret
+
+    def readrkf(self, filename, section='Molecule', **other):
+        kf = KFFile(filename)
+        sectiondict = kf.read_section(section)
+        self.__dict__.update(Molecule._mol_from_rkf_section(sectiondict).__dict__)
+
 
     def read(self, filename, inputformat=None, **other):
         """Read molecular coordinates from a file.
@@ -2106,9 +2142,12 @@ class Molecule:
             _, extension = os.path.splitext(filename)
             inputformat = extension.strip('.') if extension else 'xyz'
         if inputformat in self.__class__._readformat:
-            with open(filename, 'r') as f:
-                ret = self._readformat[inputformat](self, f, **other)
-            return ret
+            if inputformat == 'rkf':
+                return self.readrkf(filename, **other)
+            else:
+                with open(filename, 'r') as f:
+                    ret = self._readformat[inputformat](self, f, **other)
+                return ret
         else:
             raise MoleculeError(f"read: Unsupported file format '{inputformat}'")
 
@@ -2131,5 +2170,5 @@ class Molecule:
             raise MoleculeError(f"write: Unsupported file format '{outputformat}'")
 
     #Support for the ASE engine is added if available by interfaces.molecules.ase
-    _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
+    _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb, 'rkf':readrkf}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
