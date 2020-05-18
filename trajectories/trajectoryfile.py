@@ -44,7 +44,11 @@ class TrajectoryFile (object) :
                 Magic method that makes this an iterator
                 """
                 if self.mode[0] == 'r' :
-                        return self.read_next()
+                        crd,cell = self.read_next()
+                        if crd is None :
+                                raise StopIteration
+                        else :
+                                return crd,cell
                 else :
                         raise Exception('Cannot iterate over writable trajectoryfile')
 
