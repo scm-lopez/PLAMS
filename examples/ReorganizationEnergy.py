@@ -10,9 +10,9 @@ common_settings = Settings()
 common_settings.input.adf.Basis.Type = 'DZ'
 
 # Specific settings for the neutral calculation.
-# Nothing special needs to be done for the netural calculation,
+# Nothing special needs to be done for the neutral calculation,
 # so we just use an empty settings.
-netural_settings = Settings()
+neutral_settings = Settings()
 
 # Specific settings for the anion calculation:
 anion_settings = Settings()
@@ -21,7 +21,7 @@ anion_settings.input.adf.Unrestricted = 'Yes'
 anion_settings.input.adf.SpinPolarization = 1
 
 # Create and run the ReorganizationEnergyJob:
-job = ReorganizationEnergyJob(molecule, common_settings, netural_settings,
+job = ReorganizationEnergyJob(molecule, common_settings, neutral_settings,
                               anion_settings, name=molecule.properties.name)
 job.run()
 
