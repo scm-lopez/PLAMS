@@ -114,6 +114,7 @@ class CounterpoiseEnergyJob(MultiJob):
         def prerun(self):
             mainmol = main_child.results.get_main_molecule()
             mol = Molecule()
+            mol.lattice = mainmol.lattice
             for i in range(1, len(mainmol)+1):
                 if i in ids_state_A:
                     mol.add_atom(Atom(atnum=mainmol[i].atnum, coords=mainmol[i].coords))
@@ -129,6 +130,7 @@ class CounterpoiseEnergyJob(MultiJob):
             def prerun(self):
                 mainmol = main_child.results.get_main_molecule()
                 mol = Molecule()
+                mol.lattice = mainmol.lattice
                 for i in range(1, len(mainmol)+1):
                     if i in ids_state_A:
                         mol.add_atom(Atom(atnum=mainmol[i].atnum, coords=mainmol[i].coords))
@@ -155,6 +157,7 @@ class CounterpoiseEnergyJob(MultiJob):
         def prerun(self):
             mainmol = main_child.results.get_main_molecule()
             mol = Molecule()
+            mol.lattice = mainmol.lattice
             for i in range(1, len(mainmol)+1):
                 if i not in ids_state_A:
                     mol.add_atom(Atom(atnum=mainmol[i].atnum, coords=mainmol[i].coords))
@@ -170,6 +173,7 @@ class CounterpoiseEnergyJob(MultiJob):
             def prerun(self):
                 mainmol = main_child.results.get_main_molecule()
                 mol = Molecule()
+                mol.lattice = mainmol.lattice
                 for i in range(1, len(mainmol)+1):
                     if i not in ids_state_A:
                         mol.add_atom(Atom(atnum=mainmol[i].atnum, coords=mainmol[i].coords))
