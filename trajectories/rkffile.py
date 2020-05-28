@@ -37,7 +37,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.nvecs = 3
                 self.latticevecs = numpy.zeros((3,3))
                 self.elements = ['H']*self.ntap
-                self.read_lattice = False               # Reading time can be saved by skipping the lattice info
+                self.read_lattice = True               # Reading time can be saved by skipping the lattice info
                 self.cell = numpy.zeros((3,3))
                 self.conect = None
 
@@ -88,7 +88,10 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.coords = numpy.zeros((self.ntap,3))
                 try :
                         self.latticevecs = numpy.array(self.file_object.read('Molecule','LatticeVectors'))
-                        self.nvecs = int(len(self.cell)/3)
+                        #self.nvecs = int(len(self.cell)/3)
+                        # New code 27-05-2020
+                        self.nvecs = int(len(self.latticevecs)/3)
+                        self.latticevecs = self.latticevecs.reshape((self.nvecs,3))
                 except KeyError :
                         pass
 
@@ -156,9 +159,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.read_lattice :
                         try :
                                 latticevecs = self.latticevecs.reshape(self.nvecs*3)
-                                latticevecs[:] = self.file_object.read('History','LatticeVectors(%i)'%(i+1)) * bohr_to_angstrom
+                                latticevecs[:] = self.file_object.read('History','LatticeVectors(%i)'%(i+1)) #* bohr_to_angstrom
+                                latticevecs *= bohr_to_angstrom
                                 # This changed self.latticevecs behind the scenes
-                                self.cell[:self.nvecs] = latticevecs
+                                #self.cell[:self.nvecs] = latticevecs
+                                self.cell[:self.nvecs] = self.latticevecs
                                 cell = self.cell
                         except KeyError :
                                 pass

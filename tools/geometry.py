@@ -65,9 +65,9 @@ def angle(vec1, vec2, result_unit='radian'):
     vec1 = np.array([*vec1], dtype=float)
     vec2 = np.array([*vec2], dtype=float)
 
-    num = np.dot(vec1, vec)
+    num = np.dot(vec1, vec2)
     den = np.sqrt(((vec1)**2).sum()) * np.sqrt(((vec2)**2).sum())
-    return Units.convert(math.acos(num/den), 'radian', result_unit)
+    return Units.convert(np.arccos(num/den), 'radian', result_unit)
 
 
 def dihedral(p1, p2, p3, p4, unit='radian'):

@@ -1,6 +1,6 @@
 
 # Compute the neutral-anion reorganization energy of pyrrole 
-# using ADF a computational engine
+# using ADF as computational engine
 
 molecule = Molecule('pyrrole.xyz')
 
