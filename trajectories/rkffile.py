@@ -38,6 +38,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.latticevecs = numpy.zeros((3,3))
                 self.elements = ['H']*self.ntap
                 self.read_lattice = True               # Reading time can be saved by skipping the lattice info
+                self.read_bonds = True
                 self.cell = numpy.zeros((3,3))
                 self.conect = None
 
@@ -171,19 +172,33 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 # Read the bond data
                 conect = None
                 bonds = None
-                try :
-                        indices = self.file_object.read('History','Bonds.Index(%i)'%(i+1))
-                        connection_table = self.file_object.read('History','Bonds.Atoms(%i)'%(i+1))
-                        bond_orders = self.file_object.read('History','Bonds.Orders(%i)'%(i+1))
-                        conect = {}
-                        bonds = []
-                        for i,(start,end) in enumerate(zip(indices[:-1],indices[1:])) :
-                                if end-start > 0 :
-                                        conect[i+1] = connection_table[start-1:end-1]
-                                        for j in range(start-1,end-1) :
-                                                bonds.append([i+1,connection_table[j],bond_orders[j]])
-                except KeyError :
-                        pass
+                if self.read_bonds :
+                        conect, bonds = self.read_bond_data(section='History', step=i)
+                        #try :
+                        #        indices = self.file_object.read('History','Bonds.Index(%i)'%(i+1))
+                        #        connection_table = self.file_object.read('History','Bonds.Atoms(%i)'%(i+1))
+                        #        bond_orders = self.file_object.read('History','Bonds.Orders(%i)'%(i+1))
+                        #        conect = {}
+                        #        bonds = []
+                        #        for i,(start,end) in enumerate(zip(indices[:-1],indices[1:])) :
+                        #                if end-start > 0 :
+                        #                        conect[i+1] = connection_table[start-1:end-1]
+                        #                        for j in range(start-1,end-1) :
+                        #                                bonds.append([i+1,connection_table[j],bond_orders[j]])
+                        #        # Now correct the connection table
+                        #        conect_sym = {}
+                        #        for i, neighbors_i in conect.items() :
+                        #                conect_sym[i] = neighbors_i
+                        #                for j in neighbors_i :
+                        #                        if not j in conect_sym.keys() :
+                        #                                conect_sym[j] = []
+                        #                        if j in conect.keys() :
+                        #                                conect_sym[j] = conect[j]
+                        #                        if not i in conect_sym[j] :
+                        #                                conect_sym[j].append(i)
+                        #        conect = conect_sym
+                        #except KeyError :
+                        #        pass
                 self.conect = conect
 
                 if isinstance(molecule,Molecule) :
@@ -191,6 +206,43 @@ class RKFTrajectoryFile (TrajectoryFile) :
                
                 self.position = i
                 return self.coords, cell
+
+        def read_bond_data (self, section, step=None) :
+                """
+                Read the bond data from the rkf file
+                """
+                conect = None
+                bonds = None
+                try :
+                        step_txt = ''
+                        if step is not None :
+                                step_txt = '(%i)'%(step+1)
+                        indices = self.file_object.read(section,'Bonds.Index%s'%(step_txt))
+                        connection_table = self.file_object.read(section,'Bonds.Atoms%s'%(step_txt))
+                        bond_orders = self.file_object.read(section,'Bonds.Orders%s'%(step_txt))
+                        conect = {}
+                        bonds = []
+                        for i,(start,end) in enumerate(zip(indices[:-1],indices[1:])) :
+                                if end-start > 0 :
+                                        conect[i+1] = connection_table[start-1:end-1]
+                                        for j in range(start-1,end-1) :
+                                                bonds.append([i+1,connection_table[j],bond_orders[j]])
+                        # Now correct the connection table
+                        conect_sym = {}
+                        for i, neighbors_i in conect.items() :
+                                conect_sym[i] = neighbors_i
+                                for j in neighbors_i :
+                                        if not j in conect_sym.keys() :
+                                                conect_sym[j] = []
+                                        if j in conect.keys() : 
+                                                conect_sym[j] = conect[j]
+                                        if not i in conect_sym[j] :
+                                                conect_sym[j].append(i)
+                        conect = conect_sym     
+                except KeyError :
+                        pass
+                return conect, bonds
+
 
         def _is_endoffile (self) :
                 """
