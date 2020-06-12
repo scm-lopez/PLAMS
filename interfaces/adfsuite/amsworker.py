@@ -317,7 +317,7 @@ class AMSWorker:
 
         # Create the directory in which we will run the worker.
         self.workerdir = tempfile.mkdtemp(dir=workerdir_root, prefix=workerdir_prefix+'_')
-        weakref.finalize(self, shutil.rmtree, self.workerdir)
+        self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
 
         # Start the worker process.
         self._start_subprocess()
@@ -490,6 +490,8 @@ class AMSWorker:
                     self._call("Exit")
                 except AMSWorkerError:
                     # The process is likely exiting already.
+                    print(f'AMSWorkerError encountered, will store the workerdir in {self.workerdir}')
+                    self._finalize.detach()
                     pass
 
         # Tear down the pipes. Ignore OSError telling us the pipes are already broken.
