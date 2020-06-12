@@ -490,8 +490,8 @@ class AMSWorker:
                     self._call("Exit")
                 except AMSWorkerError:
                     # The process is likely exiting already.
-                    print(f'AMSWorkerError encountered, will store the workerdir in {self.workerdir}')
-                    self._finalize.detach()
+                    #print(f'AMSWorkerError encountered, will keep the workerdir in {self.workerdir}')
+                    #self._finalize.detach()
                     pass
 
         # Tear down the pipes. Ignore OSError telling us the pipes are already broken.
