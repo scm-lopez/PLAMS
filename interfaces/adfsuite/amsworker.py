@@ -283,7 +283,7 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
-    def __init__(self, settings, workerdir_root=None, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=True):
+    def __init__(self, settings, workerdir_root=None, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=False):
 
         self.PyProtVersion = 1
         self.timeout = 2.0
@@ -908,11 +908,11 @@ class AMSWorkerPool:
 
     """
 
-    def __init__(self, settings, num_workers, workerdir_root=None, workerdir_prefix='awp'):
+    def __init__(self, settings, num_workers, workerdir_root=None, workerdir_prefix='awp', keep_crashed_workerdir=False):
 
         self.workers = num_workers * [None]
 
-        threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix))
+        threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir))
                     for i in range(num_workers) ]
         for t in threads: t.start()
         for t in threads: t.join()
@@ -921,8 +921,8 @@ class AMSWorkerPool:
 
 
     @staticmethod
-    def _spawn_worker(workers, settings, i, wdr, wdp):
-        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=False)
+    def _spawn_worker(workers, settings, i, wdr, wdp, keep_crashed_workerdir):
+        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=False, keep_crashed_workerdir=keep_crashed_workerdir)
 
 
     def __enter__(self):
