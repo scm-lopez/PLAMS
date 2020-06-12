@@ -58,7 +58,7 @@ def distance_array(array1, array2):
 def angle(vec1, vec2, result_unit='radian'):
     """Calculate an angle between vectors *vec1* and *vec2*.
 
-    *vec1* and *vec2* should be iterable containers of length 3 (for example: tuple, |Atom|, list, numpy array). Values stored in them are expressed in Angstrom. Returned value is expressed in *result_unit*.
+    *vec1* and *vec2* should be iterable containers of length 3 (for example: tuple, list, numpy array). Values stored in them are expressed in Angstrom. Returned value is expressed in *result_unit*.
 
     This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
     """

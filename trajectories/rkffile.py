@@ -219,7 +219,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 step_txt = '(%i)'%(step+1)
                         indices = self.file_object.read(section,'Bonds.Index%s'%(step_txt))
                         connection_table = self.file_object.read(section,'Bonds.Atoms%s'%(step_txt))
+                        if isinstance(connection_table,int) :
+                                connection_table = [connection_table]
                         bond_orders = self.file_object.read(section,'Bonds.Orders%s'%(step_txt))
+                        if isinstance(bond_orders,float) :
+                                bond_orders = [bond_orders]
                         conect = {}
                         bonds = []
                         for i,(start,end) in enumerate(zip(indices[:-1],indices[1:])) :

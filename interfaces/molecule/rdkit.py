@@ -28,6 +28,7 @@ except ImportError:
 from ...mol.bond import Bond
 from ...mol.atom import Atom
 from ...mol.molecule import Molecule
+from ...core.functions import add_to_class
 
 
 def from_rdmol(rdkit_mol, confid=-1, properties=True):
@@ -99,7 +100,7 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     return plams_mol
 
 
-def to_rdmol(plams_mol, sanitize=True, properties=True):
+def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
     """
     Translate a PLAMS molecule into an RDKit molecule type.
     PLAMS |Molecule|, |Atom| or |Bond| properties are pickled if they are neither booleans, floats,
@@ -108,6 +109,7 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
     :parameter plams_mol: A PLAMS molecule
     :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization
     :parameter bool properties: If all |Molecule|, |Atom| and |Bond| properties should be converted from PLAMS to RDKit format.
+    :parameter bool assignChirality: Assign R/S and cis/trans information, insofar as this was not yet present in the PLAMS molecule.
     :type plams_mol: |Molecule|
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
@@ -181,6 +183,13 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
         xyz = Geometry.Point3D(atom._getx(), atom._gety(), atom._getz())
         conf.SetAtomPosition(i, xyz)
     rdmol.AddConformer(conf)
+    # REB: Assign all stereochemistry, if it wasn't already there
+    if assignChirality :
+        Chem.rdmolops.AssignAtomChiralTagsFromStructure(rdmol,confId=conf.GetId(),replaceExistingTags=False)
+        try :
+            Chem.AssignStereochemistryFrom3D(rdmol,confId=conf.GetId(),replaceExistingTags=False)
+        except AttributeError :
+            pass
     return rdmol
 
 
@@ -300,7 +309,7 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     return get_conformations(molecule, nconfs, name, forcefield, rms)
 
 
-def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1):
+def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False):
     """
     Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
@@ -313,12 +322,13 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1):
         in skipping of the geometry optimization step
     :parameter float rms: Root Mean Square deviation threshold for removing
         similar/equivalent conformations.
+    :parameter bool enforceChirality: Enforce the correct chirality if chiral centers are present
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
 
     if isinstance(mol, Molecule):
-        rdkit_mol = to_rdmol(mol)
+        rdkit_mol = to_rdmol(mol,assignChirality=enforceChirality)
     else:
         rdkit_mol = mol
 
@@ -349,10 +359,10 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1):
         rdkit_mol.SetProp('name', name)
 
     try:
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1))
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,enforceChirality=enforceChirality))
     except:
          # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1, useRandomCoords=True))
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,useRandomCoords=True,enforceChirality=enforceChirality))
 
     if forcefield:
         # Select the forcefield (UFF or MMFF)
@@ -895,3 +905,23 @@ def get_substructure(mol, func_list):
     rdmol_func_list = [_to_rdmol(i) for i in func_list]
     gen = (_get_match(mol, rdmol, i) for i in rdmol_func_list)
     return {key: value for key, value in zip(func_list, gen) if value}
+
+@add_to_class(Molecule)
+def assign_chirality (self) :
+    """
+    Assigns stereo-info to PLAMS molecule by invoking RDKIT
+    """
+    rd_mol = to_rdmol(self, assignChirality=True)
+    pl_mol = from_rdmol(rd_mol)
+
+    # Add R/S info to self
+    for iat,pl_atom in enumerate(pl_mol.atoms):
+        # Check for R/S information
+        if pl_atom.properties.stereo:
+            self.atoms[iat].properties.stereo = pl_atom.properties.stereo
+
+    # Add cis/trans information to self
+    for ibond,pl_bond in enumerate(pl_mol.bonds):
+        if pl_bond.properties.stereo:
+            self.bonds[ibond] = pl_bond.properties.stereo
+
