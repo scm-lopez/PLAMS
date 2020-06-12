@@ -283,7 +283,7 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
-    def __init__(self, settings, workerdir_root=None, workerdir_prefix='amsworker', use_restart_cache=True):
+    def __init__(self, settings, workerdir_root=None, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=True):
 
         self.PyProtVersion = 1
         self.timeout = 2.0
@@ -316,8 +316,11 @@ class AMSWorker:
         self.settings.input.ams.task = 'pipe'
 
         # Create the directory in which we will run the worker.
-        self.workerdir = tempfile.mkdtemp(dir=workerdir_root, prefix=workerdir_prefix+'_')
+        self.wd_root   = workerdir_root
+        self.wd_prefix = workerdir_prefix+'_'
+        self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
         self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
+        self.keep_wd   = keep_crashed_workerdir
 
         # Start the worker process.
         self._start_subprocess()
@@ -480,8 +483,9 @@ class AMSWorker:
         This method should be called when the |AMSWorker| instance is not used as a context manager and the instance is no longer needed. Otherwise proper cleanup is not guaranteed to happen, the worker process might be left running and files might be left on disk.
         """
 
-        stdout = None
-        stderr = None
+        stdout  = None
+        stderr  = None
+        keep_wd = False
 
         # Tell the worker process to stop.
         if self.proc is not None:
@@ -490,9 +494,9 @@ class AMSWorker:
                     self._call("Exit")
                 except AMSWorkerError:
                     # The process is likely exiting already.
-                    #print(f'AMSWorkerError encountered, will keep the workerdir in {self.workerdir}')
-                    #self._finalize.detach()
-                    pass
+                    keep_wd = self.keep_wd
+                    if keep_wd:
+                        print(f'AMSWorkerError encountered, will keep the workerdir in {self.workerdir}')
 
         # Tear down the pipes. Ignore OSError telling us the pipes are already broken.
         # This will also make the worker exit if it didn't get the Exit message above.
@@ -549,13 +553,19 @@ class AMSWorker:
         self.restart_cache.clear()
         self.restart_cache_deleted.clear()
 
-        # Remove the contents of the worker directory.
-        for filename in os.listdir(self.workerdir):
-            file_path = os.path.join(self.workerdir, filename)
-            if os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-            else:
-                os.unlink(file_path)
+        if keep_wd:
+            # Keep the current workerdir and move to a new one
+            self._finalize.detach()
+            self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
+            self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
+        else:
+            # Remove the contents of the worker directory.
+            for filename in os.listdir(self.workerdir):
+                file_path = os.path.join(self.workerdir, filename)
+                if os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+                else:
+                    os.unlink(file_path)
 
         return (stdout, stderr)
 
