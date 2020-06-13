@@ -639,8 +639,11 @@ def readpdb(pdb_file, removeHs=False, proximityBonding=False, return_rdmol=False
     :return: The molecule
     :rtype: |Molecule| or rdkit.Chem.Mol
     """
-    if isinstance(pdb_file, str):
+    try:
         pdb_file = open(pdb_file, 'r')
+    except TypeError:
+        pass
+
     pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), removeHs=removeHs, proximityBonding=proximityBonding)
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
@@ -654,9 +657,12 @@ def writepdb(mol, pdb_file=sys.stdout):
     :param pdb_file: The PDB file to write to, or a filename
     :type pdb_file: str or file
     """
-    mol = to_rdmol(mol)
-    if isinstance(pdb_file, str):
+    try:
         pdb_file = open(pdb_file, 'w')
+    except TypeError:
+        pass
+
+    mol = to_rdmol(mol)
     pdb_file.write(Chem.MolToPDBBlock(mol))
 
 
