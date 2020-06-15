@@ -13,6 +13,8 @@ import numpy as np
 import collections
 from typing import *
 
+TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
+
 if os.name == 'nt':
     import ctypes
     import ctypes.wintypes
@@ -283,7 +285,7 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
-    def __init__(self, settings, workerdir_root=None, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=False):
+    def __init__(self, settings, workerdir_root=TMPDIR, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=False):
 
         self.PyProtVersion = 1
         self.timeout = 2.0
@@ -908,7 +910,7 @@ class AMSWorkerPool:
 
     """
 
-    def __init__(self, settings, num_workers, workerdir_root=None, workerdir_prefix='awp', keep_crashed_workerdir=False):
+    def __init__(self, settings, num_workers, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
 
         self.workers = num_workers * [None]
 
