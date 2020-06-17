@@ -391,7 +391,7 @@ class Cp2kJob(SingleJob):
         if suffix in set({'sdbg', 'sopt'}):
             ret = cp2k_command
         else:
-            for command in ('mpirun', 'srun'):
+            for command in ('srun', 'mpirun'):
                 try:
                     subprocess.run([command, "--help"],
                                    stdout=subprocess.DEVNULL)
