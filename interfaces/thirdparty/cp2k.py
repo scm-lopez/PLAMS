@@ -382,27 +382,23 @@ class Cp2kJob(SingleJob):
             "popt",
             # parallel (MPI + OpenMP) general usage, threading might improve scalability and memory usage
             "psmp"}
-        suffix = Path(cp2k_command).suffix[1:]
-        if suffix not in available_executables:
-            msg = f"unrecognized cp2k executable: {cp2k_command}"
-            raise RuntimeError(msg)
 
-        # Try to run cp2k MPI binaries using mpirun and otherwise srun (if available)
-        if suffix in set({'sdbg', 'sopt'}):
-            ret = cp2k_command
-        else:
-            for command in ('srun', 'mpirun'):
-                try:
-                    subprocess.run([command, "--help"],
-                                   stdout=subprocess.DEVNULL)
-                    ret = f"{command} {cp2k_command}"
-                    break
-                except OSError:
-                    pass
+        available_mpi_commands = ('srun', 'mpirun')
+        mpi_command = ""
 
-        ret += ' -i {} -o {}'.format(self._filename('inp'),
-                                     self._filename('out'))
-        return ret
+        # If there is a MPI command the user know what she is doing
+        if not any(mpi in cp2k_command for mpi in available_mpi_commands):
+            suffix = Path(cp2k_command).suffix[1:]
+
+            if suffix not in available_executables:
+                msg = f"unrecognized cp2k executable: {cp2k_command}"
+                raise RuntimeError(msg)
+
+            # Try to run cp2k MPI binaries using mpirun and otherwise srun (if available)
+            if suffix not in set({'sdbg', 'sopt'}):
+                mpi_command = next((shutil.which(c) for c in available_mpi_command if c is not None), "")
+
+        return  f"{mpi_command} {cp2k_command} -i {self._filename('inp')} -o {self._filename('out')}"
 
     def check(self):
         """Look for the normal termination signal in Cp2k output."""
