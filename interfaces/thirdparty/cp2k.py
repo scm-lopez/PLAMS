@@ -364,24 +364,34 @@ class Cp2kJob(SingleJob):
         inp.coord._h = coord_sec
 
     def get_runscript(self):
-        """Run parallel version of Cp2k using srun."""
-        # Try to run cp2k using mpirun and otherwise srun (if available)
+        """Run a parallel version of CP2K.
+
+        The exact CP2K executable, and whether or not one wants to use ``srun`` or ``mpirun``
+        can be specified under :code:`self.settings.executable`.
+        Currently supported executables are:
+
+        * ``"sdbg"``: Serial single core testing and debugging
+        * ``"sopt"``: Serial general single core usage
+        * ``"ssmp"``: Parallel (only OpenMP), single node, multi core
+        * ``"pdbg"``: Parallel (only MPI) multi-node testing and debugging
+        * ``"popt"``: Parallel (only MPI) general usage, no threads
+        * ``"psmp"``: parallel (MPI + OpenMP) general usage, threading might improve scalability and memory usage
+
+        For example:
+
+        .. code-block:: python
+
+        >>> from scm.plams import Cp2kJob
+
+        >>> job = Cp2kJob(...)
+        >>> job.settings.executable = "cp2k.popt"
+        >>> job.settings.executable = "c2pk.ssmp"
+        >>> job.settings.executable = "mpirun -np 24 cp2k.psmp"
+        """
         cp2k_command = self.settings.get("executable", "cp2k.popt")
 
         # Check the executable name
-        available_executables = {
-            # Serial single core testing and debugging
-            "sdbg",
-            # Serial general single core usage
-            "sopt",
-            # Parallel (only OpenMP), single node, multi core
-            "ssmp",
-            # Parallel (only MPI) multi-node testing and debugging
-            "pdbg",
-            # Parallel (only MPI) general usage, no threads
-            "popt",
-            # parallel (MPI + OpenMP) general usage, threading might improve scalability and memory usage
-            "psmp"}
+        available_executables = {"sdbg", "sopt", "ssmp", "pdbg", "popt", "psmp"}
 
         available_mpi_commands = ('srun', 'mpirun')
         mpi_command = ""
@@ -395,7 +405,7 @@ class Cp2kJob(SingleJob):
                 raise RuntimeError(msg)
 
             # Try to run cp2k MPI binaries using mpirun and otherwise srun (if available)
-            if suffix not in set({'sdbg', 'sopt'}):
+            if suffix not in {'sdbg', 'sopt'}:
                 available = (shutil.which(c) for c in available_mpi_commands)
                 mpi_command = next((c for c in available if c is not None), "")
 
