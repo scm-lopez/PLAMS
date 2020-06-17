@@ -386,7 +386,7 @@ class Cp2kJob(SingleJob):
         available_mpi_commands = ('srun', 'mpirun')
         mpi_command = ""
 
-        # If there is a MPI command the user know what she is doing
+        # If there is a MPI command the user knows what she is doing
         if not any(mpi in cp2k_command for mpi in available_mpi_commands):
             suffix = Path(cp2k_command).suffix[1:]
 
@@ -396,7 +396,8 @@ class Cp2kJob(SingleJob):
 
             # Try to run cp2k MPI binaries using mpirun and otherwise srun (if available)
             if suffix not in set({'sdbg', 'sopt'}):
-                mpi_command = next((shutil.which(c) for c in available_mpi_command if c is not None), "")
+                available = (shutil.which(c) for c in available_mpi_commands)
+                mpi_command = next((c for c in available if c is not None), "")
 
         return  f"{mpi_command} {cp2k_command} -i {self._filename('inp')} -o {self._filename('out')}"
 
