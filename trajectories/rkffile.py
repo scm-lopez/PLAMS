@@ -126,7 +126,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Creates a PLAMS molecule object from the xyz-trajectory file
                 """
                 section_dict = self.file_object.read_section('Molecule')
-                plamsmol = AMSResults._mol_from_rkf_section(section_dict)
+                plamsmol = Molecule._mol_from_rkf_section(section_dict)
                 return plamsmol
 
         def _read_elements(self) :

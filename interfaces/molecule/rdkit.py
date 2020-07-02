@@ -925,3 +925,10 @@ def assign_chirality (self) :
         if pl_bond.properties.stereo:
             self.bonds[ibond] = pl_bond.properties.stereo
 
+@add_to_class(Molecule)
+def get_chirality (self) :
+    """
+    Returns the chirality of the atoms
+    """
+    rd_mol = to_rdmol(self, assignChirality=True)
+    return Chem.FindMolChiralCenters(rd_mol,force=True,includeUnassigned=True)
