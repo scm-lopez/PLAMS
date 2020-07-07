@@ -8,7 +8,7 @@ Benchmark accuracy of basis sets
     To execute this PLAMS script:
     
     * :download:`Download BasisSetBenchmark.py <../../../examples/BasisSetBenchmark.py>`
-    * ``$ADFIBN/plams BasisSetBenchmark.py``
+    * ``$ADFBIN/plams BasisSetBenchmark.py``
 
 **Output**
 
