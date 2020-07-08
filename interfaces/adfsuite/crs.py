@@ -290,7 +290,8 @@ class CRSJob(SCMJob):
     """A |SCMJob| subclass intended for running COSMO-RS jobs."""
     _command = 'crs'
     _result_type = CRSResults
-
+    _subblock_end = 'end'
+    
     def __init__(self, **kwargs) -> None:
         """Initialize a :class:`CRSJob` instance."""
         super().__init__(**kwargs)
