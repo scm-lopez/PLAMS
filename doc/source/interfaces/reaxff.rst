@@ -1,10 +1,12 @@
-ReaxFF
+ReaxFF (pre-2019 version)
 -------------------------
 
 .. currentmodule:: scm.plams.interfaces.adfsuite.reaxff
 
-This page describes the old interface to the standalone ReaxFF binary.
-As ReaxFF is now an AMS engine, you probably want to run it using |AMSJob|.
+.. warning::
+
+    This page describes the old interface to the standalone ReaxFF binary.
+    As ReaxFF is now an AMS engine, you probably want to run it using |AMSJob|.
 
 In the few simple examples below you can see how various types of ReaxFF calculations can be performed via PLAMS.
 

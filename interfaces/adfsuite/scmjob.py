@@ -1,18 +1,21 @@
 import os
+import re
+import sys
 import numpy as np
 
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import PlamsError, ResultsError, FileError
-from ...core.functions import log
-from ...core.private import sha256
+from ...core.errors import PlamsError, ResultsError, FileError, JobError
+from ...core.functions import log, parse_heredoc
+from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
 from ...core.settings import Settings
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...tools.kftools import KFFile
 from ...tools.units import Units
+from .ams import AMSJob
 
 
 
@@ -175,6 +178,16 @@ class SCMResults(Results):
         return t([data[mapping[i]-1] for i in range(len(mapping))])
 
 
+    def readarray(self, section: str, subsection: str, **kwargs) -> np.ndarray:
+        """Read data from *section*/*subsection* of the main KF file and return as NumPy array.
+
+        All additional provided keyword arguments will be passed onto the numpy.array_ function.
+
+        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
+        """
+        return np.array(self.readkf(section, subsection), **kwargs)
+
+
 
 class SCMJob(SingleJob):
     """Abstract class gathering common mechanisms for jobs with ADF Suite programs."""
@@ -207,19 +220,19 @@ class SCMJob(SingleJob):
     def get_runscript(self):
         """Generate a runscript. Returned string is of the form::
 
-            $ADFBIN/name [-n nproc] <jobname.in [>jobname.out]
+            $AMSBIN/name [-n nproc] <jobname.in [>jobname.out]
 
         ``name`` is taken from the class attribute ``_command``. ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``.
         """
         s = self.settings.runscript
-        ret = '$ADFBIN/'+self._command
+        ret = '$AMSBIN/'+self._command
         if 'nproc' in s:
             ret += ' -n ' + str(s.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
         if s.stdout_redirect:
             ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
-        return ret
+        return AMSJob._slurm_env(self.settings) + ret
 
 
     def check(self):
@@ -230,6 +243,7 @@ class SCMJob(SingleJob):
             return False
         if 'NORMAL TERMINATION' in status:
             if 'errors' in status:
+                log('Job {} reported errors. Please check the the output'.format(self.name), 1)
                 return False
             if 'warnings' in status:
                 log('Job {} reported warnings. Please check the the output'.format(self.name), 1)
@@ -345,3 +359,42 @@ class SCMJob(SingleJob):
             smb = (smb+'.'+str(atom.properties.name)).lstrip('.')
         return smb
 
+
+    @classmethod
+    def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'SCMJob':
+        """Construct a :class:`SCMJob` instance from an ADF inputfile.
+
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
+        try:
+            from scm.input_parser import InputParser
+        except ImportError:  # Try to load the parser from $AMSHOME/scripting
+            with UpdateSysPath():
+                from scm.input_parser import InputParser
+
+        s = Settings()
+        with open(filename, 'r') as f:
+            inp_file = parse_heredoc(f.read(), heredoc_delimit)
+
+        with InputParser as parser:
+            s.input = parser.to_settings(cls._command, inp_file)
+        if not s.input:
+            raise JobError(f"from_inputfile: failed to parse '{filename}'")
+
+        # Extract a molecule from the input settings
+        mol = cls.settings_to_mol(s)
+
+        # Create and return the Job instance
+        if mol is not None:
+            return cls(molecule=mol, settings=s, **kwargs)
+        else:
+            s.ignore_molecule = True
+            return cls(settings=s, **kwargs)
+
+
+    @staticmethod
+    def settings_to_mol(s: Settings) -> None:
+        """An abstract method for extracting molecules from input settings (see :meth:`SCMJob.from_inputfile`)."""
+        return None

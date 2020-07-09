@@ -101,8 +101,16 @@ class Job:
 
         self.settings.run.soft_update(Settings(kwargs))
 
-        jobrunner = jobrunner or config.default_jobrunner
-        jobmanager = jobmanager or config.default_jobmanager
+        if jobrunner is None:
+            if 'default_jobrunner' in config:
+                jobrunner = config.default_jobrunner
+            else:
+                raise PlamsError('No default jobrunner found. This probably means that PLAMS init() was not called.')
+        if jobmanager is None:
+            if 'default_jobmanager' in config:
+                jobmanager = config.default_jobmanager
+            else:
+                raise PlamsError('No default jobmanager found. This probably means that PLAMS init() was not called.')
 
         jobrunner._run_job(self, jobmanager)
         return self.results
@@ -262,7 +270,13 @@ class Job:
 
     def _log_status(self, level):
         """Log the status of this instance on a chosen log *level*. The message is uppercased to clearly stand out among other log entries."""
-        log('JOB {} {}'.format(self.name, self.status.upper()), level)
+        log('JOB {} {}'.format(self._full_name(), self.status.upper()), level)
+
+
+    def _full_name(self):
+        if self.parent:
+            return '/'.join([self.parent._full_name(), self.name])
+        return self.name
 
 
 #===========================================================================
@@ -538,6 +552,18 @@ class MultiJob(Job):
         for attr in self.__dict__.values():
             if isinstance(attr, Job) and ((hasattr(attr, 'parent') and attr.parent == self) or not hasattr(attr, 'parent')):
                 yield attr
+
+
+    def remove_child(self, job):
+        """Remove *job* from children."""
+
+        rm = None
+        for i, j in (self.children.items() if isinstance(self.children, dict) else enumerate(self.children)):
+            if j == job:
+                rm = i
+                break
+        if rm is not None:
+            del self.children[rm]
 
 
     def _get_ready(self):

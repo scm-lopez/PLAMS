@@ -1,9 +1,9 @@
 Introduction
-=========================
+============
 
 
 What is PLAMS
--------------------------
+-------------
 
 PLAMS (Python Library for Automating Molecular Simulation) is a collection of tools that aims to provide powerful, flexible and easily extendable Python interface to molecular modeling programs.
 It takes care of input preparation, job execution, file management and output processing as well as helps with building more advanced data workflows.
@@ -30,9 +30,8 @@ It lets you do all the things mentioned above (and many more) using simple Pytho
 It gives you a helping hand with automating repetitive or complicated tasks while still leaving you with 100% control over what is really happening with your files, disks and CPUs.
 
 
-
 What can be done with PLAMS
-----------------------------
+---------------------------
 
 The key design principle of PLAMS is *flexibility*.
 If something (and by something we mean: adjusting an input parameter, executing some program with particular options, extracting a value from output etc.) can be done by hand, it can be done with PLAMS.
@@ -60,85 +59,32 @@ The most important features of PLAMS:
 Simple example
 ----------------------------
 
-To provide some real life example: here is a simple PLAMS script which calculates a potential energy curve of a diatomic system::
+To provide some real life example: here is a simple PLAMS script which calculates a potential energy curve of a diatomic system
 
-    #type of atoms (atomic number)
-    atom1 = 'H'
-    atom2 = 'H'
-
-    #interatomic distance values
-    dmin = 0.3
-    dmax = 1.5
-    step = 0.05
-
-    #create a list with interatomic distances
-    distances = []
-    dist = dmin
-    while dist < dmax:
-        distances.append(dist)
-        dist += step
-
-    #set single calculation parameters (single point, TZ2P/PW91)
-    sett = Settings()
-    sett.input.basis.type = 'TZ2P'
-    sett.input.geometry.sp = True
-    sett.input.xc.gga = 'PW91'
-
-    #create a list of jobs
-    jobs = []
-    for d in distances:
-        mol = Molecule()
-        mol.add_atom(Atom(symbol=atom1, coords=(0.0, 0.0, 0.0)))
-        mol.add_atom(Atom(symbol=atom2, coords=( d , 0.0, 0.0)))
-        job = ADFJob(molecule=mol, settings=sett)
-        jobs.append(job)
-
-    #run jobs
-    results = [j.run() for j in jobs]
-
-    #extract bond energy from each calculation
-    energies = [r.readkf('Energy', 'Bond Energy') for r in results]
-
-    #convert to kcal/mol and print
-    energies = Units.convert(energies, 'au', 'kcal/mol')
-    print('d[A]    E[kcal/mol]')
-    for d,e in zip(distances, energies):
-        print('%.2f    %.3f' % (d,e))
+.. literalinclude:: ../../examples/He2DissociationCurve.py
+   :language: python
 
 Don't worry if something in the above code is incomprehensible or confusing.
 Everything you need to know to understand how PLAMS works and how to write your own scripts is explained in next chapters of this documentation.
 
-When executed, the above script creates an uniquely named working folder, then runs 24 independent ADF single point calculations, each in a separate subfolder of the working folder.
+When executed, the above script creates an uniquely named working folder, then runs 10 independent ADF single point calculations, each in a separate subfolder of the working folder.
 All the files created by each run are saved in the corresponding subfolder for future reference.
-Finally, the following table describing the potential energy curve of a hydrogen molecule is written to the standard output:
+Finally, the following table describing the potential energy curve of the He dimer is written to the standard output:
 
 .. code-block:: none
 
+    == Results ==
     d[A]    E[kcal/mol]
-    0.30    143.301
-    0.35    36.533
-    0.40    -33.410
-    0.45    -79.900
-    0.50    -110.823
-    0.55    -131.120
-    0.60    -143.997
-    0.65    -151.598
-    0.70    -155.418
-    0.75    -156.492
-    0.80    -155.572
-    0.85    -153.205
-    0.90    -149.793
-    0.95    -145.635
-    1.00    -140.959
-    1.05    -135.937
-    1.10    -130.699
-    1.15    -125.344
-    1.20    -119.950
-    1.25    -114.576
-    1.30    -109.267
-    1.35    -104.055
-    1.40    -98.967
-    1.45    -94.021
+    2.20     0.230
+    2.40    -0.054
+    2.60    -0.127
+    2.80    -0.122
+    3.00    -0.094
+    3.20    -0.066
+    3.40    -0.045
+    3.60    -0.030
+    3.80    -0.020
+    4.00    -0.013
 
 
 What PLAMS is *not*
@@ -186,8 +132,7 @@ The following special boxes appear within this documentation:
 It is assumed that the reader has some basic understanding of Python programming language.
 Gentle introduction to Python can be found in the excellent :ref:`Python Tutorial<tutorial-index>` and other parts of the official Python documentation.
 
-Majority of examples presented within this document use as an external binary either ADF or AMS.
-Please refer to the corresponding program's manual if some clarification is needed.
+Majority of examples presented within this document use external programs from the Amsterda Modeling Suite. Please refer to the corresponding program's manual if some clarification is needed.
 
 The last section presents a collection of real life example scripts that cover various possible applications of PLAMS.
 Due to early stage of the project this section is not yet too extensive.

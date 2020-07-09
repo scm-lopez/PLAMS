@@ -313,8 +313,8 @@ class KFFile:
                 raise ValueError('Cannot store empty lists in KFFile')
             if any(not isinstance(i, type(value[0])) for i in value):
                 raise ValueError('Lists stored in KFFile must have all elements of the same type')
-            if not isinstance(value[0], (int,bool,float)):
-                raise ValueError('Only lists of int, float or bool can be stored in KFFile')
+            if not isinstance(value[0], (int,bool,float,str)):
+                raise ValueError('Only lists of int, float, str or bool can be stored in KFFile')
 
         if section not in self.tmpdata:
             self.tmpdata[section] = OrderedDict()
@@ -454,8 +454,16 @@ class KFFile:
         """Return a string representation of *val* in the form that can be understood by ``udmpkf``."""
         if isinstance(val, (int,bool,float)):
             val = [val]
-        t,step,f = KFFile._types[type(val[0])]
-        l = len(val) #length for str == 0 mod 160?
+        valtype = type(val[0])
+        t,step,f = KFFile._types[valtype]
+        l = len(val)
+        if (valtype == str and isinstance(val, list)):
+            #udmpkf reads 160 characters per variable, split over max. 80 per line, to make a string array
+            l = l * 160
+            step = 1
+            splitstrings = [[s[0:80], s[80:160]] for s in val]
+            val = [item for sublist in splitstrings for item in sublist]
+
         ret = '%10i%10i%10i'%(l,l,t)
         for i,el in enumerate(val):
             if i%step == 0: ret += '\n'

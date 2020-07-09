@@ -72,7 +72,7 @@ class Units:
     """
 
     constants = {}
-    constants['Bohr_radius']                         =  0.52917721067   #http://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
+    constants['Bohr_radius']                         =  0.529177210903  #http://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
     constants['Avogadro_constant'] = constants['NA'] =  6.022140857e23   #http://physics.nist.gov/cgi-bin/cuu/Value?na
     constants['speed_of_light'] = constants['c']     =  299792458   #http://physics.nist.gov/cgi-bin/cuu/Value?c
     constants['electron_charge'] = constants['e']    =  1.6021766208e-19   #http://physics.nist.gov/cgi-bin/cuu/Value?e
@@ -90,7 +90,7 @@ class Units:
 
     energy = {}
     energy['au'] = energy['a.u.'] = energy['Hartree'] =  1.0
-    energy['eV']                                      =  27.21138602   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
+    energy['eV']                                      =  27.211386245988   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
     energy['kJ/mol']                                  =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
     energy['kcal/mol']                                =  energy['kJ/mol'] / 4.184
     energy['cm^-1'] = energy['cm-1']                  =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv

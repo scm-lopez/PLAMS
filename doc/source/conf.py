@@ -200,6 +200,7 @@ intersphinx_mapping = {'python3': ('http://docs.python.org/3.6', None)}
 
 autodoc_default_flags = ['members', 'private-members', 'special-members']
 autodoc_member_order = 'bysource'
+autodoc_typehints = 'none'
 
 rst_epilog = """
 .. |init| replace:: :func:`~scm.plams.core.functions.init`
@@ -248,6 +249,13 @@ rst_epilog = """
 .. |AMSJob| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSJob`
 .. |AMSResults| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSResults`
 
+.. |AMSWorker| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorker`
+.. |AMSWorkerPool| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerPool`
+.. |AMSWorkerResults| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerResults`
+.. |AMSWorkerError| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerError`
+.. |AMSPipeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeError`
+.. |AMSPipeRuntimeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeRuntimeError`
+
 .. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
 .. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`
 
@@ -288,6 +296,9 @@ rst_epilog = """
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`
 
+.. |CRSJob| replace:: :class:`CRSJob<scm.plams.interfaces.adfsuite.crs.CRSJob>`
+.. |CRSResults| replace:: :class:`CRSResults<scm.plams.interfaces.adfsuite.crs.CRSResults>`
+
 .. |VibrationsJob| replace:: :class:`~scm.plams.recipes.vibration.VibrationsJob`
 .. |IRJob| replace:: :class:`~scm.plams.recipes.vibration.IRJob`
 .. |VibrationsResults| replace:: :class:`~scm.plams.recipes.vibration.VibrationsResults`
@@ -303,4 +314,3 @@ rst_epilog = """
 .. |nbsp| unicode:: 0xA0
    :trim:
 """
-

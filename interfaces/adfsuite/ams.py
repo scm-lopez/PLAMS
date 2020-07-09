@@ -4,11 +4,11 @@ import numpy as np
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import FileError, JobError, ResultsError
-from ...core.functions import config, log
-from ...core.private import sha256
+from ...core.errors import FileError, JobError, ResultsError, PTError
+from ...core.functions import config, log, parse_heredoc
+from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
-from ...core.settings import Settings, ig
+from ...core.settings import Settings
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...tools.kftools import KFFile
@@ -134,11 +134,11 @@ class AMSResults(Results):
         """
         sectiondict = self.read_rkf_section(section, file)
         if sectiondict:
-            return AMSResults._mol_from_rkf_section(sectiondict)
+            return Molecule._mol_from_rkf_section(sectiondict)
 
 
     def get_input_molecule(self):
-        """Return a |Molecule| instance with initial coordinates.
+        """Return a |Molecule| instance with the initial coordinates.
 
         All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
@@ -146,7 +146,7 @@ class AMSResults(Results):
 
 
     def get_main_molecule(self):
-        """Return a |Molecule| instance with final coordinates.
+        """Return a |Molecule| instance with the final coordinates.
 
         All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
@@ -168,16 +168,30 @@ class AMSResults(Results):
             coords = main.read('History', f'Coords({step})')
             coords = [coords[i:i+3] for i in range(0,len(coords),3)]
             if ('History', f'SystemVersion({step})') in main:
-                system = main.read('History', f'SystemVersion({step})')
+                version = main.read('History', f'SystemVersion({step})')
+                if 'SystemVersionHistory' in main:
+                    if ('SystemVersionHistory', 'blockSize') in main:
+                        blockSize = main.read('SystemVersionHistory', 'blockSize')
+                    else:
+                        blockSize = 1
+                    block = (version - 1) // blockSize + 1
+                    offset = (version - 1) % blockSize
+                    system = main.read('SystemVersionHistory', f'SectionNum({block})', return_as_list=True)[offset]
+                else:
+                    system = version
                 mol = self.get_molecule(f'ChemicalSystem({system})')
                 molsrc = f'ChemicalSystem({system})'
             else:
                 mol = self.get_main_molecule()
                 molsrc = 'Molecule'
             if len(mol) != len(coords):
-                raise ResultsError(f'Coordinates taken from "History%Coords({step})" have incompatible lenght with molecule from {molsrc} section')
+                raise ResultsError(f'Coordinates taken from "History%Coords({step})" have incompatible length with molecule from {molsrc} section')
             for at, c in zip(mol, coords):
                 at.move_to(c, unit='bohr')
+
+            if ('History', f'LatticeVectors('+str(step)+')') in main:
+                lattice = Units.convert(main.read('History', f'LatticeVectors('+str(step)+')'), 'bohr', 'angstrom')
+                mol.lattice = [tuple(lattice[j:j+3]) for j in range(0,len(lattice),3)]
 
             if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
                 index = main.read('History', f'Bonds.Index({step})')
@@ -188,6 +202,54 @@ class AMSResults(Results):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
             return mol
 
+    def get_history_variables(self, history_section='History') :
+        """ Return a set of keynames stored in the specified history section of the ``ams.rkf`` file.
+
+        The *history_section argument should be a string representing the name of the history section (``History`` or ``MDHistory``)*"""
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        keylist = [var for sec,var in main if sec==history_section]
+        # Now throw out all the last parts
+        return set([key.split('(')[0] for key in keylist if len(key.split('('))>1])
+
+    def get_history_property(self, varname, history_section='History') :
+        """ Return the values of *varname* in the history section *history_section*."""
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        nentries = main.read(history_section,'nEntries')
+        as_block = self._values_stored_as_blocks(main, varname, history_section)
+        if as_block :
+            nblocks = main.read(history_section,'nBlocks')
+            values = [main.read(history_section,f"{varname}({iblock})",return_as_list=True) for iblock in range(1,nblocks+1)]
+            values = [val for blockvals in values for val in blockvals if isinstance(blockvals,list)]
+        else :
+            values = [main.read(history_section,f"{varname}({step})") for step in range(1,nentries+1)]
+        return values
+
+    def get_property_at_step(self, step, varname, history_section='History') :
+        """ Return the value of *varname* in the history section *history_section at step *step*."""
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        if step > main.read(history_section,'nEntries')-1 : return
+        as_block = self._values_stored_as_blocks(main, varname, history_section)
+        if as_block :
+            import numpy
+            blocksize = main.read(history_section,'blockSize')
+            iblock = int(numpy.ceil(step/blocksize))
+            value = main.read(history_section,f"{varname}({iblock})")[(step%blocksize)-1]
+        else :
+            value = main.read(history_section,f"{varname}({step})")
+        return value
+
+    def _values_stored_as_blocks(self, main, varname, history_section) :
+        """Determines wether the values of varname in a trajectory rkf file are stored in blocks"""
+        nentries = main.read(history_section,'nEntries')
+        as_block = False
+        keylist = [var for sec,var in main if sec==history_section]
+        if 'nBlocks' in keylist :
+            if not f"{varname}({nentries})" in keylist :
+                as_block = True
+        return as_block
 
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
@@ -216,11 +278,50 @@ class AMSResults(Results):
 
 
     def get_energy(self, unit='au', engine=None):
-        """Return final bond energy, expressed in *unit*.
+        """Return final energy, expressed in *unit*.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
+
+
+    def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
+        """Return the gradients of the final energy, expressed in *energy_unit* / *dist_unit*.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Gradients'), engine)).reshape(-1,3) * Units.conversion_ratio('au', energy_unit) / Units.conversion_ratio('au', dist_unit)
+
+
+    def get_stresstensor(self, engine=None):
+        """Return the final stress tensor, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'StressTensor'), engine)).reshape(len(self.get_input_molecule().lattice),-1)
+
+
+    def get_hessian(self, engine=None):
+        """Return the Hessian matrix, i.e. the second derivative of the total energy with respect to the nuclear coordinates, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Hessian'), engine)).reshape(3*len(self.get_input_molecule()),-1)
+
+
+    def get_elastictensor(self, engine=None):
+        """Return the elastic tensor, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        et_flat = np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'ElasticTensor'), engine))
+        num_latvec = len(self.get_input_molecule().lattice)
+        if num_latvec == 1:
+            return et_flat.reshape(1,1)
+        elif num_latvec == 2:
+            return et_flat.reshape(3,3)
+        else:
+            return et_flat.reshape(6,6)
 
 
     def get_frequencies(self, unit='cm^-1', engine=None):
@@ -230,6 +331,41 @@ class AMSResults(Results):
         """
         freqs = np.array(self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine))
         return freqs * Units.conversion_ratio('cm^-1', unit)
+
+
+    def get_charges(self, engine=None):
+        """Return the atomic charges, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Charges'), engine))
+
+
+    def get_dipolemoment(self, engine=None):
+        """Return the electric dipole moment, expressed in atomic units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleMoment'), engine))
+
+
+    def get_dipolegradients(self, engine=None):
+        """Return the nuclear gradients of the electric dipole moment, expressed in atomic units. This is a (3*numAtoms x 3) matrix.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleGradients'), engine)).reshape(-1,3)
+
+
+    def get_timings(self):
+        """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds (Jim Boelrijk).
+        """
+        ret = {}
+        cpu = self.grep_output('Total cpu time:')
+        system = self.grep_output('Total system time:')
+        elapsed = self.grep_output('Total elapsed time:')
+        ret['elapsed'] = float(elapsed[0].split()[-1])
+        ret['system'] = float(system[0].split()[-1])
+        ret['cpu'] = float(cpu[0].split()[-1])
+        return ret
 
 
     def recreate_molecule(self):
@@ -250,17 +386,36 @@ class AMSResults(Results):
         if 'ams' in self.rkfs:
             user_input = self.readrkf('General', 'user input')
             try:
-                from scm.input_parser import input_to_settings
-                inp = input_to_settings(user_input)
+                from scm.input_parser import InputParser
+                with InputParser() as parser:
+                    inp = parser.to_settings('ams', user_input)
             except:
                 log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path, 5))
                 return None
             s = Settings()
             s.input = inp
-            del s.input[ig('ams')][ig('system')]
+            del s.input.ams.system
             s.soft_update(config.job)
             return s
         return None
+
+
+    def ok(self):
+        """Check if the execution of the associated :attr:`job` was successful or not.
+        See :meth:`Job.ok<scm.plams.core.basejob.Job.ok>` for more information."""
+        return self.job.ok()
+
+
+    def get_errormsg(self):
+        """Tries to get an an error message for a associated :attr:`job`. This method returns ``None`` if the associated job was successful.
+        See :meth:`Job.get_errormsg<scm.plams.core.basejob.Job.errormsg>` for more information."""
+        return self.job.get_errormsg()
+
+
+    @property
+    def name(self):
+        """Retrun the :attr:`job.name` of the job associated with this results instance."""
+        return self.job.name
 
 
 
@@ -311,35 +466,41 @@ class AMSResults(Results):
         else:
             if len(names) == 1:
                 return func(self.rkfs[names[0]])
+            elif len(names) == 0:
+                raise FileError('There is no engine .rkf present in {}'.format(self.job.path))
             else:
                 raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
 
 
-    @staticmethod
-    def _mol_from_rkf_section(sectiondict):
-        """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
-
-        ret = Molecule()
-        coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
-        symbols = sectiondict['AtomSymbols'].split()
-        for at, crd, sym in zip(sectiondict['AtomicNumbers'], coords, symbols):
-            newatom = Atom(atnum=at, coords=crd, unit='bohr')
-            if sym.startswith('Gh.'):
-                sym = sym[3:]
-                newatom.properties.ghost = True
-            if '.' in sym:
-                sym, name = sym.split('.', 1)
-                newatom.properties.name = name
-            ret.add_atom(newatom)
-        if sectiondict['Charge'] != 0:
-            ret.properties.charge = sectiondict['Charge']
-        if 'nLatticeVectors' in sectiondict:
-            ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
-        if 'EngineAtomicInfo' in sectiondict:
-            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
-            for at, suffix in zip(ret, suffixes):
-                at.properties.suffix = suffix
-        return ret
+#    @staticmethod
+#    def _mol_from_rkf_section(sectiondict):
+#        """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
+#
+#        ret = Molecule()
+#        coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
+#        symbols = sectiondict['AtomSymbols'].split()
+#        atnums = sectiondict['AtomicNumbers'] if isinstance(sectiondict['AtomicNumbers'], list) else [sectiondict['AtomicNumbers']]
+#        for at, crd, sym in zip(atnums, coords, symbols):
+#            newatom = Atom(atnum=at, coords=crd, unit='bohr')
+#            if sym.startswith('Gh.'):
+#                sym = sym[3:]
+#                newatom.properties.ghost = True
+#            if '.' in sym:
+#                sym, name = sym.split('.', 1)
+#                newatom.properties.name = name
+#            ret.add_atom(newatom)
+#        if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
+#            for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
+#                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
+#        if sectiondict['Charge'] != 0:
+#            ret.properties.charge = sectiondict['Charge']
+#        if 'nLatticeVectors' in sectiondict:
+#            ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
+#        if 'EngineAtomicInfo' in sectiondict:
+#            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
+#            for at, suffix in zip(ret, suffixes):
+#                at.properties.suffix = suffix
+#        return ret
 
 
 #===========================================================================
@@ -367,7 +528,7 @@ class AMSJob(SingleJob):
             AMSJob: lambda x: x.results.rkfpath(),
             AMSResults: lambda x: x.rkfpath(),
             KFFile: lambda x: x.path,
-            tuple: lambda x: AMSJob.tuple2rkf(x)
+            tuple: lambda x: AMSJob._tuple2rkf(x)
         }
         return self._serialize_input(special)
 
@@ -375,18 +536,23 @@ class AMSJob(SingleJob):
     def get_runscript(self):
         """Generate the runscript. Returned string is of the form::
 
-            AMS_JOBNAME=jobname AMS_RESULTSDIR=. $ADFBIN/ams [-n nproc] <jobname.in [>jobname.out]
+            unset AMS_SWITCH_LOGFILE_AND_STDOUT
+            AMS_JOBNAME=jobname AMS_RESULTSDIR=. $AMSBIN/ams [-n nproc] <jobname.in [>jobname.out]
 
-        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``.
+        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS.
         """
-        ret = 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $ADFBIN/ams'.format(self.name)
+        ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
+        if 'preamble_lines' in self.settings.runscript:
+            for line in self.settings.runscript.preamble_lines:
+                ret += f'{line}\n'
+        ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $AMSBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
         if self.settings.runscript.stdout_redirect:
             ret += ' >"{}"'.formatself._filename('out')
         ret += '\n\n'
-        return ret
+        return AMSJob._slurm_env(self.settings) + ret
 
 
     def check(self):
@@ -397,12 +563,31 @@ class AMSJob(SingleJob):
             return False
         if 'NORMAL TERMINATION' in status:
             if 'errors' in status:
-                log('Job {} reported errors. Please check the the output'.format(self.name), 1)
+                log('Job {} reported errors. Please check the the output'.format(self._full_name()), 1)
                 return False
             if 'warnings' in status:
-                log('Job {} reported warnings. Please check the the output'.format(self.name), 1)
+                log('Job {} reported warnings. Please check the the output'.format(self._full_name()), 1)
             return True
         return False
+
+
+    def get_errormsg(self):
+        """Tries to get an an error message for a failed job. This method returns ``None`` for successful jobs."""
+        if self.ok():
+            return None
+        else:
+            # Something went wrong. The first place to check is the termination status on the ams.rkf.
+            # If the AMS driver stopped with a known error (called StopIt in the Fortran code), the error will be in there.
+            try:
+                msg = self.results.readrkf('General','termination status')
+                if msg == 'NORMAL TERMINATION with errors':
+                    # Apparently this wasn't a hard stop in the middle of the job.
+                    # Let's look for the last error in the logfile ...
+                    msg = self.results.grep_file('ams.log', 'ERROR: ')[-1].partition('ERROR: ')[2]
+            except:
+                msg = 'Could not determine error message. Please check the output manually.'
+            return msg
+
 
 
     def hash_input(self):
@@ -414,7 +599,7 @@ class AMSJob(SingleJob):
             AMSJob: lambda x: x.hash_input(),
             AMSResults: lambda x: x.job.hash_input(),
             KFFile: lambda x: x.path,
-            tuple: lambda x: AMSJob.tuple2rkf(x)
+            tuple: lambda x: AMSJob._tuple2rkf(x)
         }
         return sha256(self._serialize_input(special))
 
@@ -437,7 +622,7 @@ class AMSJob(SingleJob):
                     return special[spec_type](value)
             return value
 
-        def serialize(key, value, indent, end='end'):
+        def serialize(key, value, indent, end='End'):
             """Given a *key* and its corresponding *value* from the |Settings| instance produce a snippet of the input file representing this pair.
 
             If the value is a nested |Settings| instance, use recursive calls to build the snippet for the entire block. Indent the result with *indent* spaces.
@@ -456,14 +641,22 @@ class AMSJob(SingleJob):
 
                 for el in value:
                     if not el.startswith('_'):
-                        ret += serialize(el, value[el], indent+2)
+                        if key.lower().startswith('engine') and el.lower() == 'input':
+                            ret += serialize(el, value[el], indent+2, 'EndInput')
+                        # REB: For the hybrid engine. How todeal with the space in el (Engine DFTB)? Replace by underscore?
+                        elif key.lower().startswith('engine') and el.lower().startswith('engine') :
+                            engine = ' '.join(el.split('_'))
+                            ret += serialize(engine, value[el], indent+2, end='EndEngine') + '\n'
+                        else:
+                            ret += serialize(el, value[el], indent+2)
 
+                if key.lower() == 'input': end='endinput'
                 ret += ' '*indent + end+'\n'
 
             elif isinstance(value, list):
                 for el in value:
                     ret += serialize(key, el, indent)
-            elif value is '' or value is True:
+            elif value == '' or value is True:
                 ret += ' '*indent + key + '\n'
             elif value is False or value is None:
                 pass
@@ -476,9 +669,9 @@ class AMSJob(SingleJob):
         #prepare contents of 'system' block(s)
         more_systems = self._serialize_molecule()
         if more_systems:
-            if ig('system') in fullinput[ig('ams')]:
+            if 'system' in fullinput.ams:
                 #nonempty system block was already present in input.ams
-                system = fullinput[ig('ams')][ig('system')]
+                system = fullinput.ams.system
                 system_list = system if isinstance(system, list) else [system]
 
                 system_list_set = Settings({(s._h if '_h' in s else ''):s   for s in system_list})
@@ -487,10 +680,10 @@ class AMSJob(SingleJob):
                 system_list_set += more_systems_set
                 system_list = list(system_list_set.values())
                 system = system_list[0] if len(system_list) == 1 else system_list
-                fullinput[ig('ams')][ig('system')] = system
+                fullinput.ams.system = system
 
             else:
-                fullinput[ig('ams')][ig('system')] = more_systems[0] if len(more_systems) == 1 else more_systems
+                fullinput.ams.system = more_systems[0] if len(more_systems) == 1 else more_systems
 
         txtinp = ''
         ams = fullinput.find_case('ams')
@@ -502,7 +695,7 @@ class AMSJob(SingleJob):
         #and then engines
         for engine in fullinput:
             if engine != ams:
-                txtinp += serialize('engine '+engine, fullinput[engine], 0, end='endengine') + '\n'
+                txtinp += serialize('Engine '+engine, fullinput[engine], 0, end='EndEngine') + '\n'
 
         return txtinp
 
@@ -524,7 +717,7 @@ class AMSJob(SingleJob):
         elif isinstance(self.molecule, dict):
             moldict = self.molecule
         else:
-            raise JobError("Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a dictionary or None".format(self.name))
+            raise JobError("Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a dictionary or None, and not {}".format(self._full_name(), type(self.molecule)))
 
         ret = []
         for name, molecule in moldict.items():
@@ -533,16 +726,19 @@ class AMSJob(SingleJob):
                 newsystem._h = name
 
             if len(molecule.lattice) in [1,2] and molecule.align_lattice():
-                log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self.name), 3)
+                log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self._full_name()), 3)
 
-            newsystem.atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
+            newsystem.Atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
                     suffix=(atom.properties.suffix if 'suffix' in atom.properties else '')) for atom in molecule]
 
             if molecule.lattice:
-                newsystem.lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
+                newsystem.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
 
-            if ig('charge') in molecule.properties:
-                newsystem.charge = molecule.properties[ig('charge')]
+            if len(molecule.bonds)>0:
+                newsystem.BondOrders._1 = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
+
+            if 'charge' in molecule.properties:
+                newsystem.Charge = molecule.properties.charge
 
             ret.append(newsystem)
 
@@ -572,3 +768,127 @@ class AMSJob(SingleJob):
             if isinstance(arg[0], AMSResults):
                 return arg[0].rkfpath(arg[1])
         return str(arg)
+
+
+    @classmethod
+    def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
+        """Construct an :class:`AMSJob` instance from an ADF inputfile or runfile.
+
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
+        try:
+            from scm.input_parser import InputParser
+        except ImportError:  # Try to load the parser from $AMSHOME/scripting
+            with UpdateSysPath():
+                from scm.input_parser import InputParser
+
+        s = Settings()
+        with open(filename, 'r') as f:
+            inp_file = parse_heredoc(f.read(), heredoc_delimit)
+
+        with InputParser() as parser:
+            s.input = parser.to_settings(cls._command, inp_file)
+        if not s.input:
+            raise JobError(f"from_inputfile: failed to parse '{filename}'")
+
+        # Extract a molecule from the input settings
+        mol = cls.settings_to_mol(s)
+
+        # Create and return the Job instance
+        if mol is not None:
+            return cls(molecule=mol, settings=s, **kwargs)
+        else:
+            s.ignore_molecule = True
+            return cls(settings=s, **kwargs)
+
+
+    @staticmethod
+    def settings_to_mol(s: Settings) -> dict:
+        """Pop the `s.input.ams.system` block from a settings instance and convert it into a dictionary of molecules.
+
+        The provided settings should be in the same style as the ones produced by the SCM input parser.
+        Dictionary keys are taken from the header of each system block.
+        The existing `s.input.ams.system` block is removed in the process, assuming it was present in the first place.
+
+        """
+        def read_mol(settings_block: Settings) -> Molecule:
+            """Retrieve single molecule from a single `s.input.ams.system` block."""
+            mol = Molecule()
+            for atom in settings_block.atoms._1:
+                # Extract arguments for Atom()
+                symbol, x, y, z, *comment = atom.split(maxsplit=4)
+                kwargs = {} if not comment else {'suffix': comment[0]}
+                coords = float(x), float(y), float(z)
+
+                try:
+                    at = Atom(symbol=symbol, coords=coords, **kwargs)
+                except PTError:  # It's either a ghost atom and/or an atom with a custom name
+                    if symbol.startswith('Gh.'):  # Ghost atom
+                        kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
+                    if '.' in symbol:  # Atom with a custom name
+                        symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
+                    at = Atom(symbol=symbol, coords=coords, **kwargs)
+
+                mol.add_atom(at)
+
+            # Add bonds
+            for bond in settings_block.bondorders._1:
+                _at1, _at2, _order = bond.split()
+                at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
+                mol.add_bond(at1, at2, order)
+
+            # Set the lattice vector if applicable
+            if settings_block.lattice._1:
+                mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
+
+            # Set the molecular charge
+            if settings_block.charge:
+                mol.properties.charge = float(settings_block.charge)
+
+            mol.properties.name = str(settings_block._h)
+            return mol
+
+        # Raises a KeyError if the `system` key is absent
+        with s.suppress_missing():
+            try:
+                settings_list = s.input.ams.pop('system')
+            except KeyError:  # The block s.input.ams.system is absent
+                return None
+
+        # Create a new dictionary with system headers as keys and molecules as values
+        moldict = {}
+        for settings_block in settings_list:
+            key = str(settings_block._h) if ('_h' in settings_block) else '' # Empty string used as default system name.
+            if key in moldict:
+                raise KeyError(f"Duplicate system headers found in s.input.ams.system: {repr(key)}")
+            moldict[key] = read_mol(settings_block)
+
+        return moldict
+
+
+    @staticmethod
+    def _slurm_env(settings):
+        """Produce a string with environment variables declaration needed for running AMS on a SLURM managed system.
+
+        If the key ``slurm`` is present in ``settings.run`` and it's ``True`` the returned string is of the form:
+
+        ``export SCM_MPIOPTIONS="-n X -N Y\n"
+
+        ``X`` is taken from ``settings.run.cores`` (if not present, falls back to ``settings.runscript.nproc``).
+        ``Y`` is taken from ``settings.run.nodes``
+        """
+
+        if 'slurm' in settings.run and settings.run.slurm is True:
+            slurmenv = ''
+            if 'cores' in settings.run:
+                slurmenv += f'-n {settings.run.cores} '
+            elif 'nproc' in settings.runscript:
+                slurmenv += f'-n {settings.runscript.nproc} '
+            if 'nodes' in settings.run:
+                slurmenv += f'-N {settings.run.nodes} '
+            if slurmenv:
+                return f'export SCM_MPIOPTIONS="{slurmenv}"\n'
+        return ''
+

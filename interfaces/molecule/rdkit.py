@@ -2,7 +2,7 @@
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
-           'partition_protein', 'readpdb', 'writepdb',]
+           'partition_protein', 'readpdb', 'writepdb', 'get_substructure', 'get_conformations']
 
 """
 @author: Lars Ridder
@@ -28,6 +28,7 @@ except ImportError:
 from ...mol.bond import Bond
 from ...mol.atom import Atom
 from ...mol.molecule import Molecule
+from ...core.functions import add_to_class
 
 
 def from_rdmol(rdkit_mol, confid=-1, properties=True):
@@ -99,7 +100,7 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     return plams_mol
 
 
-def to_rdmol(plams_mol, sanitize=True, properties=True):
+def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
     """
     Translate a PLAMS molecule into an RDKit molecule type.
     PLAMS |Molecule|, |Atom| or |Bond| properties are pickled if they are neither booleans, floats,
@@ -108,6 +109,7 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
     :parameter plams_mol: A PLAMS molecule
     :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization
     :parameter bool properties: If all |Molecule|, |Atom| and |Bond| properties should be converted from PLAMS to RDKit format.
+    :parameter bool assignChirality: Assign R/S and cis/trans information, insofar as this was not yet present in the PLAMS molecule.
     :type plams_mol: |Molecule|
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
@@ -138,11 +140,18 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
                 rd_atom.SetChiralTag(Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW)
         e.AddAtom(rd_atom)
 
+    # Mapping of PLAMS bond orders to RDKit bond types:
+    def plams_to_rd_bonds(bo):
+        if bo > 1.4 and bo < 1.6:
+            return 12 # bond type for aromatic bond
+        else:
+            return int(bo)
+
     # Add bonds to the RDKit molecule
     for bond in plams_mol.bonds:
         a1 = plams_mol.atoms.index(bond.atom1)
         a2 = plams_mol.atoms.index(bond.atom2)
-        e.AddBond(a1, a2, Chem.BondType(bond.order))
+        e.AddBond(a1, a2, Chem.BondType(plams_to_rd_bonds(bond.order)))
     rdmol = e.GetMol()
 
     # Check for cis/trans information
@@ -174,6 +183,13 @@ def to_rdmol(plams_mol, sanitize=True, properties=True):
         xyz = Geometry.Point3D(atom._getx(), atom._gety(), atom._getz())
         conf.SetAtomPosition(i, xyz)
     rdmol.AddConformer(conf)
+    # REB: Assign all stereochemistry, if it wasn't already there
+    if assignChirality :
+        Chem.rdmolops.AssignAtomChiralTagsFromStructure(rdmol,confId=conf.GetId(),replaceExistingTags=False)
+        try :
+            Chem.AssignStereochemistryFrom3D(rdmol,confId=conf.GetId(),replaceExistingTags=False)
+        except AttributeError :
+            pass
     return rdmol
 
 
@@ -293,22 +309,29 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     return get_conformations(molecule, nconfs, name, forcefield, rms)
 
 
-def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
+def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False):
     """
-    Generates 3D conformation(s) for an rdkit_mol
+    Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
-    :parameter rdkit_mol: RDKit molecule
-    :type rdkit_mol: rdkit.Chem.Mol
+    :parameter mol: RDKit or PLAMS Molecule
+    :type mol: rdkit.Chem.Mol or |Molecule|
     :parameter int nconfs: Number of conformers to be generated
     :parameter str name: A name for the molecule
     :parameter str forcefield: Choose 'uff' or 'mmff' forcefield for geometry
-    optimization and ranking of comformations. The default value None results
-    in skipping of the geometry optimization step
+        optimization and ranking of comformations. The default value None results
+        in skipping of the geometry optimization step
     :parameter float rms: Root Mean Square deviation threshold for removing
-    similar/equivalent conformations.
+        similar/equivalent conformations.
+    :parameter bool enforceChirality: Enforce the correct chirality if chiral centers are present
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
+
+    if isinstance(mol, Molecule):
+        rdkit_mol = to_rdmol(mol,assignChirality=enforceChirality)
+    else:
+        rdkit_mol = mol
+
     def MMFFenergy(cid):
         ff = AllChem.MMFFGetMoleculeForceField(
             rdkit_mol, AllChem.MMFFGetMoleculeProperties(rdkit_mol), confId=cid)
@@ -334,15 +357,26 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
 
     if name:
         rdkit_mol.SetProp('name', name)
-    cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, pruneRmsThresh=rms, randomSeed=1))
+
+    try:
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,enforceChirality=enforceChirality))
+    except:
+         # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,useRandomCoords=True,enforceChirality=enforceChirality))
+
     if forcefield:
+        # Select the forcefield (UFF or MMFF)
         optimize_molecule, energy = {
             'uff': [AllChem.UFFOptimizeMolecule, UFFenergy],
             'mmff': [AllChem.MMFFOptimizeMolecule, MMFFenergy],
         }[forcefield]
+
+        # Optimize and sort conformations
         for cid in cids:
             optimize_molecule(rdkit_mol, confId=cid)
         cids.sort(key=energy)
+
+        # Remove duplicate conformations based on RMS
         if rms > 0:
             keep = [cids[0]]
             for cid in cids[1:]:
@@ -360,6 +394,7 @@ def get_conformations(rdkit_mol, nconfs=1, name=None, forcefield=None, rms=-1):
                 else:
                     keep.append(cid)
             cids = keep
+
     if nconfs == 1:
         return from_rdmol(rdkit_mol)
     else:
@@ -592,7 +627,7 @@ def write_molblock(plams_mol, file=sys.stdout):
     file.write(Chem.MolToMolBlock(to_rdmol(plams_mol)))
 
 
-def readpdb(pdb_file, removeHs=False, proximityBonding=True, return_rdmol=False):
+def readpdb(pdb_file, removeHs=False, proximityBonding=False, return_rdmol=False):
     """
     Generate a molecule from a PDB file
 
@@ -649,6 +684,8 @@ def add_Hs(mol, forcefield=None, return_rdmol=False):
                 connected_atom = bond.GetBeginAtom()
             try:
                 ResInfo = connected_atom.GetPDBResidueInfo()
+                if ResInfo is None:
+                    continue  # Segmentation faults are raised if ResInfo is None
                 atom.SetMonomerInfo(ResInfo)
                 atomname = 'H' + atom.GetPDBResidueInfo().GetName()[1:]
                 atom.GetPDBResidueInfo().SetName(atomname)
@@ -868,3 +905,30 @@ def get_substructure(mol, func_list):
     rdmol_func_list = [_to_rdmol(i) for i in func_list]
     gen = (_get_match(mol, rdmol, i) for i in rdmol_func_list)
     return {key: value for key, value in zip(func_list, gen) if value}
+
+@add_to_class(Molecule)
+def assign_chirality (self) :
+    """
+    Assigns stereo-info to PLAMS molecule by invoking RDKIT
+    """
+    rd_mol = to_rdmol(self, assignChirality=True)
+    pl_mol = from_rdmol(rd_mol)
+
+    # Add R/S info to self
+    for iat,pl_atom in enumerate(pl_mol.atoms):
+        # Check for R/S information
+        if pl_atom.properties.stereo:
+            self.atoms[iat].properties.stereo = pl_atom.properties.stereo
+
+    # Add cis/trans information to self
+    for ibond,pl_bond in enumerate(pl_mol.bonds):
+        if pl_bond.properties.stereo:
+            self.bonds[ibond] = pl_bond.properties.stereo
+
+@add_to_class(Molecule)
+def get_chirality (self) :
+    """
+    Returns the chirality of the atoms
+    """
+    rd_mol = to_rdmol(self, assignChirality=True)
+    return Chem.FindMolChiralCenters(rd_mol,force=True,includeUnassigned=True)

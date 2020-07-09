@@ -1,4 +1,8 @@
-__all__ = ['Settings', 'ig']
+import textwrap
+import contextlib
+from functools import wraps
+
+__all__ = ['Settings']
 
 
 class Settings(dict):
@@ -36,10 +40,10 @@ class Settings(dict):
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
         for k,v in self.items():
-            if isinstance(v, dict):
+            if isinstance(v, dict) and not isinstance(v, Settings):
                 self[k] = Settings(v)
             if isinstance(v, list):
-                self[k] = [Settings(i) if isinstance(i, dict) else i for i in v]
+                self[k] = [Settings(i) if (isinstance(i, dict) and not isinstance(i, Settings)) else i for i in v]
 
 
     def copy(self):
@@ -182,31 +186,16 @@ class Settings(dict):
 
     def find_case(self, key):
         """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*.
-
-        When |Settings| are used in case-insensitive contexts, this helps preventing multiple occurences of the same key with different case::
-
-            >>> s = Settings()
-            >>> s.system.key1 = 'value1'
-            >>> s.System.key2 = 'value2'
-            >>> print(s)
-            System:
-                key2:    value2
-            system:
-                key1:    value1
-
-            >>> t = Settings()
-            >>> t.system.key1 = 'value1'
-            >>> t[t.find_case('System')].key2 = 'value2'
-            >>> print(t)
-            system:
-                key1:    value1
-                key2:    value2
-
         """
+        if not isinstance(key, str):
+            return key
         lowkey = key.lower()
         for k in self:
-            if k.lower() == lowkey:
-                return k
+            try:
+                if k.lower() == lowkey:
+                    return k
+            except (AttributeError, TypeError):
+                pass
         return key
 
 
@@ -216,20 +205,185 @@ class Settings(dict):
         """
         d = {}
         for k, v in self.items():
-            if not isinstance(v, Settings):
-                d[k] = v
-            else:
+            if isinstance(v, Settings):
                 d[k] = v.as_dict()
+            elif isinstance(v, list):
+                d[k] = [i.as_dict() if isinstance(i, Settings) else i for i in v]
+            else:
+                d[k] = v
 
         return d
+
+
+    @classmethod
+    def suppress_missing(cls):
+        """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method: all calls now raising a :exc:`KeyError`.
+
+        As a results, attempting to access keys absent from an arbitrary |Settings| instance will raise a :exc:`KeyError`, thus reverting to the default dictionary behaviour.
+
+        .. note::
+            The :meth:`.Settings.__missing__` method is (temporary) suppressed at the class level to ensure consistent invocation by the Python interpreter.
+            See also `special method lookup`_.
+
+        Example:
+
+        .. code:: python
+
+            >>> s = Settings()
+
+            >>> with s.suppress_missing():
+            ...     s.a.b.c = True
+            KeyError: 'a'
+
+            >>> s.a.b.c = True
+            >>> print(s.a.b.c)
+            True
+
+        .. _`special method lookup`: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
+
+        """
+        return SuppressMissing(cls)
+
+
+    def get_nested(self, key_tuple, suppress_missing=False):
+        """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
+
+        The :meth:`.Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
+
+        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = s.get_nested(('a', 'b', 'c'))
+            >>> print(value)
+            True
+        """
+        s = self
+        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
+            for k in key_tuple:
+                s = s[k]
+        return s
+
+
+
+    def set_nested(self, key_tuple, value, suppress_missing=False):
+        """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
+
+        The :meth:`.Settings.__getitem__` method is called recursively on this instance, followed by :meth:`.Settings.__setitem__`, until all keys in key_tuple are exhausted.
+
+
+        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.set_nested(('a', 'b', 'c'), True)
+            >>> print(s)
+            a:
+              b:
+                c: 	True
+        """
+        s = self
+        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
+            for k in key_tuple[:-1]:
+                s = s[k]
+        s[key_tuple[-1]] = value
+
+
+
+    def flatten(self, flatten_list=True):
+        """Return a flattened copy of this instance.
+
+        New keys are constructed by concatenating the (nested) keys of this instance into tuples.
+
+        Opposite of the :meth:`.Settings.unflatten` method.
+
+        If *flatten_list* is ``True``, all nested lists will be flattened as well. Dictionary keys are replaced with list indices in such case.
+
+        .. code-block:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> print(s)
+            a:
+              b:
+                c: 	True
+
+            >>> s_flat = s.flatten()
+            >>> print(s_flat)
+            ('a', 'b', 'c'): 	True
+        """
+        if flatten_list:
+            nested_type = (Settings, list)
+            iter_type = lambda x: x.items() if isinstance(x, Settings) else enumerate(x)
+        else:
+            nested_type = Settings
+            iter_type = Settings.items
+
+        def _concatenate(key_ret, sequence):
+            # Switch from Settings.items() to enumerate() if a list is encountered
+            for k, v in iter_type(sequence):
+                k = key_ret + (k, )
+                if isinstance(v, nested_type) and v:  # Empty lists or Settings instances will return ``False``
+                    _concatenate(k, v)
+                else:
+                    ret[k] = v
+
+        # Changes keys into tuples
+        ret = Settings()
+        _concatenate((), self)
+        return ret
+
+
+
+    def unflatten(self, unflatten_list=True):
+        """Return a nested copy of this instance.
+
+        New keys are constructed by expanding the keys of this instance (*e.g.* tuples) into new nested |Settings| instances.
+
+        If *unflatten_list* is ``True``, integers will be interpretted as list indices and are used for creating nested lists.
+
+        Opposite of the :meth:`.Settings.flatten` method.
+
+        .. code-block:: python
+
+            >>> s = Settings()
+            >>> s[('a', 'b', 'c')] = True
+            >>> print(s)
+            ('a', 'b', 'c'): 	True
+
+            >>> s_nested = s.unflatten()
+            >>> print(s_nested)
+            a:
+              b:
+                c: 	True
+        """
+        ret = Settings()
+        for key, value in self.items():
+            s = ret
+            for k1, k2 in zip(key[:-1], key[1:]):
+                if not unflatten_list:
+                    s = s[k1]
+                    continue
+
+                if isinstance(k2, int) and not isinstance(s[k1], list):
+                    s[k1] = []
+                if isinstance(k1, int):  # Apply padding to s
+                    s += [Settings()] * (k1 - len(s) + 1)
+                s = s[k1]
+            s[key[-1]] = value
+
+        return ret
 
 
     #=======================================================================
 
 
     def __iter__(self):
-        """Iteration through keys follows lexicographical order."""
-        return iter(sorted(self.keys()))
+        """Iteration through keys follows lexicographical order. All keys are sorted as if they were strings."""
+        return iter(sorted(self.keys(), key=str))
 
 
     def __missing__(self, name):
@@ -241,45 +395,39 @@ class Settings(dict):
             >>> s.a.b.c = 12
 
         will not work.
+
+        The behaviour of this method can be suppressed by initializing the :class:`.Settings.suppress_missing` context manager.
         """
         self[name] = Settings()
         return self[name]
 
 
     def __contains__(self, name):
-        """Like regular ``__contains`__``, but if the key is an "ig" string, ignore the case."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        return dict.__contains__(self, name)
+        """Like regular ``__contains`__``, but ignore the case."""
+        return dict.__contains__(self, self.find_case(name))
 
 
     def __getitem__(self, name):
-        """Like regular ``__getitem__``, but if the key is an "ig" string, ignore the case."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        return dict.__getitem__(self, name)
+        """Like regular ``__getitem__``, but ignore the case."""
+        return dict.__getitem__(self, self.find_case(name))
 
 
     def __setitem__(self, name, value):
-        """Like regular ``__setitem__``, but if the value is a dict, convert it to |Settings|."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        if isinstance(value, dict):
+        """Like regular ``__setitem__``, but ignore the case and if the value is a dict, convert it to |Settings|."""
+        if isinstance(value, dict) and not isinstance(value, Settings):
             value = Settings(value)
-        dict.__setitem__(self, name, value)
+        dict.__setitem__(self, self.find_case(name), value)
 
 
     def __delitem__(self, name):
-        """Like regular ``__detitem__``, but if the key is an "ig" string, ignore the case."""
-        if isinstance(name, ig):
-            name = self.find_case(name)
-        return dict.__delitem__(self, name)
+        """Like regular ``__detitem__``, but ignore the case."""
+        return dict.__delitem__(self, self.find_case(name))
 
 
     def __getattr__(self, name):
         """If name is not a magic method, redirect it to ``__getitem__``."""
         if (name.startswith('__') and name.endswith('__')):
-            return dict.__getattr__(self, name)
+            return dict.__getattribute__(self, name)
         return self[name]
 
 
@@ -287,27 +435,32 @@ class Settings(dict):
         """If name is not a magic method, redirect it to ``__setitem__``."""
         if name.startswith('__') and name.endswith('__'):
             dict.__setattr__(self, name, value)
-        self[name] = value
+        else:
+            self[name] = value
 
 
     def __delattr__(self, name):
         """If name is not a magic method, redirect it to ``__delitem__``."""
         if name.startswith('__') and name.endswith('__'):
             dict.__delattr__(self, name)
-        del self[name]
+        else:
+            del self[name]
 
 
     def _str(self, indent):
         """Print contents with *indent* spaces of indentation. Recursively used for printing nested |Settings| instances with proper indentation."""
         ret = ''
-        for name in self:
-            value = self[name]
-            ret += ' '*indent + str(name) + ': \t'
+        for key, value in self.items():
+            ret += ' '*indent + str(key) + ': \t'
             if isinstance(value, Settings):
-                ret += '\n' + value._str(indent+len(str(name))+1)
-            else:
-                ret += str(value) + '\n'
-        return ret
+                if len(value) == 0:
+                    ret += '<empty Settings>\n'
+                else:
+                    ret += '\n' + value._str(indent+len(str(key))+1)
+            else:  # Apply consistent indentation at every '\n' character
+                indent_str = ' ' * (2 + indent + len(str(key))) + '\t'
+                ret += textwrap.indent(str(value), indent_str)[len(indent_str):] + '\n'
+        return ret if ret else '<empty Settings>'
 
 
     def __str__(self):
@@ -319,9 +472,22 @@ class Settings(dict):
     __copy__ = copy
 
 
+class SuppressMissing(contextlib.AbstractContextManager):
+    """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method. See :meth:`Settings.suppress_missing` for more details."""
+    def __init__(self, obj: type):
+        """Initialize the :class:`SuppressMissing` context manager."""
+        # Ensure that obj is a class, not a class instance
+        self.obj = obj if isinstance(obj, type) else type(obj)
+        self.missing = obj.__missing__
 
-class ig(str):
-    """Special string that makes |Settings| work case-insensitive. Behaves exactly like the built-in `str` type. Usage: ``s = ig('abcdef')``."""
-    pass
+    def __enter__(self):
+        """Enter the :class:`SuppressMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
+        @wraps(self.missing)
+        def __missing__(self, name): raise KeyError(name)
 
+        # The __missing__ method is replaced for as long as the context manager is open
+        setattr(self.obj, '__missing__', __missing__)
 
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit the :class:`SuppressMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
+        setattr(self.obj, '__missing__', self.missing)

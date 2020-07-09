@@ -4,6 +4,7 @@ import itertools
 import math
 import numpy as np
 import os
+from collections import OrderedDict
 
 from .atom import Atom
 from .bond import Bond
@@ -11,11 +12,12 @@ from .pdbtools import PDBHandler, PDBRecord
 
 from ..core.errors import MoleculeError, PTError, FileError
 from ..core.functions import log
-from ..core.private import smart_copy
+from ..core.private import smart_copy, parse_action
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
 from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array
 from ..tools.units import Units
+from ..tools.kftools import KFFile
 
 __all__ = ['Molecule']
 
@@ -129,20 +131,18 @@ class Molecule:
 
         ret = smart_copy(self, owncopy=['properties'], without=['atoms','bonds'])
 
+        bro = {} # mapping of original to copied atoms
         for at in atoms:
             at_copy = smart_copy(at, owncopy=['properties'], without=['mol','bonds'])
             ret.add_atom(at_copy)
-            at._bro = at_copy
+            bro[at] = at_copy
 
         for bo in self.bonds:
-            if hasattr(bo.atom1, '_bro') and hasattr(bo.atom2, '_bro'):
+            if (bo.atom1 in bro) and (bo.atom2 in bro):
                 bo_copy = smart_copy(bo, owncopy=['properties'], without=['atom1', 'atom2', 'mol'])
-                bo_copy.atom1 = bo.atom1._bro
-                bo_copy.atom2 = bo.atom2._bro
+                bo_copy.atom1 = bro[bo.atom1]
+                bo_copy.atom2 = bro[bo.atom2]
                 ret.add_bond(bo_copy)
-
-        for at in atoms:
-            del at._bro
 
         return ret
 
@@ -186,10 +186,10 @@ class Molecule:
         atom.mol = self
         if adjacent is not None:
             for adj in adjacent:
-                if isinstance(adj, tuple):
-                    self.add_bond(atom, adj[0], adj[1])
-                else:
+                if isinstance(adj, Atom):
                     self.add_bond(atom, adj)
+                else:
+                    self.add_bond(atom, *adj)
 
 
     def delete_atom(self, atom):
@@ -287,10 +287,13 @@ class Molecule:
         return None
 
 
-    def set_atoms_id(self):
-        """Equip each atom of the molecule with the ``id`` attribute equal to its position within ``atoms`` list (numbering starts with 1)."""
-        for i,at in enumerate(self.atoms):
-            at.id = i+1
+    def set_atoms_id(self, start=1):
+        """Equip each atom of the molecule with the ``id`` attribute equal to its position within ``atoms`` list.
+
+        The starting value of the numbering can be set with *start* (starts at 1 by default).
+        """
+        for i,at in enumerate(self.atoms, start):
+            at.id = i
 
 
     def unset_atoms_id(self):
@@ -315,10 +318,10 @@ class Molecule:
     def bond_matrix(self):
         """Return a square numpy array with bond orders. The size of the array is equal to the number of atoms."""
         ret = np.zeros((len(self), len(self)))
-        self.set_atoms_id()
+        self.set_atoms_id(start=0)
         for b in self.bonds:
-            i,j = b.atom1.id-1, b.atom2.id-1
-            ret[i][j] = ret[j][i] = b.order
+            i,j = b.atom1.id, b.atom2.id
+            ret[i, j] = ret[j, i] = b.order
         self.unset_atoms_id()
         return ret
 
@@ -387,6 +390,7 @@ class Molecule:
                 m = Molecule()
                 dfs(src, m)
                 frags.append(m)
+                frags[-1].lattice = self.lattice
 
         for at in clone.atoms:
             del at._visited
@@ -397,7 +401,7 @@ class Molecule:
         return frags
 
 
-    def guess_bonds(self):
+    def guess_bonds(self, atom_subset=None, dmax=1.28):
         """Try to guess bonds in the molecule based on types and positions of atoms.
 
         All previously existing bonds are removed. New bonds are generated based on interatomic distances and information about maximal number of bonds for each atom type (``connectors`` property, taken from |PeriodicTable|).
@@ -406,12 +410,17 @@ class Molecule:
 
         The algorithm used scales as *n log n* where *n* is the number of atoms.
 
+        The *atom_subset* argument can be used to limit the bond guessing to a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
+
+        The *dmax* argument gives the maximum value for ratio of the bond length to the sum of atomic radii for the two atoms in the bond.
+
+        The bond order for any bond to a metal atom will be set to 1.
+
         .. warning::
 
             This method works reliably only for geometries representing complete molecules. If some atoms are missing (for example, a protein without hydrogens) the resulting set of bonds would usually contain more bonds or bonds with higher order than expected.
 
         """
-
         class HeapElement:
             def __init__(self, order, ratio, atom1, atom2):
                 eff_ord = order
@@ -433,96 +442,167 @@ class Molecule:
             def __gt__(self, other): return self.data > other.data
             def __ge__(self, other): return self.data >= other.data
 
-        self.delete_all_bonds()
+        def get_neighbors(atom_list, dmax):
+            """ adds attributes ._id, .free, and .cube to asll atoms in atom_list"""
+            cubesize = dmax*2.1*max([at.radius for at in atom_list])
 
-        dmax = 1.28
+            cubes = {}
+            for i,at in enumerate(atom_list, 1):
+                at._id = i
+                at.free = at.connectors
+                at.cube = tuple(map(lambda x: int(math.floor(x/cubesize)), at.coords))
+                if at.cube in cubes:
+                    cubes[at.cube].append(at)
+                else:
+                    cubes[at.cube] = [at]
 
-        cubesize = dmax*2.1*max([at.radius for at in self.atoms])
+            neighbors = {}
+            for cube in cubes:
+                neighbors[cube] = []
+                for i in range(cube[0]-1, cube[0]+2):
+                    for j in range(cube[1]-1, cube[1]+2):
+                        for k in range(cube[2]-1, cube[2]+2):
+                            if (i,j,k) in cubes:
+                                neighbors[cube] += cubes[(i,j,k)]
 
-        cubes = {}
-        for i,at in enumerate(self.atoms):
-            at._id = i+1
-            at.free = at.connectors
-            at.cube = tuple(map(lambda x: int(math.floor(x/cubesize)), at.coords))
-            if at.cube in cubes:
-                cubes[at.cube].append(at)
-            else:
-                cubes[at.cube] = [at]
+            return neighbors
 
-        neighbors = {}
-        for cube in cubes:
-            neighbors[cube] = []
-            for i in range(cube[0]-1, cube[0]+2):
-                for j in range(cube[1]-1, cube[1]+2):
-                    for k in range(cube[2]-1, cube[2]+2):
-                        if (i,j,k) in cubes:
-                            neighbors[cube] += cubes[(i,j,k)]
+        def find_and_add_bonds(atom_list, neighbors, dmax, from_atoms_subset=None, to_atoms_subset=None, ignore_free=False):
+            if from_atoms_subset is None:
+                from_atoms_subset = atom_list
+            elif not all([x in atom_list for x in from_atoms_subset]):
+                raise ValueError('from_atoms_subset must be a subset of atoms_subset')
+            if to_atoms_subset is None:
+                to_atoms_subset = atom_list
+            elif not all([x in atom_list for x in to_atoms_subset]):
+                raise ValueError('to_atoms_subset must be a subset of atoms_subset')
 
-        heap = []
-        for at1 in self.atoms:
-            if at1.free > 0:
-                for at2 in neighbors[at1.cube]:
-                    if (at2.free > 0) and (at1._id < at2._id):
-                        ratio = at1.distance_to(at2)/(at1.radius+at2.radius)
+            heap = []
+            for at1 in from_atoms_subset:
+                if at1.free > 0 or ignore_free:
+                    for at2 in neighbors[at1.cube]:
+                        if not at2 in to_atoms_subset:
+                            continue
+                        if ignore_free:
+                            if at2 in from_atoms_subset:
+                                if at2._id <= at1._id:
+                                    continue
+                        else:
+                            if at2.free <= 0 or at2._id <= at1._id:
+                                continue
+                        # the bond guessing is more accurate with smaller metallic radii
+                        ratio = at1.distance_to(at2) / (at1.radius * (1 - 0.1 * at1.is_metallic) + at2.radius * (1 - 0.1 * at2.is_metallic))
                         if (ratio < dmax):
-                            heap.append(HeapElement(0, ratio, at1, at2))
-                            #I hate to do this, but I guess there's no other way :/ [MH]
-                            if (at1.atnum == 16 and at2.atnum == 8):
-                                at1.free = 6
-                            elif (at2.atnum == 16 and at1.atnum == 8):
-                                at2.free = 6
-                            elif (at1.atnum == 7):
-                                at1.free += 1
-                            elif (at2.atnum == 7):
-                                at2.free += 1
-        heapq.heapify(heap)
+                            if ignore_free:
+                                self.add_bond(at1, at2, 1)
+                            else:
+                                heap.append(HeapElement(0, ratio, at1, at2))
+                                # I hate to do this, but I guess there's no other way :/ [MiHa]
+                                if (at1.atnum == 16 and at2.atnum == 8):
+                                    at1.free = 6
+                                elif (at2.atnum == 16 and at1.atnum == 8):
+                                    at2.free = 6
+                                elif (at1.atnum == 7):
+                                    at1.free += 1
+                                elif (at2.atnum == 7):
+                                    at2.free += 1
+            if not ignore_free:
+                heapq.heapify(heap)
 
-        for at in self.atoms:
-            if at.atnum == 7:
-                if at.free > 6:
-                    at.free = 4
-                else:
-                    at.free = 3
+                for at in atom_list:
+                    if at.atnum == 7:
+                        if at.free > 6:
+                            at.free = 4
+                        else:
+                            at.free = 3
 
-        while heap:
-            val, o, r, at1, at2 = heapq.heappop(heap).unpack()
-            step = 1 if o in [0,2] else 0.5
-            if at1.free >= step and at2.free >= step:
-                o += step
-                at1.free -= step
-                at2.free -= step
-                if o < 3:
-                    heapq.heappush(heap, HeapElement(o,r,at1,at2))
-                else:
-                    self.add_bond(at1,at2,o)
-            elif o > 0:
-                if o == 1.5:
-                    o = Bond.AR
-                self.add_bond(at1,at2,o)
+                while heap:
+                    val, o, r, at1, at2 = heapq.heappop(heap).unpack()
+                    step = 1 if o in [0, 2] else 0.5
+                    if at1.free >= step and at2.free >= step:
+                        o += step
+                        at1.free -= step
+                        at2.free -= step
+                        if o < 3:
+                            heapq.heappush(heap, HeapElement(o, r, at1, at2))
+                        else:
+                            self.add_bond(at1, at2, o)
+                    elif o > 0:
+                        if o == 1.5:
+                            o = Bond.AR
+                        self.add_bond(at1, at2, o)
 
-        def dfs(atom, par):
-            atom.arom += 1000
-            for b in atom.bonds:
-                oe = b.other_end(atom)
-                if b.is_aromatic() and oe.arom < 1000:
-                    if oe.arom > 2:
-                        return False
-                    if par and oe.arom == 1:
-                        b.order = 2
-                        return True
-                    if dfs(oe, 1-par):
-                        b.order = 1 + par
-                        return True
+                def dfs(atom, par):
+                    atom.arom += 1000
+                    for b in atom.bonds:
+                        oe = b.other_end(atom)
+                        if b.is_aromatic() and oe.arom < 1000:
+                            if oe.arom > 2:
+                                return False
+                            if par and oe.arom == 1:
+                                b.order = 2
+                                return True
+                            if dfs(oe, 1 - par):
+                                b.order = 1 + par
+                                return True
 
-        for at in self.atoms:
-            at.arom = len(list(filter(Bond.is_aromatic, at.bonds)))
+                for at in atom_list:
+                    at.arom = len(list(filter(Bond.is_aromatic, at.bonds)))
 
-        for at in self.atoms:
-            if at.arom == 1:
-                dfs(at, 1)
+                for at in atom_list:
+                    if at.arom == 1:
+                        dfs(at, 1)
 
-        for at in self.atoms:
-            del at.cube,at.free,at._id,at.arom
+        def cleanup_atom_list(atom_list):
+            for at in atom_list:
+                del at.cube,at.free,at._id
+                if hasattr(at, 'arom'):
+                    del at.arom
+                if hasattr(at, '_metalbondcounter'):
+                    del at._metalbondcounter
+                if hasattr(at, '_electronegativebondcounter'):
+                    del at._electronegativebondcounter
+
+        self.delete_all_bonds()
+        atom_list = atom_subset or self.atoms
+
+        neighbors = get_neighbors(atom_list, dmax)
+
+        nonmetallic = [x for x in atom_list if not x.is_metallic]
+        metallic = [x for x in atom_list if x.is_metallic]
+        hydrogens = [x for x in atom_list if x.atnum == 1]
+        potentially_ignore_metal_bonds = [x for x in atom_list if x.symbol in ['C','N','S','P','As']]
+
+        # first guess bonds for non-metals. This also captures bond orders.
+        find_and_add_bonds(nonmetallic, neighbors, dmax=dmax)
+
+        # add stray hydrogens
+        stray_hydrogens = [x for x in hydrogens if len(x.bonds) == 0]
+        find_and_add_bonds(nonmetallic, neighbors, from_atoms_subset=stray_hydrogens, to_atoms_subset=nonmetallic, ignore_free=True, dmax=dmax)
+
+        # for obvious anions like carbonate, nitrate, sulfate, phosphate, and arsenate, do not allow metal atoms to bond to the central atom
+        new_atom_list = []
+        for at in atom_list:
+            if at in potentially_ignore_metal_bonds:
+                if len([x for x in at.bonds if x.other_end(at).is_electronegative]) >= 3:
+                    continue
+            new_atom_list.append(at)
+        find_and_add_bonds(atom_list, neighbors, from_atoms_subset=metallic, to_atoms_subset=new_atom_list, ignore_free=True, dmax=dmax)
+
+        # delete metal-metal bonds and metal-hydrogen bonds if the metal is bonded to enough electronegative atoms and not enough metal atoms
+        # (this means that the metal is a cation, so bonds should almost never be drawn unless it's a dimetal complex or a hydride/H2 ligand, but that should be rare)
+        for at in metallic:
+            at._metalbondcounter = len([x for x in at.bonds if x.other_end(at).is_metallic])
+            at._electronegativebondcounter = len([x for x in at.bonds if x.other_end(at).is_electronegative])
+            if at._electronegativebondcounter >= 3 or \
+                    (at._electronegativebondcounter >= 2 and at._metalbondcounter <= 2) or \
+                    (at._electronegativebondcounter >= 1 and at._metalbondcounter <= 0):
+                bonds_to_delete = [b for b in at.bonds if b.other_end(at).is_metallic or b.other_end(at).atnum == 1]
+                for b in bonds_to_delete:
+                    self.delete_bond(b)
+
+
+        cleanup_atom_list(atom_list)
 
 
     def in_ring(self, arg):
@@ -560,33 +640,138 @@ class Molecule:
     def supercell(self, *args):
         """Return a new |Molecule| instance representing a supercell build by replicating this |Molecule| along its lattice vectors.
 
-        The number of arguments supplied to this method should be equal the number of lattice vectors this molecule has. Each argument should be a positive integer.
+        One should provide in input an integer matrix :math:`T_{i,j}` representing the supercell transformation (:math:`\\vec{a}_i' = \sum_j T_{i,j}\\vec{a}_j`). The size of the matrix should match the number of lattice vectors, i.e. 3x3 for 3D periodic systems, 2x2 for 2D periodic systems and one number for 1D periodic systems. The matrix can be provided in input as either a nested list or as a numpy matrix.
 
-        The returned |Molecule| is fully distinct from the current one, in a sense that it contains a different set of |Atom| and |Bond| instances. However, each atom of the returned |Molecule| carries an additional information about its origin within the supercell. If ``atom`` is an |Atom| instance in the supercell, ``atom.properties.supercell.origin`` points to the |Atom| instance of the original molecule that was copied to create ``atom``, while ``atom.properties.supercell.index`` stores the tuple (with lentgh equal to the number of lattice vectors) with cell index. For example, ``atom.properties.supercell.index == (2,1,0)`` means that ``atom`` is a copy of ``atom.properties.supercell.origin`` that was translated twice along the first lattice vector, once along the second vector, and not translated along the thid vector. Values in cell indices are always non-negative (translation always occurs in the positive direction of lattice vectors).
+        For a diagonal supercell expansion (i.e. :math:`T_{i \\neq j}=0`) one can provide in input n positive integers instead of a matrix, where n is number of lattice vectors in the molecule. e.g. This ``mol.supercell([[2,0],[0,2]])`` is equivalent to ``mol.supercell(2,2)``.
+
+        The returned |Molecule| is fully distinct from the current one, in a sense that it contains a different set of |Atom| and |Bond| instances. However, each atom of the returned |Molecule| carries an additional information about its origin within the supercell. If ``atom`` is an |Atom| instance in the supercell, ``atom.properties.supercell.origin`` points to the |Atom| instance of the original molecule that was copied to create ``atom``, while ``atom.properties.supercell.index`` stores the tuple (with length equal to the number of lattice vectors) with cell index. For example, ``atom.properties.supercell.index == (2,1,0)`` means that ``atom`` is a copy of ``atom.properties.supercell.origin`` that was translated twice along the first lattice vector, once along the second vector, and not translated along the third vector.
+    
+        Example usage:
+ 
+        .. code-block:: python
+            
+            >>> graphene = Molecule('graphene.xyz')
+            >>> print(graphene)
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.230000      0.710000      0.000000 
+              Lattice:
+                    2.4600000000     0.0000000000     0.0000000000
+                    1.2300000000     2.1304224933     0.0000000000
+            
+            >>> graphene_supercell = graphene.supercell(2,2) # diagonal supercell expansion
+            >>> print(graphene_supercell)
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.230000      0.710000      0.000000 
+                3         C      1.230000      2.130422      0.000000 
+                4         C      2.460000      2.840422      0.000000 
+                5         C      2.460000      0.000000      0.000000 
+                6         C      3.690000      0.710000      0.000000 
+                7         C      3.690000      2.130422      0.000000 
+                8         C      4.920000      2.840422      0.000000 
+              Lattice:
+                    4.9200000000     0.0000000000     0.0000000000
+                    2.4600000000     4.2608449866     0.0000000000
+            
+            >>> diamond = Molecule('diamond.xyz')
+            >>> print(diamond)
+              Atoms: 
+                1         C     -0.446100     -0.446200     -0.446300 
+                2         C      0.446400      0.446500      0.446600 
+              Lattice:
+                    0.0000000000     1.7850000000     1.7850000000
+                    1.7850000000     0.0000000000     1.7850000000
+                    1.7850000000     1.7850000000     0.0000000000
+            
+            >>> diamond_supercell = diamond.supercell([[-1,1,1],[1,-1,1],[1,1,-1]])
+            >>> print(diamond_supercell)
+              Atoms: 
+                1         C     -0.446100     -0.446200     -0.446300 
+                2         C      0.446400      0.446500      0.446600 
+                3         C      1.338900      1.338800     -0.446300 
+                4         C      2.231400      2.231500      0.446600 
+                5         C      1.338900     -0.446200      1.338700 
+                6         C      2.231400      0.446500      2.231600 
+                7         C     -0.446100      1.338800      1.338700 
+                8         C      0.446400      2.231500      2.231600 
+              Lattice:
+                    3.5700000000     0.0000000000     0.0000000000
+                    0.0000000000     3.5700000000     0.0000000000
+                    0.0000000000     0.0000000000     3.5700000000
         """
 
-        if len(args) != len(self.lattice):
-            raise MoleculeError('supercell: The lattice has {} vectors, but {} arguments were given'. format(len(self.lattice), len(args)))
+        def diagonal_supercell(*args):
+            supercell_lattice = [tuple(n*np.array(vec)) for n, vec in zip(args, self.lattice)]
+            cell_translations = [t for t in itertools.product(*[range(arg) for arg in args])]
+            return supercell_lattice, cell_translations
 
-        if not all(isinstance(arg, int) and arg > 0 for arg in args):
-            raise MoleculeError('supercell: arguments should be positive integers')
 
-        lattice = [np.array(v) for v in self.lattice]
+        def general_supercell(S):
+            determinant = int(round(np.linalg.det(S)))
+            if determinant < 1:
+                raise MoleculeError(f'supercell: The determinant of the supercell transformation should be one or larger. Determinant: {determinant}.')
+
+            supercell_lattice = [tuple(vec) for vec in S@np.array(self.lattice)]
+
+            max_supercell_index = np.max(abs(S))
+            all_possible_translations = itertools.product(range(-max_supercell_index,max_supercell_index+1), repeat=len(self.lattice))
+            S_inv = np.linalg.inv(S)
+
+            tol = 1E-10
+            cell_translations = []
+            for index in all_possible_translations:
+                fractional_coord = np.dot(index,S_inv)
+                if all(fractional_coord > -tol) and all(fractional_coord < 1.0-tol):
+                    cell_translations.append(index)
+
+            if len(cell_translations) != determinant:
+                raise MoleculeError(f'supercell: Failed to find the appropriate supercell translations. We expected to find {determinant} cells, but we found {len(cell_translations)}')
+
+            return supercell_lattice, cell_translations
+
+
+        if len(args)==0:
+            raise MoleculeError('supercell: This function needs input arguments...')
+
+        if all(isinstance(arg, int) for arg in args):
+            # diagonal supercell expansion
+            if len(args) != len(self.lattice):
+                raise MoleculeError('supercell: The lattice has {} vectors, but {} arguments were given'. format(len(self.lattice), len(args)))
+            supercell_lattice, cell_translations = diagonal_supercell(*args)
+
+        elif len(args)==1 and hasattr(args[0],'__len__'):
+            # general_supercell
+            try:
+                S = np.array(args[0], dtype=int)
+                assert S.shape == (len(self.lattice),len(self.lattice))
+            except:
+                n = len(self.lattice)
+                raise MoleculeError(f'supercell: For {n}D system the supercell method expects a {n}x{n} integer matrix (provided as a nested list or as numpy array) or {n} integers.')
+
+            supercell_lattice, cell_translations = general_supercell(S)
+
+        else:
+            raise MoleculeError(f'supercell: invalid input {args}.')
 
         tmp = self.copy()
         for parent, son in zip(self, tmp):
             son.properties.supercell.origin = parent
 
         ret = Molecule()
-        for index in itertools.product(*[range(arg) for arg in args]):
+        for index in cell_translations:
             newmol = tmp.copy()
             for atom in newmol:
                 atom.properties.supercell.index = index
-            newmol.translate(sum(i*v for i,v in zip(index, lattice)))
+            newmol.translate(sum(i*np.array(vec) for i,vec in zip(index, self.lattice)))
             ret += newmol
 
-        ret.lattice = [tuple(n*vec) for n, vec in zip(args, lattice)]
+        ret.lattice = supercell_lattice
         return ret
+
+
+
+
 
 
     def unit_cell_volume(self, unit='angstrom'):
@@ -597,6 +782,247 @@ class Molecule:
         if len(self.lattice) != 3:
             raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
         return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
+
+
+    def set_integer_bonds(self, action = 'warn', tolerance = 10**-4):
+        """Convert non-integer bond orders into integers.
+
+        For example, bond orders of aromatic systems are no longer set to the non-integer
+        value of ``1.5``, instead adopting bond orders of ``1`` and ``2``.
+
+        The implemented function walks a set of graphs constructed from all non-integer bonds,
+        converting the orders of aforementioned bonds to integers by alternating calls to
+        :func:`math.ceil` and :func:`math.floor`.
+        The implication herein is that both :math:`i` and :math:`i+1` are considered valid
+        (integer) values for any bond order within the :math:`(i, i+1)` interval.
+        Floats which can be represented exactly as an integer, *e.g.* :math:`1.0`,
+        are herein treated as integers.
+
+        Can be used for sanitizaing any Molecules passed to the
+        :mod:`rdkit<scm.plams.interfaces.molecule.rdkit>` module,
+        as its functions are generally unable to handle Molecules with non-integer bond orders.
+
+        By default this function will issue a warning if the total (summed) bond orders
+        before and after are not equal to each other within a given *tolerance*.
+        Accepted values are for *action* are ``"ignore"``, ``"warn"`` and ``"raise"``,
+        which respectivelly ignore such cases, issue a warning or raise a :exc:`MoleculeError`.
+
+        .. code-block:: python
+
+            >>> from scm.plams import Molecule
+
+            >>> benzene = Molecule(...)
+            >>> print(benzene)
+              Atoms:
+                1         C      1.193860     -0.689276      0.000000
+                2         C      1.193860      0.689276      0.000000
+                3         C      0.000000      1.378551      0.000000
+                4         C     -1.193860      0.689276      0.000000
+                5         C     -1.193860     -0.689276      0.000000
+                6         C     -0.000000     -1.378551      0.000000
+                7         H      2.132911     -1.231437     -0.000000
+                8         H      2.132911      1.231437     -0.000000
+                9         H      0.000000      2.462874     -0.000000
+               10         H     -2.132911      1.231437     -0.000000
+               11         H     -2.132911     -1.231437     -0.000000
+               12         H     -0.000000     -2.462874     -0.000000
+              Bonds:
+               (3)--1.5--(4)
+               (5)--1.5--(6)
+               (1)--1.5--(6)
+               (2)--1.5--(3)
+               (4)--1.5--(5)
+               (1)--1.5--(2)
+               (3)--1.0--(9)
+               (6)--1.0--(12)
+               (5)--1.0--(11)
+               (4)--1.0--(10)
+               (2)--1.0--(8)
+               (1)--1.0--(7)
+
+            >>> benzene.set_integer_bonds()
+            >>> print(benzene)
+              Atoms:
+                1         C      1.193860     -0.689276      0.000000
+                2         C      1.193860      0.689276      0.000000
+                3         C      0.000000      1.378551      0.000000
+                4         C     -1.193860      0.689276      0.000000
+                5         C     -1.193860     -0.689276      0.000000
+                6         C     -0.000000     -1.378551      0.000000
+                7         H      2.132911     -1.231437     -0.000000
+                8         H      2.132911      1.231437     -0.000000
+                9         H      0.000000      2.462874     -0.000000
+               10         H     -2.132911      1.231437     -0.000000
+               11         H     -2.132911     -1.231437     -0.000000
+               12         H     -0.000000     -2.462874     -0.000000
+              Bonds:
+               (3)--1.0--(4)
+               (5)--1.0--(6)
+               (1)--2.0--(6)
+               (2)--2.0--(3)
+               (4)--2.0--(5)
+               (1)--1.0--(2)
+               (3)--1.0--(9)
+               (6)--1.0--(12)
+               (5)--1.0--(11)
+               (4)--1.0--(10)
+               (2)--1.0--(8)
+               (1)--1.0--(7)
+
+        """
+        # Ignore, raise or warn
+        action_func = parse_action(action)
+
+        ceil = math.ceil
+        floor = math.floor
+        func_invert = {ceil: floor, floor: ceil}
+
+        def dfs(atom, func) -> None:
+            """Depth-first search algorithm for integer-ifying the bond orders."""
+            for b2 in atom.bonds:
+                if b2._visited:
+                    continue
+
+                b2._visited = True
+                b2.order = func(b2.order)  # func = ``math.ceil()`` or ``math.floor()``
+                del bond_dict[b2]
+
+                atom_new = b2.other_end(atom)
+                dfs(atom_new, func=func_invert[func])
+
+        def collect_and_mark_bonds(self):
+            order_before = []
+            order_before_append = order_before.append
+
+            # Mark all non-integer bonds; floats which can be represented exactly
+            # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
+            bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
+            for bond in self.bonds:
+                order = bond.order
+                order_before_append(order)
+                if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():  # Checking for ``is_integer()`` catches both float and np.float
+                    bond._visited = False
+                    bond_dict[bond] = None
+                else:
+                    bond._visited = True
+            return bond_dict, order_before
+
+        bond_dict, order_before = collect_and_mark_bonds(self)
+
+        while bond_dict:
+            b1, _ = bond_dict.popitem()
+            order = b1.order
+
+            # Start with either ``math.ceil()`` if the ceiling is closer than the floor;
+            # start with ``math.floor()`` otherwise
+            delta_ceil, delta_floor = ceil(order) - order, floor(order) - order
+            func = ceil if abs(delta_ceil) < abs(delta_floor) else floor
+
+            b1.order = func(order)
+            b1._visited = True
+            dfs(b1.atom1, func=func_invert[func])
+            dfs(b1.atom2, func=func_invert[func])
+
+        # Remove the Bond._visited attribute
+        order_after_sum = 0.0
+        for bond in self.bonds:
+            order_after_sum += bond.order
+            del bond._visited
+
+        # Check that the total (summed) bond order has not changed
+        order_before_sum = sum(order_before)
+        if abs(order_before_sum - order_after_sum) > tolerance:
+            err = MoleculeError(f"Bond orders before and after not equal to tolerance {tolerance!r}:\n"
+                                f"before: sum(...) == {order_before_sum!r}\n"
+                                f"after: sum(...) == {order_after_sum!r}")
+            try:
+                action_func(err)
+            except MoleculeError as ex:  # Restore the initial bond orders
+                for b, order in zip(mol.bonds, reversed(order_before)):
+                    b.order = order
+                raise ex
+
+
+    def index(self, value, start=1, stop=None):
+        """Return the first index of the specified Atom or Bond.
+
+        Providing an |Atom| will return its 1-based index, while a |Bond| returns a 2-tuple with the 1-based indices of its atoms.
+
+        Raises a |MoleculeError| if the provided is not an Atom/Bond or if the Atom/bond is not part of the molecule.
+
+        .. code:: python
+
+            >>> from scm.plams import Molecule, Bond, Atom
+
+            >>> mol = Molecule(...)
+            >>> atom: Atom = Molecule[1]
+            >>> bond: Bond = Molecule[1, 2]
+
+            >>> print(mol.index(atom))
+            1
+
+            >>> print(mol.index(bond))
+            (1, 2)
+
+        """
+        args = [start - 1 if start > 0 else start]
+        if stop is not None:  # Correct for the 1-based indices used in Molecule
+            args.append(stop - 1 if stop > 0 else stop)
+
+        try:
+            if isinstance(value, Atom):
+                return 1 + self.atoms.index(value, *args)
+            elif isinstance(value, Bond):
+                return 1 + self.atoms.index(value.atom1, *args), 1 + self.atoms.index(value.atom2, *args)
+
+        except ValueError as ex:  # Raised if the provided Atom/Bond is not in self
+            raise MoleculeError(f'Provided {value.__class__.__name__} is not in Molecule').with_traceback(ex.__traceback__)
+        else:  # Raised if value is neither an Atom nor Bond
+            raise MoleculeError(f"'value' expected an Atom or Bond; observed type: '{value.__class__.__name__}'")
+
+
+    def round_coords(self, decimals=0, inplace=True):
+        """Round the Cartesian coordinates of this instance to *decimals*.
+
+        By default, with ``inplace=True``, the coordinates of this instance are updated inplace.
+        If ``inplace=False`` then a new copy of this Molecule is returned with its
+        coordinates rounded.
+
+        .. code:: python
+
+            >>> from scm.plams import Molecule
+
+            >>> mol = Molecule(...)
+              Atoms:
+                1         H      1.234567      0.000000      0.000000
+                2         H      0.000000      0.000000      0.000000
+
+            >>> mol_rounded = round_coords(mol)
+            >>> print(mol_rounded)
+              Atoms:
+                1         H      1.000000      0.000000      0.000000
+                2         H      0.000000      0.000000      0.000000
+
+            >>> mol.round_coords(decimals=3)
+            >>> print(mol)
+              Atoms:
+                1         H      1.234000      0.000000      0.000000
+                2         H      0.000000      0.000000      0.000000
+
+        """
+        xyz = self.as_array()
+
+        # Follow the convention used in ``ndarray.round()``: always return floats,
+        # even if ndigits=None
+        xyz_round = xyz.round(decimals=decimals)
+
+        if inplace:
+            self.from_array(xyz_round)
+            return None
+        else:
+            mol_copy = self.copy()
+            mol_copy.from_array(xyz_round)
+            return mol_copy
 
 
 #===========================================================================
@@ -776,7 +1202,7 @@ class Molecule:
         xyz_array = self.as_array()
         dist_array = np.linalg.norm(point - xyz_array, axis=1)
         idx = dist_array.argmin()
-        return self[int(idx + 1)]
+        return self[idx + 1]
 
 
     def distance_to_point(self, point, unit='angstrom', result_unit='angstrom'):
@@ -803,8 +1229,8 @@ class Molecule:
         res = Units.convert(dist_array.min(), 'angstrom', result_unit)
         if return_atoms:
             idx1, idx2 = np.unravel_index(dist_array.argmin(), dist_array.shape)
-            atom1 = self[int(idx1 + 1)]
-            atom2 = other[int(idx2 + 1)]
+            atom1 = self[idx1 + 1]
+            atom2 = other[idx2 + 1]
             return res, atom1, atom2
         return res
 
@@ -891,31 +1317,98 @@ class Molecule:
         return s
 
 
-    def apply_strain(self, strain):
-        """Apply a strain deformation to a periodic system.
+    def apply_strain(self, strain, voigt_form=False):
+        """Apply a strain deformation to a periodic system (i.e. with a non-empty ``lattice`` attribute).
+        The atoms in the unit cell will be strained accordingly, keeping the fractional atomic coordinates constant.
 
-        This method can be used only for periodic systems (the ones with a non-empty ``lattice`` attribute). *strain* should be a container with n*n numerical values, where n is the size of the ``lattice``. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
+        If ``voigt_form=False``, *strain* should be a container with n*n numerical values, where n is the number of ``lattice`` vectors. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (e.g. ``[e_xx, e_xy, e_xz, e_yx, e_yy, e_yz, e_zx, e_zy, e_zz]``) or in two-level fashion (e.g. ``[[e_xx, e_xy, e_xz],[e_yx, e_yy, e_yz],[e_zx, e_zy, e_zz]]``).
+        If ``voigt_form=True``, *strain* should be passed in voigt form (for 3D periodic systems: ``[e_xx, e_yy, e_zz, gamma_yz, gamma_xz, gamma_xy]``; for 2D periodic systems: ``[e_xx, e_yy, gamma_xy]``; for 1D periodic systems: ``[e_xx]``  with e_xy = gamma_xy/2,...). Example usage::
+
+            >>> graphene = Molecule('graphene.xyz')
+            >>> print(graphene)
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.230000      0.710141      0.000000 
+              Lattice:
+                    2.4600000000     0.0000000000     0.0000000000
+                    1.2300000000     2.1304224900     0.0000000000
+            >>> graphene.apply_strain([0.1,0.2,0.0], voigt_form=True)])
+              Atoms: 
+                1         C      0.000000      0.000000      0.000000 
+                2         C      1.353000      0.852169      0.000000 
+              Lattice:
+                    2.7060000000     0.0000000000     0.0000000000
+                    1.3530000000     2.5565069880     0.0000000000
         """
 
         n = len(self.lattice)
 
-        if n == 0:
-            raise MoleculeError('apply_strain: strain can only be applied to periodic systems')
+        if n==0:
+            raise MoleculeError('apply_strain: can only be used for perdiodic systems.')
 
-        try:
-            strain = np.array(strain).reshape(n,n)
-        except:
-            raise MoleculeError('apply_strain: could not convert the strain to a (%i,%i) numpy array'%(n,n))
+        if n in [1,2] and self.align_lattice(convention='AMS'):
+            raise MoleculeError('apply_strain: the lattice vectors should follow the convention of AMS (i.e. for 1D-periodic systems the lattice vector should be along the x-axis, while for 2D-periodic systems the two vectors should be on the XY plane. Consider using the align_lattice function.')
 
-        lattice_np = np.array(self.lattice)
-        frac_coords_transf = np.linalg.inv(lattice_np.T)
-        deformed_lattice = lattice_np.dot(np.eye(n) + strain)
+        def from_voigt_to_matrix(strain_voigt, n):
+            if len(strain_voigt) != n*(n+1)/2:
+                raise MoleculeError('apply_strain: strain for %i-dim periodic system needs %i-sized vector in Voigt format'%(n,n*(n+1)/2))
 
-        xyz_array = self.as_array()
-        fractional_coords = xyz_array@frac_coords_transf.T
+            strain_matrix = np.diag(strain_voigt[:n])
+            if n == 2:
+                strain_matrix[1,0] = strain_voigt[2]/2.0
+                strain_matrix[0,1] = strain_voigt[2]/2.0
+            elif n == 3:
+                strain_matrix[1,2] = strain_voigt[3]/2.0
+                strain_matrix[2,1] = strain_voigt[3]/2.0
+                strain_matrix[0,2] = strain_voigt[4]/2.0
+                strain_matrix[2,0] = strain_voigt[4]/2.0
+                strain_matrix[0,1] = strain_voigt[5]/2.0
+                strain_matrix[1,0] = strain_voigt[5]/2.0
+            return strain_matrix
 
-        self.from_array(deformed_lattice@fractional_coords.T)
-        self.lattice = [tuple(vec) for vec in deformed_lattice.tolist()]
+        if voigt_form:
+            strain = from_voigt_to_matrix(strain,n)
+        else:
+            try:
+                strain = np.array(strain).reshape(n,n)
+            except:
+                raise MoleculeError('apply_strain: could not convert the strain to a (%i,%i) numpy array'%(n,n))
+
+        if n==1:
+            lattice_mat = np.array([[self.lattice[0][0]]])
+        else:
+            lattice_mat = np.array(self.lattice)[:n,:n]
+
+        strained_lattice = lattice_mat.dot(np.eye(n) + strain)
+        coords = self.as_array()
+        frac_coords_transf = np.linalg.inv(lattice_mat.T)
+        fractional_coords = coords[:,:n]@frac_coords_transf.T
+        coords[:,:n] = (strained_lattice.T@fractional_coords.T).T
+
+        self.from_array(coords)
+        self.lattice = [tuple(vec + [0.0]*(3-len(vec))) for vec in strained_lattice.tolist()]
+
+
+    def map_to_central_cell(self, around_origin=True):
+        """Maps all atoms to the original cell. If *around_origin=True* the atoms will be mapped to the cell with fractional coordinates [-0.5,0.5], otherwise to the the cell in which all fractional coordinates are in the [0:1] interval."""
+
+        n = len(self.lattice)
+        if n==0:
+            raise MoleculeError('map_to_central_cell: can only be used for perdiodic systems.')
+        elif n==1:
+            lattice_mat = np.array([[self.lattice[0][0]]])
+        else:
+            lattice_mat = np.array(self.lattice)[:n,:n]
+
+        coords = self.as_array()
+        frac_coords_transf = np.linalg.inv(lattice_mat.T)
+        fractional_coords = coords[:,:n]@frac_coords_transf.T
+        if around_origin:
+            fractional_coords = fractional_coords - np.rint(fractional_coords)
+        else:
+            fractional_coords = fractional_coords - np.floor(fractional_coords)
+        coords[:,:n] = (lattice_mat.T@fractional_coords.T).T
+        self.from_array(coords)
 
 
     def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
@@ -978,17 +1471,26 @@ class Molecule:
         A different cost function can be also supplied by the user, using one of the two remaining arguments: *cost_func_mol* or *cost_func_array*. *cost_func_mol* should be a function that takes two |Molecule| instances: this molecule (after removing unneeded atoms) and ligand in a particular orientation (also without unneeded atoms) and returns a single number (the lower the number, the better the fit). *cost_func_array* is analogous, but instead of |Molecule| instances it takes two numpy arrays (with dimensions: number of atoms x 3) with coordinates of this molecule and the ligand. If both are supplied, *cost_func_mol* takes precedence over *cost_func_array*.
 
         """
+        try:
+            _is_atom = [isinstance(i, Atom) and i.mol is self for i in connector]
+            assert all(_is_atom) and len(_is_atom) == 2
+        except (TypeError, AssertionError) as ex:
+            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule').with_traceback(ex.__traceback__)
 
-        if not (isinstance(connector, tuple) and len(connector) == 2 and all(isinstance(i, Atom) and i.mol is self for i in connector)):
-            raise MoleculeError('substitute: connector argument must be a pair of atoms that belong to the current molecule')
+        try:
+            _is_atom = [isinstance(i, Atom) and i.mol is ligand for i in ligand_connector]
+            assert all(_is_atom) and len(_is_atom) == 2
+        except (TypeError, AssertionError) as ex:
+            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand').with_traceback(ex.__traceback__)
 
-        if not (isinstance(ligand_connector, tuple) and len(ligand_connector) == 2 and all(isinstance(i, Atom) and i.mol is ligand for i in ligand_connector)):
-            raise MoleculeError('substitute: ligand_connector argument must be a pair of atoms that belong to ligand')
+
+        _ligand = ligand.copy()
+        _ligand_connector = [_ligand[ligand.index(atom)] for atom in ligand_connector]
 
         if len(self.bonds) == 0:
             self.guess_bonds()
-        if len(ligand.bonds) == 0:
-            ligand.guess_bonds()
+        if len(_ligand.bonds) == 0:
+            _ligand.guess_bonds()
 
         def dfs(atom, stay, go, delete, msg):
             for N in atom.neighbors():
@@ -1001,7 +1503,7 @@ class Molecule:
                     dfs(N, stay, go, delete, msg)
 
         stay, go = connector
-        stay_lig, go_lig = ligand_connector
+        stay_lig, go_lig = _ligand_connector
 
         #remove 'go' and all connected atoms from self
         atoms_to_delete = {go}
@@ -1009,26 +1511,26 @@ class Molecule:
         for atom in atoms_to_delete:
             self.delete_atom(atom)
 
-        #remove 'go_lig' and all connected atoms from ligand
+        #remove 'go_lig' and all connected atoms from _ligand
         atoms_to_delete = {go_lig}
         dfs(go, stay_lig, go_lig, atoms_to_delete, 'ligand_connector')
         for atom in atoms_to_delete:
-            ligand.delete_atom(atom)
+            _ligand.delete_atom(atom)
 
-        #move the ligand such that 'go_lig' is in (0,0,0) and rotate it to its desired position
+        #move the _ligand such that 'go_lig' is in (0,0,0) and rotate it to its desired position
         vec = np.array(stay.vector_to(go))
         vec_lig = np.array(go_lig.vector_to(stay_lig))
 
-        ligand.translate(go_lig.vector_to((0,0,0)))
-        ligand.rotate(rotation_matrix(vec_lig, vec))
+        _ligand.translate(go_lig.vector_to((0,0,0)))
+        _ligand.rotate(rotation_matrix(vec_lig, vec))
 
-        #rotate the ligand along the bond to create 'steps' copies
+        #rotate the _ligand along the bond to create 'steps' copies
         angles = [i*(2*np.pi/steps) for i in range(1, steps)]
         axis_matrices = [axis_rotation_matrix(vec, angle) for angle in angles]
-        xyz_ligand = ligand.as_array()
+        xyz_ligand = _ligand.as_array()
         xyz_ligands = np.array([xyz_ligand] + [xyz_ligand@matrix for matrix in axis_matrices])
 
-        #move all the ligand copies to the right position
+        #move all the _ligand copies to the right position
         if bond_length is None:
             bond_length = stay.radius + stay_lig.radius
         vec *= bond_length / np.linalg.norm(vec)
@@ -1036,12 +1538,12 @@ class Molecule:
         trans_vec =  np.array(stay_lig.vector_to(position))
         xyz_ligands += trans_vec
 
-        #find the best ligand orientation
+        #find the best _ligand orientation
         if cost_func_mol:
             best_score = np.inf
             for lig in xyz_ligands:
-                ligand.from_array(lig)
-                score = cost_func_mol(self, ligand)
+                _ligand.from_array(lig)
+                score = cost_func_mol(self, _ligand)
                 if score < best_score:
                     best_score = score
                     best_lig = lig
@@ -1056,9 +1558,9 @@ class Molecule:
                 best = np.sum(np.exp(-dist_matrix), axis=(1, 2)).argmin()
             best_lig = xyz_ligands[best]
 
-        #add the best ligand to the molecule
-        ligand.from_array(best_lig)
-        self.add_molecule(ligand)
+        #add the best _ligand to the molecule
+        _ligand.from_array(best_lig)
+        self.add_molecule(_ligand)
         self.add_bond(stay, stay_lig)
 
 
@@ -1090,11 +1592,11 @@ class Molecule:
                     (1)----1----(4)
         """
         s = '  Atoms: \n'
-        for i,atom in enumerate(self.atoms):
-            s += ('%5i'%(i+1)) + str(atom) + '\n'
+        for i,atom in enumerate(self.atoms, 1):
+            s += ('%5i'%(i)) + str(atom) + '\n'
         if len(self.bonds) > 0:
-            for j,atom in enumerate(self.atoms):
-                atom._tmpid = j+1
+            for j,atom in enumerate(self.atoms, 1):
+                atom._tmpid = j
             s += '  Bonds: \n'
             for bond in self.bonds:
                 s += '   (%d)--%1.1f--(%d)\n'%(bond.atom1._tmpid, bond.order, bond.atom2._tmpid)
@@ -1121,15 +1623,20 @@ class Molecule:
 
         Numbering of atoms within a molecule starts with 1.
         """
-        if isinstance(key, int):
+        if hasattr(key, '__index__'):  # Available in all "int-like" objects; see PEP 357
             if key == 0:
                 raise MoleculeError('Numbering of atoms starts with 1')
             if key < 0:
                 return self.atoms[key]
             return self.atoms[key-1]
-        if isinstance(key, tuple) and len(key) == 2:
-            return self.find_bond(self[key[0]], self[key[1]])
-        raise MoleculeError('Molecule: invalid argument {} inside []'.format(key))
+
+        try:
+            i, j = key
+            return self.find_bond(self[i], self[j])
+        except TypeError as ex:
+            raise MoleculeError(f'Molecule: argument ({repr(key)}) of invalid type inside []').with_traceback(ex.__traceback__)
+        except ValueError as ex:
+            raise MoleculeError(f'Molecule: argument ({repr(key)}) of invalid size inside []').with_traceback(ex.__traceback__)
 
 
     def __add__(self, other):
@@ -1153,6 +1660,46 @@ class Molecule:
     def __copy__(self):
         return self.copy()
 
+
+    def __deepcopy__(self, memo):
+        return self.copy()
+
+
+    def __round__(self, ndigits=None):
+        """Magic method for rounding this instance's Cartesian coordinates; called by the builtin :func:`round` function."""
+        ndigits = 0 if ndigits is None else ndigits
+        return self.round_coords(ndigits, inplace=False)
+
+
+    def __getstate__(self) -> dict:
+        """Returns the object which is to-be pickled by, *e.g.*, :func:`pickle.dump`.
+        As :class:`Molecule` instances are heavily nested objects,
+        pickling them can raise a :exc:`RecursionError`.
+        This issue is herein avoided relying on the :meth:`Molecule.as_dict()` method.
+        See `Pickling Class Instances <https://docs.python.org/3/library/pickle.html#pickling-class-instances>`_
+        for more details.
+        """  # noqa
+        return self.as_dict()
+
+
+    def __setstate__(self, state: dict) -> None:
+        """Counterpart of :meth:`Molecule.__getstate__`; used for unpickling molecules."""
+        try:
+            mol_new = self.from_dict(state)
+            self.__dict__ = mol_new.__dict__
+
+        # Raised if *state* is the result of a pickled Molecule created prior to the introduction
+        # of Molecule.__getstate__()
+        except TypeError:
+            self.__dict__ = state
+            return
+
+        # Molecule.from_dict() always returns a new instance
+        # Simply steal this instance's attributes and changed its Atoms/Bonds parent Molecule
+        for at in self.atoms:
+            at.mol = self
+        for bond in self.bonds:
+            bond.mol = self
 
 
 #===========================================================================
@@ -1212,6 +1759,17 @@ class Molecule:
             mol.add_bond(b)
         return mol
 
+    @classmethod
+    def from_elements(cls, elements):
+        """Generate a new |Molecule| instance based on a list of *elements*.
+
+        By default it sets all coordinates to zero
+        """
+        mol = cls()
+        for el in elements :
+            at = Atom(symbol=el, coords=(0.0, 0.0, 0.0))
+            mol.add_atom(at)
+        return mol
 
     def as_array(self, atom_subset=None):
         """Return cartesian coordinates of this molecule's atoms as a numpy array.
@@ -1221,8 +1779,20 @@ class Molecule:
         Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
         """
         atom_subset = atom_subset or self.atoms
-        x, y, z = zip(*[atom.coords for atom in atom_subset])
-        return np.array((x, y, z)).T
+
+        try:
+            at_len = len(atom_subset)
+        except TypeError:  # atom_subset is an iterator
+            count = -1
+            shape = -1, 3
+        else:
+            count = at_len * 3
+            shape = at_len, 3
+
+        atom_iterator = itertools.chain.from_iterable(at.coords for at in atom_subset)
+        xyz_array = np.fromiter(atom_iterator, count=count, dtype=float)
+        xyz_array.shape = shape
+        return xyz_array
 
 
     def from_array(self, xyz_array, atom_subset=None):
@@ -1230,10 +1800,22 @@ class Molecule:
 
         *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule. It should have the same length as the first dimenstion of *xyz_array*.
         """
-        ar = xyz_array.T
         atom_subset = atom_subset or self.atoms
-        for at, x, y, z in zip(atom_subset, ar[0], ar[1], ar[2]):
+        for at, (x, y, z) in zip(atom_subset, xyz_array):
             at.coords = (x, y, z)
+
+
+    def __array__(self, dtype=None):
+        """A magic method for constructing numpy arrays.
+
+        This method ensures that passing a |Molecule| instance to numpy.array_ produces an array of Cartesian coordinates (see :meth:`.Molecule.as_array`).
+        The array `data type`_ can, optionally, be specified in *dtype*.
+
+        .. _numpy.array: https://docs.scipy.org/doc/numpy/reference/generated/numpy.array.html
+        .. _`data type`: https://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html
+        """
+        ret = self.as_array()
+        return ret.astype(dtype, copy=False)
 
 
 
@@ -1256,6 +1838,7 @@ class Molecule:
             shift = 1 if (len(lst) > 4 and lst[0] == str(i)) else 0
             num = lst[0+shift]
             if isinstance(num, str):
+                #num = str(num.split(".")[0])
                 num = PT.get_atomic_number(num)
             self.add_atom(Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
 
@@ -1315,8 +1898,8 @@ class Molecule:
         f.write('\n')
         for at in self.atoms:
             f.write(str(at) + '\n')
-        for i,vec in enumerate(self.lattice):
-            f.write('VEC'+str(i+1) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
+        for i,vec in enumerate(self.lattice, 1):
+            f.write('VEC'+str(i) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
 
 
     def readmol(self, f, **other):
@@ -1484,8 +2067,8 @@ class Molecule:
         write_prop('comment', self, '\n')
 
         f.write('\n@<TRIPOS>ATOM\n')
-        for i,at in enumerate(self.atoms):
-            f.write('%5i ' % (i+1))
+        for i,at in enumerate(self.atoms, 1):
+            f.write('%5i ' % (i))
             write_prop('name', at, ' ', 5, at.symbol+str(i+1))
             f.write('%10.4f %10.4f %10.4f ' % at.coords)
             write_prop('type', at, ' ', 5, at.symbol)
@@ -1493,11 +2076,11 @@ class Molecule:
             write_prop('subst_name', at, ' ', 7)
             write_prop('charge', at, ' ', 6)
             write_prop('flags', at, '\n')
-            at.id = i+1
+            at.id = i
 
         f.write('\n@<TRIPOS>BOND\n')
-        for i,bo in enumerate(self.bonds):
-            f.write('%5i %5i %5i %4s' % (i+1, bo.atom1.id, bo.atom2.id, 'ar' if bo.is_aromatic() else bo.order))
+        for i,bo in enumerate(self.bonds, 1):
+            f.write('%5i %5i %5i %4s' % (i, bo.atom1.id, bo.atom2.id, 'ar' if bo.is_aromatic() else bo.order))
             write_prop('flags', bo, '\n')
 
         self.unset_atoms_id()
@@ -1538,13 +2121,48 @@ class Molecule:
         pdb = PDBHandler()
         pdb.add_record(PDBRecord('HEADER'))
         model = []
-        for i,at in enumerate(self.atoms):
-            s = 'ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  ' % (i+1,at.x,at.y,at.z,at.symbol.upper())
+        for i,at in enumerate(self.atoms, 1):
+            s = 'ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  ' % (i,at.x,at.y,at.z,at.symbol.upper())
             model.append(PDBRecord(s))
         pdb.add_model(model)
         pdb.add_record(pdb.calc_master())
         pdb.add_record(PDBRecord('END'))
         pdb.write(f)
+
+    @staticmethod
+    def _mol_from_rkf_section(sectiondict):
+        """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
+
+        ret = Molecule()
+        coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
+        symbols = sectiondict['AtomSymbols'].split()
+        atnums = sectiondict['AtomicNumbers'] if isinstance(sectiondict['AtomicNumbers'], list) else [sectiondict['AtomicNumbers']]
+        for at, crd, sym in zip(atnums, coords, symbols):
+            newatom = Atom(atnum=at, coords=crd, unit='bohr')
+            if sym.startswith('Gh.'):
+                sym = sym[3:]
+                newatom.properties.ghost = True
+            if '.' in sym:
+                sym, name = sym.split('.', 1)
+                newatom.properties.name = name
+            ret.add_atom(newatom)
+        if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
+            for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
+                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
+        if sectiondict['Charge'] != 0:
+            ret.properties.charge = sectiondict['Charge']
+        if 'nLatticeVectors' in sectiondict:
+            ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
+        if 'EngineAtomicInfo' in sectiondict:
+            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
+            for at, suffix in zip(ret, suffixes):
+                at.properties.suffix = suffix
+        return ret
+
+    def readrkf(self, filename, section='Molecule', **other):
+        kf = KFFile(filename)
+        sectiondict = kf.read_section(section)
+        self.__dict__.update(Molecule._mol_from_rkf_section(sectiondict).__dict__)
 
 
     def read(self, filename, inputformat=None, **other):
@@ -1556,17 +2174,17 @@ class Molecule:
         """
 
         if inputformat is None:
-            fsplit = filename.rsplit('.',1)
-            if len(fsplit) == 2:
-                inputformat = fsplit[1]
-            else:
-                inputformat = 'xyz'
+            _, extension = os.path.splitext(filename)
+            inputformat = extension.strip('.') if extension else 'xyz'
         if inputformat in self.__class__._readformat:
-            with open(filename, 'r') as f:
-                ret = self._readformat[inputformat](self, f, **other)
-            return ret
+            if inputformat == 'rkf':
+                return self.readrkf(filename, **other)
+            else:
+                with open(filename, 'r') as f:
+                    ret = self._readformat[inputformat](self, f, **other)
+                return ret
         else:
-            raise MoleculeError('read: Unsupported file format')
+            raise MoleculeError(f"read: Unsupported file format '{inputformat}'")
 
 
     def write(self, filename, outputformat=None, **other):
@@ -1578,18 +2196,14 @@ class Molecule:
         """
 
         if outputformat is None:
-            fsplit = filename.rsplit('.',1)
-            if len(fsplit) == 2:
-                outputformat = fsplit[1]
-            else:
-                outputformat = 'xyz'
+            _, extension = os.path.splitext(filename)
+            outputformat = extension.strip('.') if extension else 'xyz'
         if outputformat in self.__class__._writeformat:
             with open(filename, 'w') as f:
                 self._writeformat[outputformat](self, f, **other)
         else:
-            raise MoleculeError('write: Unsupported file format')
+            raise MoleculeError(f"write: Unsupported file format '{outputformat}'")
 
     #Support for the ASE engine is added if available by interfaces.molecules.ase
-    _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb}
+    _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb, 'rkf':readrkf}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
-

@@ -1,5 +1,5 @@
 Results
--------------
+-------
 
 .. currentmodule:: scm.plams.core.results
 
@@ -10,7 +10,7 @@ From the technical standpoint, |Results| class is the part of PLAMS environment 
 
 
 Files in the job folder
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Directly after the execution of a job is finished (see :ref:`job-life-cycle`), the job folder gets scanned by :meth:`~Results.collect` method.
 All files present in the job folder, including files in subfolders, are gathered in a list stored in ``files`` attribute of the |Results| instance.
@@ -40,15 +40,9 @@ In the bracket notation, and in every other context regarding |Results|, wheneve
     >>> print(r['$JN.run'])
     /home/user/plams.12345/plamsjob/plamsjob.run
 
-Some produce produce fixed name files during execution (like for example ADF's ``TAPE21``).
-If one wants to automatically rename those files it can be done with ``_rename_map`` class attribute -- a dictionary defining which files should be renamed and how::
-
-    >>> print(ADFResults._rename_map)
-    {'TAPE13': '$JN.t13', 'TAPE21': '$JN.t21'}
-
+Some produce produce fixed name files during execution.
+If one wants to automatically rename those files it can be done with ``_rename_map`` class attribute -- a dictionary defining which files should be renamed and how.
 Renaming is done during :meth:`~Results.collect`.
-In the example above, if a file named ``TAPE21`` is found in the job folder, it is renamed to ``[jobname].t21``.
-If it's not there, nothing happens (no error or exception is raised).
 
 In the generic |Results| class ``_rename_map`` is an empty dictionary.
 
@@ -113,15 +107,15 @@ Let us start with a simple parallel script that takes all ``.xyz`` files in a gi
     molecules = read_molecules(folder)
 
     s = Settings()
-    s.input.basis.type = 'DZP'
-    s.input.geometry.SP = True
-    s.input.xc.gga = 'PBE'
+    s.input.ams.task = 'singlepoint'
+    s.input.adf.basis.type = 'DZP'
+    s.input.adf.xc.gga = 'PBE'
 
-    jobs = [ADFJob(molecule=molecules[name], name=name, settings=s) for name in sorted(molecules)]
+    jobs = [AMSJob(molecule=molecules[name], name=name, settings=s) for name in sorted(molecules)]
     results = [job.run() for job in jobs]
 
     for r in results:
-        dipole_vec = r.readkf('Properties', 'Dipole')
+        dipole_vec = r.readrkf('AMSResults', 'DipoleMoment', file='engine')
         dipole_magn = sum([a*a for a in dipole_vec])**0.5
         print('{}\t\t{}'.format(r.job.name, dipole_magn))
 
@@ -190,15 +184,15 @@ To picture this matter we will use the following script that performs geometry o
 
     config.default_jobrunner = JobRunner(parallel=True)
 
-    go = ADFJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
-    go.settings.input.geometry.go = True
+    go = AMSJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
+    go.settings.input.ams.task = 'GeometryOptimization'
     ... #other settings adjustments for geometry optimisation
     go_results = go.run()
 
     opt_geo = go_results.get_main_molecule()
 
-    freq = ADFJob(name='Freq', molecule=opt_geo)
-    freq.settings.input.geometry.frequencies = True
+    freq = AMSJob(name='Freq', molecule=opt_geo)
+    freq.settings.input.ams.properties.NormalModes = 'Yes'
     ... #other settings adjustments for frequency run
     freq_results = freq.run()
 
@@ -217,13 +211,13 @@ We need to fix the script:
 
     config.default_jobrunner = JobRunner(parallel=True)
 
-    go = ADFJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
-    go.settings.input.geometry.go = True
+    go = AMSJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
+    go.settings.input.ams.task = 'GeometryOptimization'
     ... #other settings adjustments for geometry optimisation
     go_results = go.run()
 
-    freq = ADFJob(name='Freq')
-    freq.settings.input.geometry.frequencies = True
+    freq = AMSJob(name='Freq')
+    freq.settings.input.ams.properties.NormalModes = 'Yes'
     ... #other settings adjustments for frequency run
 
     @add_to_instance(freq)

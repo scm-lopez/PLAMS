@@ -1,6 +1,8 @@
+"""Class to manipulate CP2K jobs."""
 import subprocess
 import shutil
 import numpy as np
+from pathlib import Path
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
@@ -15,7 +17,8 @@ __all__ = ['Cp2kJob', 'Cp2kResults', 'Cp2kSettings2Mol']
 
 
 class Cp2kResults(Results):
-    """A class for CP2K results"""
+    """A class for CP2K results."""
+
     def recreate_settings(self):
         """Recreate job for |load_external|.
 
@@ -31,10 +34,11 @@ class Cp2kResults(Results):
         """
 
         _reserved_keywords = ["KIND", "@SET", "@INCLUDE", "@IF"]
-        _different_keywords = ["COORD", "VELOCITY", "MASS", "FORCE"] #blocks of information
+        _different_keywords = ["COORD", "VELOCITY",
+                               "MASS", "FORCE"]  # blocks of information
 
         def input_generator(f):
-            """yield lines from input"""
+            """Yield lines from input."""
             while True:
                 line = f.readline()
                 if not line:
@@ -50,19 +54,19 @@ class Cp2kResults(Results):
             Returns False when section is completed."""
             string = next(input_iter).strip()
             l = string.split()
-            #empty line
+            # empty line
             if not string:
                 return True
-            #comment line:
+            # comment line:
             elif string.startswith('#'):
                 return True
-            #end section
+            # end section
             elif string.startswith('&END'):
                 return False
-            #special cases
+            # special cases
             elif any(k in string for k in _reserved_keywords):
                 if '@' in string:
-                    l[0] = l[0].replace('@','AT_')
+                    l[0] = l[0].replace('@', 'AT_')
                     res_dic.update({l[0].lower(): " ".join(l[1:])})
                 elif 'KIND' in string:
                     if not 'kind' in res_dic:
@@ -73,8 +77,8 @@ class Cp2kResults(Results):
                         r = parse(input_iter, res_dic['kind'][l[1].lower()])
                 return True
             elif any("&"+k == string for k in _different_keywords):
-                #save the entire block as one string until &END
-                l[0] = l[0].replace('&','')
+                # save the entire block as one string until &END
+                l[0] = l[0].replace('&', '')
                 res_dic[l[0].lower()] = {'_h': ""}
                 r = True
                 while r:
@@ -85,12 +89,12 @@ class Cp2kResults(Results):
                     res_dic[l[0].lower()]['_h'] += "\n"
                     res_dic[l[0].lower()]['_h'] += r
                 return True
-            #section
+            # section
             elif string.startswith('&'):
-                l[0] = l[0].replace('&','')
-                #if section already exists as a key, use the key
+                l[0] = l[0].replace('&', '')
+                # if section already exists as a key, use the key
                 if l[0].lower() in res_dic:
-                    #fast forward to the next &END
+                    # fast forward to the next &END
                     r = True
                     while r:
                         r = next(input_iter).strip()
@@ -99,21 +103,19 @@ class Cp2kResults(Results):
                             break
                     return True
                 res_dic[l[0].lower()] = {}
-                #if section has a header value
+                # if section has a header value
                 if len(l) > 1:
                     res_dic[l[0].lower()]['_h'] = " ".join(l[1:])
-                #parse content of section
+                # parse content of section
                 r = True
                 while r:
                     r = parse(input_iter, res_dic[l[0].lower()])
                 return True
 
-            #add key and value to dict
+            # add key and value to dict
             else:
                 res_dic.update({l[0].lower(): " ".join(l[1:])})
                 return True
-
-
 
         dic = {}
         with open(opj(self.job.path, self.job._filename('inp'))) as f:
@@ -122,7 +124,7 @@ class Cp2kResults(Results):
                 try:
                     parse(input_string, dic)
                 except StopIteration:
-                    #nasty, but at least you get partial settings
+                    # nasty, but at least you get partial settings
                     break
 
         s = Settings()
@@ -130,9 +132,10 @@ class Cp2kResults(Results):
         return s
 
     def get_runtime(self):
-        """Returns runtime in seconds from output."""
+        """Return runtime in seconds from output."""
         from datetime import datetime
-        start = " ".join(self.grep_output('PROGRAM STARTED AT')[-1].split()[-2:])
+        start = " ".join(self.grep_output(
+            'PROGRAM STARTED AT')[-1].split()[-2:])
         end = " ".join(self.grep_output('PROGRAM ENDED AT')[-1].split()[-2:])
         startTime = datetime.fromisoformat(start)
         endTime = datetime.fromisoformat(end)
@@ -232,17 +235,20 @@ class Cp2kResults(Results):
             selectSpin = -2
         n = len(self.grep_output(searchBegin))
         match = self._idx_to_match(n, index)
-        chunk = self.get_output_chunk(begin=searchBegin, end=searchEnd, match=match)
+        chunk = self.get_output_chunk(
+            begin=searchBegin, end=searchEnd, match=match)
         if match == 0:
             chunk = self._chunks(chunk, n, skip=2)
         else:
-            chunk = [ chunk[2:] ]
+            chunk = [chunk[2:]]
         charges = []
         spin = []
         for ch in chunk:
-            charges.append([ float(line.strip().split()[selectCharge]) for line in ch ])
+            charges.append([float(line.strip().split()[selectCharge])
+                            for line in ch])
             if return_spin:
-                spin.append([ float(line.strip().split()[selectSpin]) for line in ch ])
+                spin.append([float(line.strip().split()[selectSpin])
+                             for line in ch])
         if return_spin:
             if match == 0:
                 return charges, spin
@@ -286,7 +292,8 @@ class Cp2kResults(Results):
         """
         dic = {'counts': [], 'cutoffs': []}
 
-        s = self.get_output_chunk(begin='MULTIGRID INFO', end='total gridlevel count')[1:]
+        s = self.get_output_chunk(
+            begin='MULTIGRID INFO', end='total gridlevel count')[1:]
         for line in s:
             split = line.strip().split()
             dic['counts'].append(int(split[4]))
@@ -403,10 +410,8 @@ class Cp2kResults(Results):
 
 
 
-
 class Cp2kJob(SingleJob):
-    """
-    A class representing a single computational job with `CP2K <https://www.cp2k.org/>`_
+    """A class representing a single computational job with `CP2K <https://www.cp2k.org/>`_.
 
     In addition to the arguments of |SingleJob|, |Cp2kJob| takes a ``copy`` argument.
     ``copy`` can be a list or string, containing paths to files to be copied to the jobs directory.
@@ -427,8 +432,6 @@ class Cp2kJob(SingleJob):
             for f in self.copy_files:
                 shutil.copy(f, self.path)
         return
-
-
 
     def get_input(self):
         """
@@ -487,7 +490,8 @@ class Cp2kJob(SingleJob):
         inp = ''
 
         if self.molecule:
-            use_molecule = ('ignore_molecule' not in self.settings) or (self.settings.ignore_molecule == False)
+            use_molecule = ('ignore_molecule' not in self.settings) or (
+                self.settings.ignore_molecule == False)
             if use_molecule:
                 self._parsemol()
 
@@ -497,18 +501,19 @@ class Cp2kJob(SingleJob):
         return inp
 
     def _parsemol(self):
-        #make lines shorter
+        # make lines shorter
         inp = self.settings.input.force_eval.subsys
-        #add cell information
+        # add cell information
         nDim = len(self.molecule.lattice)
         keys = ['A', 'B', 'C']
         periodic = ['X', 'XY', 'XYZ']
-        for iDim in range(0,nDim):
-            inp.cell[keys[iDim]] = "{:} {:} {:}".format(*self.molecule.lattice[iDim])
+        for iDim in range(0, nDim):
+            inp.cell[keys[iDim]] = "{:} {:} {:}".format(
+                *self.molecule.lattice[iDim])
         if nDim > 0:
             inp.cell.periodic = periodic[nDim-1]
 
-        #get block of: symbol coords
+        # get block of: symbol coords
         coord_sec = ""
         for atom in self.molecule:
             coord_sec += "\n"
@@ -516,45 +521,74 @@ class Cp2kJob(SingleJob):
         inp.coord._h = coord_sec
 
     def get_runscript(self):
-        """
-        Run parallel version of Cp2k using srun.
-        """
-        # Try to run cp2k using mpirun and otherwise srun (if available)
-        command_tuple = ('mpirun', 'srun')
-        ret = 'cp2k.popt'
-        for command in command_tuple:
-            try:
-                subprocess.run([command, "--help"], stdout=subprocess.DEVNULL)
-                ret = command + ' cp2k.popt'
-                break
-            except OSError:
-                pass
+        """Run a parallel version of CP2K.
 
-        ret += ' -i {} -o {}'.format(self._filename('inp'), self._filename('out'))
-        return ret
+        The exact CP2K executable, and whether or not one wants to use ``srun`` or ``mpirun``
+        can be specified under :code:`self.settings.executable`.
+        Currently supported executables are:
+
+        * ``"sdbg"``: Serial single core testing and debugging
+        * ``"sopt"``: Serial general single core usage
+        * ``"ssmp"``: Parallel (only OpenMP), single node, multi core
+        * ``"pdbg"``: Parallel (only MPI) multi-node testing and debugging
+        * ``"popt"``: Parallel (only MPI) general usage, no threads
+        * ``"psmp"``: parallel (MPI + OpenMP) general usage, threading might improve scalability and memory usage
+
+        For example:
+
+        .. code-block:: python
+
+        >>> from scm.plams import Cp2kJob
+
+        >>> job = Cp2kJob(...)
+        >>> job.settings.executable = "cp2k.popt"
+        >>> job.settings.executable = "c2pk.ssmp"
+        >>> job.settings.executable = "mpirun -np 24 cp2k.psmp"
+        """
+        cp2k_command = self.settings.get("executable", "cp2k.popt")
+
+        # Check the executable name
+        available_executables = {"sdbg", "sopt", "ssmp", "pdbg", "popt", "psmp"}
+
+        available_mpi_commands = ('srun', 'mpirun')
+        mpi_command = ""
+
+        # If there is a MPI command the user knows what she is doing
+        if not any(mpi in cp2k_command for mpi in available_mpi_commands):
+            suffix = Path(cp2k_command).suffix[1:]
+
+            if suffix not in available_executables:
+                msg = f"unrecognized cp2k executable: {cp2k_command}"
+                raise RuntimeError(msg)
+
+            # Try to run cp2k MPI binaries using mpirun and otherwise srun (if available)
+            if suffix not in {'sdbg', 'sopt'}:
+                available = (shutil.which(c) for c in available_mpi_commands)
+                mpi_command = next((c for c in available if c is not None), "")
+
+        return  f"{mpi_command} {cp2k_command} -i {self._filename('inp')} -o {self._filename('out')}"
 
     def check(self):
-        """
-        Look for the normal termination signal in Cp2k output
-        """
+        """Look for the normal termination signal in Cp2k output."""
         s = self.results.grep_output("PROGRAM STOPPED IN")
         return len(s) > 0
 
+
 def Cp2kSettings2Mol(settings):
-    """Returns a molecule from a |Settings| instance used for a |Cp2kJob|.
+    """Return a molecule from a |Settings| instance used for a |Cp2kJob|.
 
     Loads coordinates from ``settings.input.force_eval.subsys.coord._h`` and
     cell information from ``settings.input.force_eval.subsys.cell``.
     """
     mol = Molecule()
 
-    if not 'force_eval' in settings.input:
+    if 'force_eval' not in settings.input:
         return None
-    elif not 'subsys' in settings.input.force_eval:
+    elif 'subsys' not in settings.input.force_eval:
         return None
-    elif not 'coord' in settings.input.force_eval.subsys:
+    elif 'coord' not in settings.input.force_eval.subsys:
         return None
-    elif not '_h' in settings.input.force_eval.subsys.coord:
+    elif '_h' not in settings.input.force_eval.subsys.coord:
         return None
     coord = settings.input.force_eval.subsys.coord._h
 
@@ -569,18 +603,18 @@ def Cp2kSettings2Mol(settings):
         try:
             lineSplit[1:4] = [float(x) for x in lineSplit[1:4]]
         except ValueError:
-            #not an atom entry
+            # not an atom entry
             continue
         mol.add_atom(Atom(symbol=lineSplit[0], coords=tuple(lineSplit[1:4])))
 
     if pbc:
         vec = []
-        keys = ['a','b','c']
+        keys = ['a', 'b', 'c']
         for key in keys:
-            if not key in cell:
+            if key not in cell:
                 break
             try:
-               vec.append(tuple([float(x) for x in cell[key].split()]))
+                vec.append(tuple([float(x) for x in cell[key].split()]))
             except ValueError:
                 break
         mol.lattice = vec

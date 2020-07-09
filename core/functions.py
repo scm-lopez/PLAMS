@@ -1,9 +1,12 @@
 import os
+import re
 import shutil
 import sys
 import threading
 import time
 import types
+import warnings
+from typing import Callable, Dict, NoReturn
 
 from os.path import join as opj
 from os.path import isfile, isdir, expandvars, dirname
@@ -11,9 +14,10 @@ from os.path import isfile, isdir, expandvars, dirname
 from .errors import PlamsError
 from .settings import Settings
 
-__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'add_to_class', 'add_to_instance', 'config', 'read_molecules']
+__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules']
 
 config = Settings()
+config.init = False
 
 #===========================================================================
 
@@ -24,7 +28,7 @@ def init(path=None, folder=None):
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
 
     *   If ``$PLAMSDEFAULTS`` variable is in your environment and it points to a file, this file is used (executed as a Python script).
-    *   If ``$ADFHOME`` variable is in your environment and ``$ADFHOME/scripting/scm/plams/plams_defaults`` exists, it is used.
+    *   If ``$AMSHOME`` variable is in your environment and ``$AMSHOME/scripting/scm/plams/plams_defaults`` exists, it is used.
     *   Otherwise, the path ``../plams_defaults`` relative to the current file (``functions.py``) is checked. If defaults file is not found there, an exception is raised.
 
     Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.
@@ -33,22 +37,26 @@ def init(path=None, folder=None):
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
 
+    if config.init == True:
+        return
+
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
         defaults = expandvars('$PLAMSDEFAULTS')
-    elif 'ADFHOME' in os.environ and isfile(opj(expandvars('$ADFHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')):
-        defaults = opj(expandvars('$ADFHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')
+    elif 'AMSHOME' in os.environ and isfile(opj(expandvars('$AMSHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')):
+        defaults = opj(expandvars('$AMSHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')
     else:
         defaults = opj(dirname(dirname(__file__)), 'plams_defaults')
         if not isfile(defaults):
-            raise PlamsError('plams_defaults not found, please set PLAMSDEFAULTS or ADFHOME in your environment')
-    exec(compile(open(defaults).read(), defaults, 'exec'))
+            raise PlamsError('plams_defaults not found, please set PLAMSDEFAULTS or AMSHOME in your environment')
+    with open(defaults, 'r') as f:
+        exec(compile(f.read(), defaults, 'exec'))
 
     from .jobmanager import JobManager
     config.default_jobmanager = JobManager(config.jobmanager, path, folder)
 
-    log('Running PLAMS located in {}'.format(dirname(dirname(__file__))) ,5)
+    log('Running PLAMS located in {}'.format(dirname(dirname(__file__))), 5)
     log('Using Python {}.{}.{} located in {}'.format(*sys.version_info[:3], sys.executable), 5)
-    log('PLAMS defaults were loaded from {}'.format(defaults) ,5)
+    log('PLAMS defaults were loaded from {}'.format(defaults), 5)
 
     log('PLAMS environment initialized', 5)
     log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
@@ -57,6 +65,8 @@ def init(path=None, folder=None):
         import dill
     except ImportError:
         log('WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling', 1)
+
+    config.init = True
 
 
 #===========================================================================
@@ -69,6 +79,9 @@ def finish(otherJM=None):
 
     If you used some other job managers than just the default one, they need to be passed as *otherJM* list.
     """
+    if config.init == False:
+        return
+
     for thread in threading.enumerate():
         if thread.name == 'plamsthread':
             thread.join()
@@ -82,6 +95,8 @@ def finish(otherJM=None):
 
     if config.erase_workdir is True:
         shutil.rmtree(config.default_jobmanager.workdir)
+
+    config.init = False
 
 
 #===========================================================================
@@ -124,6 +139,24 @@ def load_all(path, jobmanager=None):
 #===========================================================================
 
 
+def delete_job(job):
+    """Remove *job* from its corresponding |JobManager| and delete the job folder from the disk. Mark *job* as 'deleted'."""
+
+    #In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
+    if job.jobmanager is not None:
+        job.jobmanager.remove_job(job)
+        shutil.rmtree(job.path)
+
+    if job.parent is not None:
+        job.parent.remove_child(job)
+
+    job.status = 'deleted'
+    job._log_status(5)
+
+
+#===========================================================================
+
+
 def read_molecules(folder, formats=None):
     """Read all molecules from *folder*.
 
@@ -132,7 +165,6 @@ def read_molecules(folder, formats=None):
     The optional argument *formats* can be used to narrow down the search to files with specified extensions::
 
         molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
-
     """
     from ..mol.molecule import Molecule
     extensions = formats or list(Molecule._readformat.keys())
@@ -233,3 +265,81 @@ def add_to_instance(instance):
         setattr(instance, func.__func__.__name__, func)
     return decorator
 
+
+#===========================================================================
+
+
+def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
+    """Take a string and isolate the content of a bash-style `Here Document`_.
+
+    The input string, *bash_input*, is returned unaltered if no heredoc block is found.
+    If multiple heredoc blocks are present only the first one is returned.
+
+    An example bash input file for ADF:
+
+    .. code:: bash
+
+        #!/bin/bash
+
+        $AMSBIN/adf << eor
+        ATOMS
+            1.H  0.0  0.0  0.0
+            2.H  1.0  0.0  0.0
+        END
+
+        BASIS
+            type TZ2P
+        END
+
+        XC
+            GGA BP86
+        END
+        eor
+
+        echo "Job finished"
+
+    The matching :func:`parse_heredoc` output:
+
+    .. code:: python
+
+        >>> filename: str = ...  # The bash input file
+        >>> with open(filename, 'r') as f:
+        ...     output = parse_heredoc(f.read())
+
+        >>> print(output)
+        ATOMS
+            1.H  0.0  0.0  0.0
+            2.H  1.0  0.0  0.0
+        END
+
+        BASIS
+            type TZ2P
+        END
+
+        XC
+            GGA BP86
+        END
+
+    .. _`Here Document`: https://en.wikipedia.org/wiki/Here_document
+
+    """
+    # Find the start of the heredoc block
+    start_pattern = r'<<(-)?(\s+)?{}'.format(heredoc_delimit)
+    start_heredoc = re.search(start_pattern, bash_input)
+    if not start_heredoc:
+        return bash_input
+
+    # Find the end of the heredoc block
+    end_pattern = r'\n(\s+)?{}(\s+)?\n'.format(heredoc_delimit)
+    end_heredoc = re.search(end_pattern, bash_input)
+
+    # Prepare the slices
+    try:
+        i, j = start_heredoc.end(), end_heredoc.start()
+    except AttributeError as ex:
+        err = f"parse_heredoc: failed to find the final '{heredoc_delimit}' delimiter"
+        raise ValueError(err).with_traceback(ex.__traceback__)
+
+    # Grab heredoced block and parse it
+    _, ret = bash_input[i:j].split('\n', maxsplit=1)
+    return ret

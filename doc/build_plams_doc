@@ -7,16 +7,16 @@ from os.path import join as opj
 
 command = ""
 #Try to locate sphinx-build executable
-if 'ADFBIN' in os.environ:
-    command = opj(os.path.expandvars('$ADFBIN'), 'python3.5', 'bin', 'sphinx-build')
+if 'AMSBIN' in os.environ:
+    command = opj(os.path.expandvars('$AMSBIN'), 'python3.5', 'bin', 'sphinx-build')
     if not os.path.exists(command):
         # This might be a windows machine
-        command = opj(os.path.expandvars('$ADFBIN'), 'python3.5', 'Scripts', 'sphinx-build.exe')
+        command = opj(os.path.expandvars('$AMSBIN'), 'python3.5', 'Scripts', 'sphinx-build.exe')
         if os.path.exists(command):
             # starting sphinx-build on windows is tricky...
-            command = ['sh', opj(os.path.expandvars('$ADFBIN'), 'startpython'), '-m', 'sphinx']
+            command = ['sh', opj(os.path.expandvars('$AMSBIN'), 'startpython'), '-m', 'sphinx']
         else:
-            print('Warning: ADFBIN found in environment, but failed to locate sphinx-build')
+            print('Warning: AMSBIN found in environment, but failed to locate sphinx-build')
             command = ""
 if command == "":
     null = open(os.devnull, 'wb')
