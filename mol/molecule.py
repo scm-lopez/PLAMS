@@ -1344,7 +1344,7 @@ class Molecule:
         n = len(self.lattice)
 
         if n==0:
-            raise MoleculeError('apply_strain: can only be used for perdiodic systems.')
+            raise MoleculeError('apply_strain: can only be used for periodic systems.')
 
         if n in [1,2] and self.align_lattice(convention='AMS'):
             raise MoleculeError('apply_strain: the lattice vectors should follow the convention of AMS (i.e. for 1D-periodic systems the lattice vector should be along the x-axis, while for 2D-periodic systems the two vectors should be on the XY plane. Consider using the align_lattice function.')
@@ -1394,7 +1394,7 @@ class Molecule:
 
         n = len(self.lattice)
         if n==0:
-            raise MoleculeError('map_to_central_cell: can only be used for perdiodic systems.')
+            raise MoleculeError('map_to_central_cell: can only be used for periodic systems.')
         elif n==1:
             lattice_mat = np.array([[self.lattice[0][0]]])
         else:
