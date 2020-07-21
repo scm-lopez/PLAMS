@@ -271,7 +271,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements, conect = self._read_plamsmol(molecule)
-                if len(conect) == 0 : conect = None
+                if conect is not None :
+                        if len(conect) == 0 : conect = None
                 self.conect = conect
                 cell = self._convert_cell(cell)
 
