@@ -4,7 +4,9 @@ Contributed by Patrick Melix
 
 See the Documentation for an Example
 """
+import shutil
 from os.path import join as opj
+from os import symlink
 
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
@@ -44,16 +46,23 @@ class RaspaJob(SingleJob):
 
     Files that should be copied to the job directory can be passed as a dictionary using the ``copy``
     argument. The dict should have the following layout: *dict[<filename in jobdir>] = <path to file>*.
+    If you prefer symlinks instead of copies use the ``symlink`` argument with the same layout.
+    The path strings given to symlink are not altered. Remember that the job directory is not equal
+    to the current work directory if using relative symlinks.
 
     **Molecule parsing is not yet supported!**
+
+    The environment variable ``$RASPA_DIR`` needs to be set for the runscript to work.
     """
     _result_type = RaspaResults
     _filenames = {'inp':'simulation.input', 'run':'$JN.run', 'err': '$JN.err', 'stdout': '$JN.out'}
 
 
-    def __init__(self, copy=None, **kwargs):
+    def __init__(self, copy=None, symlink=None, **kwargs):
         SingleJob.__init__(self, **kwargs)
         self.copy_files = copy
+        self.symlink_files = symlink
+        self.settings.runscript.stdout_redirect = True #Output Name is not known before running
 
 
     def _get_ready(self):
@@ -63,6 +72,10 @@ class RaspaJob(SingleJob):
             for filename, path in self.copy_files.items():
                 dest = opj(self.path, filename)
                 shutil.copy(path, dest)
+        if self.symlink_files:
+            for filename, path in self.symlink_files.items():
+                dest = opj(self.path, filename)
+                symlink(path, dest)
         return
 
 
@@ -73,9 +86,13 @@ class RaspaJob(SingleJob):
         Subsections are never closed but *automatically* ended if the next key-value pair does not fit into it.
         So here we only need to care about readability of the input file. The logic is automatically preserved
         by using the nested PLAMS ``settings`` logic.
+
+        Components should be built using either ``component['INT'] = Settings()`` or ``component._INT = Settings()``.
+        It needs to have a key ``moleculename`` (case insensitive).
         """
 
         def parse(key, value, indent=''):
+            #transform bools to yes and no
             if value is True:
                 value = 'yes'
             elif value is False:
@@ -83,10 +100,33 @@ class RaspaJob(SingleJob):
 
             ret = indent + key
 
-            if isinstance(value, Settings):
-                #reserved keywords are not part of the input file
+            if (key.lower() == 'component'):
+                n_comp = len(value)
+                for i in range(n_comp):
+                    #get component number
+                    if str(i) in value:
+                        number = str(i)
+                    elif "_{}".format(i) in value:
+                        number = "_{}".format(i)
+                    else:
+                        raise PlamsError("Check that you have a valid component {:} in settings.input.component".format(i))
+                    ret += ' ' + str(i)
+
+                    subkeys = list(value[number].keys())
+                    mol_name = subkeys[[sk.lower() for sk in subkeys].index('moleculename')]
+                    ret += ' MoleculeName ' + str(value[number][mol_name])
+                    ret += '\n'
+                    tmp_value = value[number].copy()
+                    del tmp_value[mol_name]#exclude MoleculeName
+                    for el in tmp_value:
+                        ret += parse(el, tmp_value[el], indent+'  ')
+                    ret += '\n' + indent + key
+
+                return ret
+
+            elif isinstance(value, Settings):
                 if '_h' in value:
-                    ret += ' ' + value['_h']
+                    ret += ' ' + str(value['_h'])
                 ret += '\n'
 
                 for el in value:
@@ -118,4 +158,4 @@ class RaspaJob(SingleJob):
     def check(self):
         """Look for the normal termination signal in output."""
         s = self.results.grep_output('Simulation finished on')
-        return len(s) == 0
+        return bool(s)
