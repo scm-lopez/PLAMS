@@ -472,37 +472,6 @@ class AMSResults(Results):
                 raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
 
 
-#    @staticmethod
-#    def _mol_from_rkf_section(sectiondict):
-#        """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
-#
-#        ret = Molecule()
-#        coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
-#        symbols = sectiondict['AtomSymbols'].split()
-#        atnums = sectiondict['AtomicNumbers'] if isinstance(sectiondict['AtomicNumbers'], list) else [sectiondict['AtomicNumbers']]
-#        for at, crd, sym in zip(atnums, coords, symbols):
-#            newatom = Atom(atnum=at, coords=crd, unit='bohr')
-#            if sym.startswith('Gh.'):
-#                sym = sym[3:]
-#                newatom.properties.ghost = True
-#            if '.' in sym:
-#                sym, name = sym.split('.', 1)
-#                newatom.properties.name = name
-#            ret.add_atom(newatom)
-#        if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
-#            for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
-#                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
-#        if sectiondict['Charge'] != 0:
-#            ret.properties.charge = sectiondict['Charge']
-#        if 'nLatticeVectors' in sectiondict:
-#            ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
-#        if 'EngineAtomicInfo' in sectiondict:
-#            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
-#            for at, suffix in zip(ret, suffixes):
-#                at.properties.suffix = suffix
-#        return ret
-
-
 #===========================================================================
 #===========================================================================
 #===========================================================================
