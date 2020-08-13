@@ -116,12 +116,8 @@ Which yields the following input:
 ADF and CRSJob
 ~~~~~~~~~~~~~~
 
-By default all COSMO-RS solvation energies produced with ADF (*i.e.* DFT) surface charges
-are with respect to gas-phase atomic fragments, rather than the gas-phase molecule.
-To alleviate this issue a new workflow is presented in the PLAMS :ref:`cookbook <ams_crs_workflow>`.
-In summary: the construction of the DFT COSMO surface is herein preceded by a restart from
-a gas-phase single point. Consequently, the energy of the gas-phase molecule is used as zero point,
-rather than the usual gas-phase atomic fragments.
+A workflow is presented in the PLAMS :ref:`cookbook <ams_crs_workflow>`.
+In this workflow, we follow the usual procedure of generating the inputs required to run COSMO-RS and COSMO-SAC calculations.
 
 
 COSMO-RS Parameters
