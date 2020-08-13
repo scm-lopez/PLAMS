@@ -54,7 +54,7 @@ def run_crs_ams(settings_ams, settings_crs,
 
             >>> crs_dict = run_crs_ams(settings_ams, settings_crs, solvents, solutes)
             >>> for key in crs_dict:
-            >>>     print("\nSystem:", key)
+            >>>     print("System:", key)
             >>>     res = crs_dict[key].get_results(>>>settings_crs.input.property._h.upper())
             >>>     print("activity coefficients:")
             >>>     print(res["gamma"])
@@ -101,8 +101,8 @@ def run_crs_ams(settings_ams, settings_crs,
     :rtype: :class:`dict` or :class:`tuple` [:class:`dict`, :class:`list`, :class:`list`]
 
     .. _`activity coefficient`: ../../COSMO-RS/Properties.html#activity-coefficients-solvent-and-solute
+    """  
 
-    """  # noqa
     solvents = [solvents] if isinstance(solvents, Molecule) else solvents
     solutes = [solutes] if isinstance(solutes, Molecule) else solutes
 
@@ -206,6 +206,7 @@ def add_solvation_block(ams_settings: Settings) -> None:
         surf:   Delley
 
     """
+
     # Find the solvation key
     solvation = ams_settings.input.adf.find_case('solvation')
     solvation_block = ams_settings.input.adf[solvation]
@@ -266,6 +267,7 @@ def update_adf_defaults(ams_settings: Settings) -> None:
         EndEngine
 
     """
+
     # Find the solvation key
     # solvation = ams_settings.input.adf.find_case('solvation')
     # solvation_block = ams_settings.input.adf[solvation]
@@ -287,7 +289,6 @@ def update_adf_defaults(ams_settings: Settings) -> None:
         relativity: {'Level':'Scalar'},
         BeckeGrid:  {'Quality':'Good'}
     })
-    print (type(adf_defaults_block),type(adf_defaults_block[basis]))
     # Copy ams_settings and perform a soft update
     ret = ams_settings.copy()
     ret.input.adf.soft_update(adf_defaults_block)
