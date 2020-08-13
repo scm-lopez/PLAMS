@@ -1,3 +1,4 @@
+import os
 from scm.plams import Settings, JobError, AMSJob, CRSJob, Molecule, AMSResults, CRSResults, KFFile
 
 __all__ = ['run_crs_ams']
@@ -8,15 +9,15 @@ def run_crs_ams(settings_ams, settings_crs,
                 return_amsresults=False, **kwargs):
     """A workflow for running COSMO-RS calculations with AMS (*i.e.* DFT) COSMO surface charges.
 
-    The workflow consists of three distinct steps:
+    The workflow consists of four distinct steps:
 
     1. Perform gas-phase |AMSJob| calculations on the solvents and solutes (see *settings_ams*).
-    2. Perform COSMO |AMSJob| calculations using the .rkf file from step 1. 
-    3. Perform a COSMO-RS calculations with the COSMO surface charges produced in step 2
+    2. Perform COSMO |AMSJob| calculations using the .rkf file from step 1
+    3. Extract the relevant COSMO information from the results and create .coskf files.
+    4. Perform a COSMO-RS calculations with the .coskf files produced in steps 2 and 3
        (see *settings_crs*).
        This calculation is conducted for all possible solvent/solute pairs,
        assuming solutes have been specified by the user.
-
 
     The ams solvation block (*ams_settings.input.solvation*) is soft updated with suitable
     settings for constructing COSMO-RS compatible surface charges
@@ -54,7 +55,7 @@ def run_crs_ams(settings_ams, settings_crs,
 
             >>> crs_dict = run_crs_ams(settings_ams, settings_crs, solvents, solutes)
             >>> for key in crs_dict:
-            >>>     print("System:", key)
+            >>>     print("\\nSystem:", key) 
             >>>     res = crs_dict[key].get_results(>>>settings_crs.input.property._h.upper())
             >>>     print("activity coefficients:")
             >>>     print(res["gamma"])
@@ -62,17 +63,17 @@ def run_crs_ams(settings_ams, settings_crs,
             System: CRSJob.methanol.acetic_acid
             activity coefficients:
             [[1.        ]
-             [0.54248127]]
+             [0.48067852]]
 
             System: CRSJob.ethanol.acetic_acid
             activity coefficients:
-            [[1.       ]
-             [0.5258363]]
+            [[1.        ]
+             [0.43502696]]
 
             System: CRSJob.propanol.acetic_acid
             activity coefficients:
             [[1.        ]
-             [0.71201695]]
+             [0.58399355]]
 
     :type settings_ams: :class:`.Settings`
     :parameter settings_ams:
@@ -153,20 +154,35 @@ def run_amsjob(mol: Molecule, s: Settings, **kwargs) -> AMSResults:
     _s.input.ams.EngineRestart = adf_out
     _s.input.ams.LoadSystem.File = ams_out
     job2 = AMSJob(molecule=None, settings=_s, depend=[job1], name=name)
-    return job2.run(**kwargs)
+    results2 = job2.run(**kwargs)
 
+    coskf_name = job2.name.split('.')[1] 
+    convert_to_coskf(results2, coskf_name)
+    return results2
+
+def convert_to_coskf(res: AMSResults, name: str):
+
+    f = KFFile(res['adf.rkf'])
+    cosmo = f.read_section("COSMO")
+    # print (os.path.dirname(res.rkfpath(file='adf')), name)
+    coskf = KFFile(os.path.join(os.path.dirname(res.rkfpath(file='adf')),name+".coskf"))
+    for k,v in cosmo.items():
+        coskf.write("COSMO",k,v)
+    res.collect()
 
 def run_crsjob(solvent: AMSResults, s: Settings, solute: AMSResults = None, **kwargs) -> CRSResults:
     """Run an :class:`.CRSJob` on with *solvent* and, optionally, *solute* using the settings provided in *s*."""
     name = 'CRSJob.' + solvent.job.name.split('.')[1]
 
+    solv_coskf = solvent.job.name.split('.')[1]+".coskf"
     if solute is not None:
         name += '.' + solute.job.name.split('.')[1]
+        solute_coskf = solute.job.name.split('.')[1]+".coskf"
         job = CRSJob(settings=s, depend=[solvent.job, solute.job], name=name)
-        set_header(job.settings, solvent['adf.rkf'], solute['adf.rkf'])
+        set_header(job.settings, solvent[solv_coskf], solute[solute_coskf])
     else:
         job = CRSJob(settings=s, depend=[solvent.job], name=name)
-        set_header(job.settings, solvent['adf.rkf'])
+        set_header(job.settings, solvent[solv_coskf])
 
     return job.run(**kwargs)
 
