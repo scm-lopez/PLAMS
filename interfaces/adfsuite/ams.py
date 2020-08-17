@@ -231,7 +231,6 @@ class AMSResults(Results):
         """ Return the value of *varname* in the history section *history_section at step *step*."""
         if not 'ams' in self.rkfs: return
         main = self.rkfs['ams']
-        if step > main.read(history_section,'nEntries')-1 : return
         as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
             import numpy
