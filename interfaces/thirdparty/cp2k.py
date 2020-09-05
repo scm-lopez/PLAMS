@@ -142,6 +142,16 @@ class Cp2kResults(Results):
         diff = endTime - startTime
         return diff.total_seconds()
 
+    def get_timings(self):
+        """Return the Timings from the End of the Output File"""
+        chunk = self.get_output_chunk(begin="SUBROUTINE",end="-"*70)
+        ret = {}
+        for line in chunk[1:]:
+            line = line.split()
+            ret[line[0]] = line[1:]
+        return ret
+
+
     def _get_energy_type(self, search='Total', index=-1, unit='a.u.'):
         if index:
             select = index
