@@ -159,7 +159,7 @@ class Cp2kResults(Results):
             select = slice(0,None)
 
         s = self.grep_output(search+' energy:')[select]
-        if isinstance(select, int):
+        if not isinstance(select, slice):
             s = [s]
         return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
 
