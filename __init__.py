@@ -19,5 +19,6 @@ def __autoimport(path, folders):
 
 
 __all__ = __autoimport(__path__[0], ['core', 'mol', 'interfaces', 'tools', 'recipes','trajectories'])
+__all__.append('testing_utils')
 
 __version__ = 1.4

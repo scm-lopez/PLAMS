@@ -182,11 +182,16 @@ else:
 # Common stuff for both scm_theme and "native" build
 # ==================================================================================
 
+needs_sphinx = '2.1'
 
 extensions += [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.viewcode']
+    'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.doctest'
+]
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
@@ -196,7 +201,11 @@ add_module_names = False
 pygments_style = 'sphinx'
 
 # configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'python3': ('http://docs.python.org/3.6', None)}
+intersphinx_mapping = {
+    'python3': ('http://docs.python.org/3.6', None),
+    'h5py': ('https://docs.h5py.org/en/latest/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+}
 
 autodoc_default_flags = ['members', 'private-members', 'special-members']
 autodoc_member_order = 'bysource'

@@ -123,7 +123,7 @@ def test_copy(mol_list=None):
             _compare_attrs(bond, bond_ref)
 
 
-def test_set_get_state():
+def _test_set_get_state():
     """Tests for :meth:`Molecule.__setstate__` and :meth:`Molecule.__getstate__`."""
     mol = BENZENE.copy()
     dill_new = PATH / 'benzene_new.dill'
