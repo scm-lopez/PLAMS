@@ -108,14 +108,14 @@ class CrystalJob(SingleJob):
             elif isinstance(value, str) and key in [*_geom_keys,*_basis_keys,*_option_keys]:
                 ret += '{}\n'.format(value.upper())
 
-            elif key is '':
-                ret += '{}\n'.format(value.upper())
-
             elif isinstance(value, list):
                 if not key is '':
                     ret += '{}\n'.format(key)
                 for el in value:
-                    ret += '{}\n'.format(el)
+                    ret += '{}\n'.format(str(el).upper())
+
+            elif key is '':
+                ret += '{}\n'.format(str(value).upper())
 
             elif value is '' or value is True:
                 ret += '{}\n'.format(key)
