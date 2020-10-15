@@ -22,7 +22,7 @@ config.init = False
 #===========================================================================
 
 
-def init(path=None, folder=None):
+def init(path=None, folder=None, config_settings:Dict=None):
     """Initialize PLAMS environment. Create global ``config`` and the default |JobManager|.
 
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
@@ -32,6 +32,8 @@ def init(path=None, folder=None):
     *   Otherwise, the path ``../plams_defaults`` relative to the current file (``functions.py``) is checked. If defaults file is not found there, an exception is raised.
 
     Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.
+
+    Optionally, an additional `dict` (or |Settings| instance) can be provided to the `config_settings` argument which will be used to update the values from the ``plams_defaults``.
 
     .. warning::
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
@@ -50,6 +52,8 @@ def init(path=None, folder=None):
             raise PlamsError('plams_defaults not found, please set PLAMSDEFAULTS or AMSHOME in your environment')
     with open(defaults, 'r') as f:
         exec(compile(f.read(), defaults, 'exec'))
+
+    config.update(config_settings or {})
 
     from .jobmanager import JobManager
     config.default_jobmanager = JobManager(config.jobmanager, path, folder)

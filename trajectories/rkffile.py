@@ -84,7 +84,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Set up info required for reading frames
                 """
-                self.elements = self._read_elements()
+                self.elements = self.file_object.read('Molecule','AtomSymbols').split()
                 self.ntap = len(self.elements)
                 self.coords = numpy.zeros((self.ntap,3))
                 try :
@@ -128,14 +128,6 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 section_dict = self.file_object.read_section('Molecule')
                 plamsmol = Molecule._mol_from_rkf_section(section_dict)
                 return plamsmol
-
-        def _read_elements(self) :
-                """
-                Read the elements from the rkf file (assuming this does not change)
-                """
-                elements = self.file_object.read('Molecule','AtomicNumbers')
-                elements = [PeriodicTable.get_symbol(el) for el in elements]
-                return elements
 
         def read_frame (self, i, molecule=None) :
                 """

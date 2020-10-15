@@ -47,9 +47,9 @@ class ADFFragmentJob(MultiJob):
         self.f2 = AMSJob(name='frag2', molecule=self.fragment2, settings=self.settings)
 
         for at in self.fragment1:
-            at.properties.suffix = 'f=subsystem1'
+            at.properties.suffix = 'adf.f=subsystem1'
         for at in self.fragment2:
-            at.properties.suffix = 'f=subsystem2'
+            at.properties.suffix = 'adf.f=subsystem2'
 
         self.full = AMSJob(name = 'full',
             molecule = self.fragment1 + self.fragment2,
