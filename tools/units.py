@@ -48,6 +48,7 @@ class Units:
         -   ``kcal/mol``
         -   ``kJ/mol``
         -   ``cm^-1``, ``cm-1``
+        -   ``K``, ``Kelvin``
 
     *   dipole moment:
 
@@ -94,6 +95,7 @@ class Units:
     energy['kJ/mol']                                  =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
     energy['kcal/mol']                                =  energy['kJ/mol'] / 4.184
     energy['cm^-1'] = energy['cm-1']                  =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
+    energy['K'] = energy['Kelvin']                    =  315775.0248041   #http://physics.nist.gov/cgi-bin/cuu/Value?hrk
 
     angle = {}
     angle['degree'] =  angle['deg'] = 1.0
