@@ -113,12 +113,15 @@ class ADFResults(SCMResults):
         Return a dictionary with energy decomposition terms, expressed in *unit*.
 
         The following keys are present in the returned dictionary: ``Electrostatic``, ``Kinetic``, ``Coulomb``, ``XC``. The sum of all the values is equal to the value returned by :meth:`get_energy`.
+        Note that additional contributions might be included, those are up to now: ``Dispersion``.
         """
         ret = {}
         ret['Electrostatic'] = self._get_single_value('Energy', 'Electrostatic Energy', unit)
         ret['Kinetic'] = self._get_single_value('Energy', 'Kinetic Energy', unit)
         ret['Coulomb'] = self._get_single_value('Energy', 'Elstat Interaction', unit)
         ret['XC'] = self._get_single_value('Energy', 'XC Energy', unit)
+        if ('Energy', 'Dispersion Energy') in self._kf:
+            ret['Dispersion'] = self._get_single_value('Energy', 'Dispersion Energy', unit)
         return ret
 
 
