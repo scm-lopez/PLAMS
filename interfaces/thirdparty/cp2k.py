@@ -163,10 +163,7 @@ class Cp2kResults(Results):
 
         Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
         Also supports slices.
-        Set to *None* to return all as a list.
         Defaults to the last occurence.
-
-        Returns a List of Energies.
         """
         return self._get_energy_type('Total', index=index, unit=unit)
 
@@ -175,7 +172,6 @@ class Cp2kResults(Results):
 
         Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
         Also supports slices.
-        Set to *None* to return all as a list.
         Defaults to the last occurence.
         """
         return self._get_energy_type('Dispersion', index=index, unit=unit)
