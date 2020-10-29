@@ -162,7 +162,7 @@ class Cp2kResults(Results):
     def get_energy(self, index=-1, unit='a.u.'):
         """Returns 'Total energy:' from the output file.
 
-        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Set ``index`` to choose the n-th occurence of the total energy in the output, *e.g.* to choose an optimization step.
         Also supports slices.
         Defaults to the last occurence.
         """
@@ -171,7 +171,7 @@ class Cp2kResults(Results):
     def get_dispersion(self, index=-1, unit='a.u.'):
         """Returns 'Dispersion energy:' from the output file.
 
-        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Set ``index`` to choose the n-th occurence of the dispersion energy in the output, *e.g.* to choose an optimization step.
         Also supports slices.
         Defaults to the last occurence.
         """
@@ -182,7 +182,7 @@ class Cp2kResults(Results):
 
         Set ``file`` to use other than the main output file.
 
-        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
+        Set ``index`` to choose the n-th occurence of the forces in the output, *e.g.* to choose an optimization step.
         Set to *None* to return all as a list.
         Defaults to the last occurence.
         """
@@ -351,7 +351,7 @@ class Cp2kResults(Results):
         return names, ret
 
     def get_md_cell_volumes(self, file=None, unit='angstrom'):
-        """Get cell Volumes using the :func:get_md_infos function."""
+        """Get cell Volumes using the :meth:`get_md_infos` function."""
         if not file:
             file = self.job._filename('out')
         if not hasattr(self, 'md_infos'):
@@ -380,7 +380,7 @@ class Cp2kResults(Results):
     def check_scf(self, file=None, return_n=False):
         """Returns False if the string 'SCF run NOT converged' appears in *file*, otherwise True.
 
-        *file* defaults to `self.job._filename('out')`.
+        *file* defaults to ``self.job._filename('out')``.
 
         Set *return_n* to recieve the number of occurences instead of a bool.
         """
@@ -395,7 +395,7 @@ class Cp2kResults(Results):
     def check_go(self, file=None):
         """Returns False if the string 'GEOMETRY OPTIMIZATION COMPLETED' does not appear in *file*
 
-        *file* defaults to `self.job._filename('out')`.
+        *file* defaults to ``self.job._filename('out')``.
         """
         if not file:
             file = self.job._filename('out')
