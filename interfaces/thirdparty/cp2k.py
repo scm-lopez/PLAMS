@@ -367,9 +367,8 @@ class Cp2kResults(Results):
         else:
             n, data = self.md_infos
         idx = n.index("VOLUME[bohr^3]")
-        ret = [ float(x[idx].split()[0]) for x in data ]
-        conv = Units.convert(1.0, 'bohr', unit)**3
-        ret = np.multiply(ret, conv)
+        ret = np.array([x[idx].split(maxsplit=1)[0]) for x in data], dtype=float)
+        ret *= Units.conversion_ratio('bohr', unit)**3
         return ret
 
 
