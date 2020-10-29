@@ -155,8 +155,9 @@ class Cp2kResults(Results):
     def _get_energy_type(self, search='Total', index=-1, unit='a.u.'):
         s = self.grep_output(search+' energy:')[index]
         if not isinstance(index, slice):
-            s = [s]
-        return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
+            return Units.convert(float(s.split()[-1]), 'a.u.', unit)
+        else:
+            return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
 
     def get_energy(self, index=-1, unit='a.u.'):
         """Returns 'Total energy:' from the output file.
