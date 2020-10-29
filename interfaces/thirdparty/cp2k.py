@@ -217,7 +217,7 @@ class Cp2kResults(Results):
         if idx is None:
             return 0
         elif isinstance(idx, slice):
-            raise RuntimeError("Passing a slice here is not supported!")
+            raise TypeError("Passing a slice here is not supported!")
         elif idx >= 0 and idx < nTotal:
             return idx + 1
         elif idx < -nTotal or idx >= nTotal:
