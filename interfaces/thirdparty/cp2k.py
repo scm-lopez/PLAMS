@@ -399,7 +399,7 @@ class Cp2kResults(Results):
         n = len(self.grep_file(file, search))
         if return_n:
             return n
-        return bool(n)
+        return not bool(n)
 
     def check_go(self, file=None):
         """Returns False if the string 'GEOMETRY OPTIMIZATION COMPLETED' does not appear in *file*
