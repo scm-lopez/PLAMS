@@ -147,8 +147,8 @@ class Cp2kResults(Results):
         chunk = self.get_output_chunk(begin="SUBROUTINE",end="-"*70)
         ret = {}
         for line in chunk[1:]:
-            line = line.split()
-            ret[line[0]] = line[1:]
+            l0, *l1 = line.split()
+            ret[l0] = l1
         return ret
 
 
