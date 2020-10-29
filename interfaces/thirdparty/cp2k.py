@@ -365,7 +365,7 @@ class Cp2kResults(Results):
 
 
     def get_md_pressure(self, file=None):
-        """Get pressures using the :func:get_md_infos function."""
+        """Get pressures using the :meth:`get_md_infos` function."""
         if not file:
             file = self.job._filename('out')
         if not hasattr(self, 'md_infos'):
