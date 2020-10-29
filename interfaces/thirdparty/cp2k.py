@@ -413,10 +413,7 @@ class Cp2kResults(Results):
             file = self.job._filename('out')
         search = "GEOMETRY OPTIMIZATION COMPLETED"
         n = len(self.grep_file(file, search))
-        if n > 0:
-            return True
-        else:
-            return False
+        return bool(n)
 
 
 
