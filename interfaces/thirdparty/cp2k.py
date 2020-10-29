@@ -210,8 +210,8 @@ class Cp2kResults(Results):
             if line[0] == '#':
                 ret.append([])
                 continue
-            ret[-1].append([ float(x) for x in line[-3:]])
-        return [ np.asarray(item) for item in ret ]
+            ret[-1].append(line[-3:])
+        return [np.array(item, dtype=float) for item in ret]
 
     def _idx_to_match(self, nTotal, idx):
         if idx is None:
