@@ -344,7 +344,7 @@ class Cp2kResults(Results):
         for i, frame in enumerate(ret):
             assert names == [ x[0] for x in frame ], ("Namings in output not constant?")
             assert len(frame) == len(names), ("{:}".format(frame))
-            assert set([len(x) for x in frame]) == set([2])
+            assert set(len(x) for x in frame) == {2}
             ret[i] = [ l[1] for l in frame ]
         if cache:
             self.md_infos = [names, ret]
