@@ -41,6 +41,7 @@ sp_sett.input.ams.Task = 'SinglePoint'
 
 # Settings for the DFTB engine (including excitations)
 dftb_sett = Settings()
+dftb_sett.input.dftb.Model = 'SCC-DFTB'
 dftb_sett.input.dftb.ResourcesDir = 'QUASINANO2015'
 dftb_sett.input.dftb.Properties.Excitations.TDDFTB.calc = 'singlet'
 dftb_sett.input.dftb.Properties.Excitations.TDDFTB.lowest = 10

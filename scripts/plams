@@ -1,4 +1,4 @@
-#!/usr/bin/env startpython
+#!/usr/bin/env amspython
 
 from scm.plams import *
 

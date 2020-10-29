@@ -14,7 +14,7 @@ if 'AMSBIN' in os.environ:
         command = opj(os.path.expandvars('$AMSBIN'), 'python3.5', 'Scripts', 'sphinx-build.exe')
         if os.path.exists(command):
             # starting sphinx-build on windows is tricky...
-            command = ['sh', opj(os.path.expandvars('$AMSBIN'), 'startpython'), '-m', 'sphinx']
+            command = ['sh', opj(os.path.expandvars('$AMSBIN'), 'amspython'), '-m', 'sphinx']
         else:
             print('Warning: AMSBIN found in environment, but failed to locate sphinx-build')
             command = ""

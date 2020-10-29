@@ -58,6 +58,8 @@ class Atom:
             self.symbol = symbol
         else:
             self.atnum = atnum
+            if atnum == 0: self._dummysymbol = 'Xx'
+
         self.mol = mol
         self.bonds = bonds or []
         self.properties = Settings(other)
@@ -135,9 +137,17 @@ class Atom:
 
 
     def _getsymbol(self):
-        return PT.get_symbol(self.atnum)
+        if self.atnum == 0:
+            return self._dummysymbol
+        else:
+            return PT.get_symbol(self.atnum)
     def _setsymbol(self, symbol):
-        self.atnum = PT.get_atomic_number(symbol)
+        if symbol.lower().capitalize() in PT.dummysymbols:
+            self.atnum = 0
+            self._dummysymbol = symbol.lower().capitalize()
+        else:
+            self.atnum = PT.get_atomic_number(symbol)
+            self._dummysymbol = None
     symbol = property(_getsymbol, _setsymbol)
 
     def _getmass(self):

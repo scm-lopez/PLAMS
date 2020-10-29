@@ -1344,7 +1344,7 @@ class Molecule:
         n = len(self.lattice)
 
         if n==0:
-            raise MoleculeError('apply_strain: can only be used for perdiodic systems.')
+            raise MoleculeError('apply_strain: can only be used for periodic systems.')
 
         if n in [1,2] and self.align_lattice(convention='AMS'):
             raise MoleculeError('apply_strain: the lattice vectors should follow the convention of AMS (i.e. for 1D-periodic systems the lattice vector should be along the x-axis, while for 2D-periodic systems the two vectors should be on the XY plane. Consider using the align_lattice function.')
@@ -1394,7 +1394,7 @@ class Molecule:
 
         n = len(self.lattice)
         if n==0:
-            raise MoleculeError('map_to_central_cell: can only be used for perdiodic systems.')
+            raise MoleculeError('map_to_central_cell: can only be used for periodic systems.')
         elif n==1:
             lattice_mat = np.array([[self.lattice[0][0]]])
         else:
@@ -1838,9 +1838,9 @@ class Molecule:
             shift = 1 if (len(lst) > 4 and lst[0] == str(i)) else 0
             num = lst[0+shift]
             if isinstance(num, str):
-                #num = str(num.split(".")[0])
-                num = PT.get_atomic_number(num)
-            self.add_atom(Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
+                self.add_atom(Atom(symbol=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
+            else:
+                self.add_atom(Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
 
         def newlatticevec(line):
             lst = line.split()
@@ -1925,11 +1925,7 @@ class Molecule:
                             tmp = atomline.split()
                             crd = tuple(map(float, tmp[0:3]))
                             symb = tmp[3]
-                        try:
-                            num = PT.get_atomic_number(symb)
-                        except PTError:
-                            num = 0
-                        self.add_atom(Atom(atnum=num, coords=crd))
+                        self.add_atom(Atom(symbol=symb, coords=crd))
                     for j in range(nbond):
                         bondline = f.readline().rstrip()
                         if len(bondline) == 21:
@@ -2016,12 +2012,8 @@ class Molecule:
                 if len(spl) < 6:
                     raise FileError('readmol2: Error in %s line %i: not enough values in line' % (f.name, str(i+1)))
                 symb = spl[5].partition('.')[0]
-                try:
-                    num = PT.get_atomic_number(symb)
-                except PTError:
-                    num = 0
                 crd = tuple(map(float, spl[2:5]))
-                newatom = Atom(atnum=num, coords=crd, name=spl[1], type=spl[5])
+                newatom = Atom(symbol=symb, coords=crd, name=spl[1], type=spl[5])
                 if len(spl) > 6:
                     newatom.properties['subst_id'] = spl[6]
                 if len(spl) > 7:
@@ -2136,15 +2128,19 @@ class Molecule:
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
         symbols = sectiondict['AtomSymbols'].split()
-        atnums = sectiondict['AtomicNumbers'] if isinstance(sectiondict['AtomicNumbers'], list) else [sectiondict['AtomicNumbers']]
-        for at, crd, sym in zip(atnums, coords, symbols):
-            newatom = Atom(atnum=at, coords=crd, unit='bohr')
+        for crd, sym in zip(coords, symbols):
             if sym.startswith('Gh.'):
-                sym = sym[3:]
-                newatom.properties.ghost = True
+                isghost = True
+                _, sym = sym.split('.', 1)
+            else:
+                isghost = False
             if '.' in sym:
-                sym, name = sym.split('.', 1)
+                elsym, name = sym.split('.', 1)
+                newatom = Atom(symbol=elsym, coords=crd, unit='bohr')
                 newatom.properties.name = name
+            else:
+                newatom = Atom(symbol=sym, coords=crd, unit='bohr')
+            if isghost: newatom.properties.ghost = True
             ret.add_atom(newatom)
         if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
             for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
