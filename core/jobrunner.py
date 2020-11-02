@@ -212,7 +212,9 @@ class GridRunner(JobRunner):
         self._active_lock = threading.Lock()
         self._mainlock = threading.Lock()
 
-        if grid == 'auto':
+        if isinstance(grid, Settings):
+            self.settings = grid
+        elif grid == 'auto':
             self.settings = self._autodetect()
         elif grid in GridRunner.config:
             self.settings = GridRunner.config[grid]
@@ -220,8 +222,6 @@ class GridRunner(JobRunner):
                 saferun([self.settings.commands.submit, '--version'], stdout=DEVNULL, stderr=DEVNULL)
             except OSError:
                 raise PlamsError('GridRunner: {} command not found'.format(self.settings.commands.submit))
-        elif isinstance(grid, Settings):
-            self.settings = grid
         else:
             raise PlamsError("GridRunner: invalid 'grid' argument. 'grid' should be either a Settings instance (see documentations for details) or a string occurring in GridRunner.config or 'auto' for autodetection")
 

@@ -372,11 +372,13 @@ class Results(metaclass=_MetaResults):
         """
         for name in self.files:
             newname = Results._replace_job_name(name, self.job.name, newresults.job.name)
-            args = (opj(self.job.path, name), opj(newresults.job.path, newname))
+            oldpath = opj(self.job.path, name)
+            newpath = opj(newresults.job.path, newname)
+            os.makedirs(os.path.dirname(newpath), exist_ok=True)
             if os.name == 'posix' and self.job.settings.link_files is True:
-                os.link(*args)
+                os.link(oldpath, newpath)
             else:
-                shutil.copy(*args)
+                shutil.copy(oldpath, newpath)
             newresults.files.append(newname)
         for k,v in self.__dict__.items():
             if k in ['job', 'files', 'done', 'finished']: continue
