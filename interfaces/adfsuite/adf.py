@@ -4,7 +4,7 @@ from subprocess import CalledProcessError
 
 from .scmjob import SCMJob, SCMResults
 from ...core.errors import ResultsError
-from ...core.settings import Settings
+from ...core.settings import Settings, ig
 from ...core.functions import config, log
 from ...tools.units import Units
 from ...tools.periodic_table import PT
