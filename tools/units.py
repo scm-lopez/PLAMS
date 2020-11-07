@@ -83,15 +83,18 @@ class Units:
     distance['Bohr'] = distance['a.u.'] = distance['au'] =  1.0 / constants['Bohr_radius']
     distance['nm']                                       = distance['A'] / 10.0
     distance['pm']                                       = distance['A'] * 100.0
+    distance['m']                                        = distance['A'] * 1e-10
 
     rec_distance = {}
     rec_distance['1/A'] = rec_distance['1/Ang'] = rec_distance['1/Angstrom'] = rec_distance['A^-1'] = rec_distance['Ang^-1'] = rec_distance['Angstrom^-1'] = 1.0
+    rec_distance['1/m'] = rec_distance['m^-1'] = 1e10
     rec_distance['1/Bohr'] = rec_distance['Bohr^-1'] = constants['Bohr_radius']
 
     energy = {}
     energy['au'] = energy['a.u.'] = energy['Hartree'] = energy['Ha'] =  1.0
     energy['eV']                                                     =  27.211386245988   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
     energy['kJ/mol']                                                 =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
+    energy['J']                                                      =  4.359744650e-18 
     energy['kcal/mol']                                               =  energy['kJ/mol'] / 4.184
     energy['cm^-1'] = energy['cm-1']                                 =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
 
@@ -116,9 +119,16 @@ class Units:
         forces[k+'/bohr'] = forces[k+'/au'] = forces[k+'/a.u.'] = v * rec_distance['1/Bohr']
         hessian[k+'/bohr^2'] = hessian[k+'/au^2'] = hessian[k+'/a.u.^2'] = v * rec_distance['1/Bohr']**2
         stress[k+'/bohr^3'] = stress[k+'/au^3'] = stress[k+'/a.u.^3'] = v * rec_distance['1/Bohr']**3
+        forces[k+'/m'] = v * rec_distance['1/m']
+        hessian[k+'/m^2'] = v  * rec_distance['1/m']**2
+        stress[k+'/m^3'] = v  * rec_distance['1/m']**3
     forces['au'] = forces['a.u.'] = forces['Ha/bohr']
     hessian['au'] = hessian['a.u.'] = hessian['Ha/bohr^2']
     stress['au'] = stress['a.u.'] = stress['Ha/bohr^3']
+    stress['Pa'] = stress['J/m^3']
+    stress['GPa'] = stress['Pa'] * 1e-9
+    stress['bar'] = stress['Pa'] * 1e-5
+    stress['atm'] = stress['bar'] / 1.01325
 
         
 
