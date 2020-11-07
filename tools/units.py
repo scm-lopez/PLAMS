@@ -107,11 +107,8 @@ class Units:
     dipole['Debye'] = dipole['D'] =  dipole['Cm'] * constants['c']* 1e21
 
     forces = {}
-    forces['au'] = forces['a.u.'] = 1.0
     hessian = {}
-    hessian['au'] = forces['a.u.'] = 1.0
     stress = {}
-    stress['au'] = stress['a.u.'] = 1.0
     for k,v in energy.items():
         forces[k+'/Angstrom'] = forces[k+'/Ang'] = forces[k+'/A'] = v * rec_distance['1/Angstrom']
         hessian[k+'/Angstrom^2'] = hessian[k+'/Ang^2'] = hessian[k+'/A^2'] = v  * rec_distance['1/Angstrom']**2
@@ -119,6 +116,9 @@ class Units:
         forces[k+'/bohr'] = forces[k+'/au'] = forces[k+'/a.u.'] = v * rec_distance['1/Bohr']
         hessian[k+'/bohr^2'] = hessian[k+'/au^2'] = hessian[k+'/a.u.^2'] = v * rec_distance['1/Bohr']**2
         stress[k+'/bohr^3'] = stress[k+'/au^3'] = stress[k+'/a.u.^3'] = v * rec_distance['1/Bohr']**3
+    forces['au'] = forces['a.u.'] = forces['Ha/bohr']
+    hessian['au'] = hessian['a.u.'] = hessian['Ha/bohr^2']
+    stress['au'] = stress['a.u.'] = stress['Ha/bohr^3']
 
         
 
