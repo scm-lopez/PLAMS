@@ -85,15 +85,15 @@ class Units:
     distance['pm']                                       = distance['A'] * 100.0
 
     rec_distance = {}
-    rec_distance['1/A'] = rec_distance['1/Angstrom'] = rec_distance['A^-1'] = rec_distance['Angstrom^-1'] = 1.0
+    rec_distance['1/A'] = rec_distance['1/Ang'] = rec_distance['1/Angstrom'] = rec_distance['A^-1'] = rec_distance['Ang^-1'] = rec_distance['Angstrom^-1'] = 1.0
     rec_distance['1/Bohr'] = rec_distance['Bohr^-1'] = constants['Bohr_radius']
 
     energy = {}
-    energy['au'] = energy['a.u.'] = energy['Hartree'] =  1.0
-    energy['eV']                                      =  27.211386245988   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
-    energy['kJ/mol']                                  =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
-    energy['kcal/mol']                                =  energy['kJ/mol'] / 4.184
-    energy['cm^-1'] = energy['cm-1']                  =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
+    energy['au'] = energy['a.u.'] = energy['Hartree'] = energy['Ha'] =  1.0
+    energy['eV']                                                     =  27.211386245988   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
+    energy['kJ/mol']                                                 =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
+    energy['kcal/mol']                                               =  energy['kJ/mol'] / 4.184
+    energy['cm^-1'] = energy['cm-1']                                 =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
 
     angle = {}
     angle['degree'] =  angle['deg'] = 1.0
@@ -106,6 +106,21 @@ class Units:
     dipole['Cm']                  =  constants['e'] * constants['Bohr_radius'] * 1e-10
     dipole['Debye'] = dipole['D'] =  dipole['Cm'] * constants['c']* 1e21
 
+    forces = {}
+    forces['au'] = forces['a.u.'] = 1.0
+    hessian = {}
+    hessian['au'] = forces['a.u.'] = 1.0
+    stress = {}
+    stress['au'] = stress['a.u.'] = 1.0
+    for k,v in energy.items():
+        forces[k+'/Angstrom'] = forces[k+'/Ang'] = forces[k+'/A'] = v * rec_distance['1/Angstrom']
+        hessian[k+'/Angstrom^2'] = hessian[k+'/Ang^2'] = hessian[k+'/A^2'] = v  * rec_distance['1/Angstrom']**2
+        stress[k+'/Angstrom^3'] = stress[k+'/Ang^3'] = stress[k+'/A^3'] = v  * rec_distance['1/Angstrom']**3
+        forces[k+'/bohr'] = forces[k+'/au'] = forces[k+'/a.u.'] = v * rec_distance['1/Bohr']
+        hessian[k+'/bohr^2'] = hessian[k+'/au^2'] = hessian[k+'/a.u.^2'] = v * rec_distance['1/Bohr']**2
+        stress[k+'/bohr^3'] = stress[k+'/au^3'] = stress[k+'/a.u.^3'] = v * rec_distance['1/Bohr']**3
+
+        
 
     dicts = {}
     dicts['distance'] = distance
@@ -113,6 +128,9 @@ class Units:
     dicts['angle'] = angle
     dicts['dipole'] = dipole
     dicts['reciprocal distance'] = rec_distance
+    dicts['forces'] = forces
+    dicts['hessian'] = hessian
+    dicts['stress'] = stress
 
 
     def __init__(self):
