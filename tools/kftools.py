@@ -1,3 +1,4 @@
+import numpy
 import os
 import shutil
 import struct
@@ -11,7 +12,7 @@ from ..core.errors import FileError
 from ..core.functions import log
 
 
-__all__ = ['KFFile', 'KFReader']
+__all__ = ['KFFile', 'KFReader', 'KFHistory']
 
 
 
@@ -469,3 +470,95 @@ class KFFile:
             if i%step == 0: ret += '\n'
             ret += f(el)
         return ret
+
+
+#===========================================================================
+#===========================================================================
+#===========================================================================
+
+
+
+class KFHistory:
+    """A class for reading "History" sections of files in the KF format.
+
+    This class acts as a wrapper around |KFReader| enabling convenient iteration over entries (frames) of History sections.
+
+    The constructor argument *kf* should be a |KFReader| instance attached to an existing KF file. The *section* argument then holds a name of the desired History-like section, such as "History" or "MDHistory".
+
+    The :meth:`~KFHistory.read_all` method can be used used to easily read all values of a particular history item into a single numpy array.
+
+    To iterate over the frames in a history section, use :meth:`~KFHistory.iter` or :meth:`~KFHistory.iter_optional`. The former raises an exception if the selected variable is not present in the history, while the latter returns a given default value instead.
+
+    Usage::
+
+        kf = KFReader('somefile.rkf')
+        mdhistory = KFHistory(kf, 'MDHistory')
+
+        for T, p in mdhistory.iter('Temperature'), mdhistory.iter_optional('Pressure', 0):
+            print(T, p)
+
+    """
+
+    def __init__(self, kf, section):
+        self.kf = kf
+        self.section = section
+        self.nsteps = kf.read(section, "nEntries")
+        self.shapes = {}
+        self.blocked = set()
+
+        if (section, "nBlocks") in kf:
+            self.nblocks = kf.read(section, "nBlocks")
+        else:
+            self.nblocks = 0
+
+    def read_all(self, name):
+        """Return a numpy array containing the values of history item *name* from all frames."""
+        if name not in self.shapes:
+            self._init_shape(name)
+        if name in self.blocked:
+            return numpy.concatenate([numpy.atleast_1d(self.kf.read(self.section, "{}({})".format(name, i))) for i in range(1, self.nblocks + 1)])
+        else:
+            return numpy.asarray([self.kf.read(self.section, "{}({})".format(name, i)) for i in range(1, self.nsteps + 1)])
+
+    def iter(self, name):
+        """Iterate over the values of history item *name*."""
+        if name not in self.shapes:
+            self._init_shape(name)
+        if name in self.blocked:
+            for i in range(1, self.nblocks + 1):
+                block = self.kf.read(self.section, "{}({})".format(name, i))
+                try:
+                    yield from block
+                except TypeError:
+                    # one-element blocks are not iterable (KFReader returns them as scalars)
+                    yield block
+        else:
+            for i in range(1, self.nsteps + 1):
+                yield self.kf.read(self.section, "{}({})".format(name, i))
+
+    def iter_optional(self, name, default=None):
+        """Iterate over the values of history item *name*, returning *default* if the item is not present."""
+        if (self.section, name + "(1)") in self.kf:
+            yield from self.iter(name)
+        else:
+            while True:
+                yield default
+
+    def _init_shape(self, name):
+        shapevar = name + "(dim)"
+        if (self.section, shapevar) in self.kf:
+            shape = self.kf.read(self.section, shapevar)
+            try:
+                # shape is a list (variable "name" is at least rank-2)
+                self.shapes[name] = tuple(shape)
+            except TypeError:
+                # shape is a scalar (variable "name" is a scalar or rank-1)
+                self.shapes[name] = (shape,)
+            perAtomVar = name + "(perAtom)"
+            if self.nblocks and (self.section, perAtomVar) in self.kf:
+                perAtom = self.kf.read(self.section, perAtomVar)
+                if perAtom == False and self.shapes[name] == (1,):
+                    self.blocked.add(name)
+        else:
+            # no shape info => assume scalar/rank-1 (read as is, no blocks)
+            self.shapes[name] = (1,)
