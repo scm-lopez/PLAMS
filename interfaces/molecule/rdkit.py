@@ -633,15 +633,18 @@ def readpdb(pdb_file, removeHs=False, proximityBonding=False, return_rdmol=False
     Generate a molecule from a PDB file
 
     :param pdb_file: The PDB file to read
-    :type pdb_file: str or file
+    :type pdb_file: path- or file-like
     :param bool removeHs: Hydrogens are removed if True
     :param bool proximityBonding: Enables automatic proximity bonding
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: The molecule
     :rtype: |Molecule| or rdkit.Chem.Mol
     """
-    if isinstance(pdb_file, str):
+    try:
         pdb_file = open(pdb_file, 'r')
+    except TypeError:
+        pass  # pdb_file is a file-like object... hopefully
+
     pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), removeHs=removeHs, proximityBonding=proximityBonding)
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
@@ -653,11 +656,14 @@ def writepdb(mol, pdb_file=sys.stdout):
     :parameter mol: molecule to be exported to PDB
     :type mol: |Molecule| or rdkit.Chem.Mol
     :param pdb_file: The PDB file to write to, or a filename
-    :type pdb_file: str or file
+    :type pdb_file: path- or file-like
     """
-    mol = to_rdmol(mol)
-    if isinstance(pdb_file, str):
+    try:
         pdb_file = open(pdb_file, 'w')
+    except TypeError:
+        pass  # pdb_file is a file-like object... hopefully
+
+    mol = to_rdmol(mol)
     pdb_file.write(Chem.MolToPDBBlock(mol))
 
 
@@ -907,26 +913,7 @@ def get_substructure(mol, func_list):
     gen = (_get_match(mol, rdmol, i) for i in rdmol_func_list)
     return {key: value for key, value in zip(func_list, gen) if value}
 
-@add_to_class(Molecule)
-def assign_chirality (self) :
-    """
-    Assigns stereo-info to PLAMS molecule by invoking RDKIT
-    """
-    rd_mol = to_rdmol(self, assignChirality=True)
-    pl_mol = from_rdmol(rd_mol)
-
-    # Add R/S info to self
-    for iat,pl_atom in enumerate(pl_mol.atoms):
-        # Check for R/S information
-        if pl_atom.properties.stereo:
-            self.atoms[iat].properties.stereo = pl_atom.properties.stereo
-
-    # Add cis/trans information to self
-    for ibond,pl_bond in enumerate(pl_mol.bonds):
-        if pl_bond.properties.stereo:
-            self.bonds[ibond] = pl_bond.properties.stereo
-
-
+  
 def yield_coords(rdmol, id=-1):
     """Take an rdkit molecule and yield its coordinates as 3-tuples.
 
@@ -969,3 +956,32 @@ def yield_coords(rdmol, id=-1):
     for atom in rdmol.GetAtoms():
         pos = conf.GetAtomPosition(atom.GetIdx())
         yield (pos.x, pos.y, pos.z)
+
+        
+@add_to_class(Molecule)
+def assign_chirality(self):
+    """
+    Assigns stereo-info to PLAMS molecule by invoking RDKIT
+    """
+    rd_mol = to_rdmol(self, assignChirality=True)
+    pl_mol = from_rdmol(rd_mol)
+
+    # Add R/S info to self
+    for iat,pl_atom in enumerate(pl_mol.atoms):
+        # Check for R/S information
+        if pl_atom.properties.stereo:
+            self.atoms[iat].properties.stereo = pl_atom.properties.stereo
+
+    # Add cis/trans information to self
+    for ibond,pl_bond in enumerate(pl_mol.bonds):
+        if pl_bond.properties.stereo:
+            self.bonds[ibond] = pl_bond.properties.stereo
+
+            
+@add_to_class(Molecule)
+def get_chirality(self):
+    """
+    Returns the chirality of the atoms
+    """
+    rd_mol = to_rdmol(self, assignChirality=True)
+    return Chem.FindMolChiralCenters(rd_mol,force=True,includeUnassigned=True)

@@ -11,7 +11,7 @@ Given a molecular system, we simultaneously minimize the difference between HOMO
 
    J = \sqrt{N^2+A^2}
 
-and find the value of *gamma* (within a certain range) which minimizes J.
+and find the value of *gamma* (within a certain range) which minimizes J. See also `this article by Kronik and coworkers <https://doi.org/10.1063/1.4807325>`__.
 
 We first define a new job type ``GammaJob`` by extending |MultiJob|.
 The goal of ``GammaJob`` is to calculate the J function for one fixed value of *gamma*
@@ -34,7 +34,7 @@ That task can be conveniently wrapped in a simple function ``gamma_scan``.
     To execute this PLAMS script:
     
     * :download:`Download TuningRangeSeparation.py <../../../examples/TuningRangeSeparation.py>`
-    * ``$ADFIBN/plams TuningRangeSeparation.py``
+    * ``$ADFBIN/plams TuningRangeSeparation.py``
 
 **Output**
 

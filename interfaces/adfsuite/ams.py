@@ -41,7 +41,7 @@ class AMSResults(Results):
             n = main[('EngineResults','nEntries')]
             for i in range(1, n+1):
                 title =  main[('EngineResults','Title({})'.format(i))]
-                files =  main[('EngineResults','Files({})'.format(i))].splitlines()
+                files =  main[('EngineResults','Files({})'.format(i))].split('\x00')
                 if files[0].endswith('.rkf'):
                     key = files[0][:-4]
                     self.rkfs[key] = KFFile(opj(self.job.path, files[0]))
@@ -194,6 +194,7 @@ class AMSResults(Results):
                 mol.lattice = [tuple(lattice[j:j+3]) for j in range(0,len(lattice),3)]
 
             if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
+                mol.bonds = []
                 index = main.read('History', f'Bonds.Index({step})')
                 atoms = main.read('History', f'Bonds.Atoms({step})')
                 orders = main.read('History', f'Bonds.Orders({step})')
@@ -230,7 +231,6 @@ class AMSResults(Results):
         """ Return the value of *varname* in the history section *history_section at step *step*."""
         if not 'ams' in self.rkfs: return
         main = self.rkfs['ams']
-        if step > main.read(history_section,'nEntries')-1 : return
         as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
             import numpy
@@ -329,7 +329,8 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        freqs = np.array(self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine))
+        freqs = self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine)
+        freqs = np.array(freqs) if isinstance(freqs,list) else np.array([freqs])
         return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
@@ -472,37 +473,6 @@ class AMSResults(Results):
                 raise ValueError("You need to specify the 'engine' argument when there are multiple engine result files present in the job folder")
 
 
-#    @staticmethod
-#    def _mol_from_rkf_section(sectiondict):
-#        """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
-#
-#        ret = Molecule()
-#        coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
-#        symbols = sectiondict['AtomSymbols'].split()
-#        atnums = sectiondict['AtomicNumbers'] if isinstance(sectiondict['AtomicNumbers'], list) else [sectiondict['AtomicNumbers']]
-#        for at, crd, sym in zip(atnums, coords, symbols):
-#            newatom = Atom(atnum=at, coords=crd, unit='bohr')
-#            if sym.startswith('Gh.'):
-#                sym = sym[3:]
-#                newatom.properties.ghost = True
-#            if '.' in sym:
-#                sym, name = sym.split('.', 1)
-#                newatom.properties.name = name
-#            ret.add_atom(newatom)
-#        if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
-#            for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
-#                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
-#        if sectiondict['Charge'] != 0:
-#            ret.properties.charge = sectiondict['Charge']
-#        if 'nLatticeVectors' in sectiondict:
-#            ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
-#        if 'EngineAtomicInfo' in sectiondict:
-#            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
-#            for at, suffix in zip(ret, suffixes):
-#                at.properties.suffix = suffix
-#        return ret
-
-
 #===========================================================================
 #===========================================================================
 #===========================================================================
@@ -512,6 +482,7 @@ class AMSJob(SingleJob):
     """A class representing a single computation with AMS driver. The corresponding results type is |AMSResults|.
     """
     _result_type = AMSResults
+    _command = 'ams'
 
 
     def get_input(self):
@@ -550,7 +521,7 @@ class AMSJob(SingleJob):
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
         if self.settings.runscript.stdout_redirect:
-            ret += ' >"{}"'.formatself._filename('out')
+            ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
         return AMSJob._slurm_env(self.settings) + ret
 

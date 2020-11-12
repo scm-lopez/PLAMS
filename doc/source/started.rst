@@ -32,7 +32,7 @@ Installing PLAMS
 
 You can install PLAMS on your computer using one of the following ways:
 
-1.  If you are using Amsterdam Modeling Suite, PLAMS is shipped as a part of ``scm`` Python package (``$AMSHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``startpython`` command).
+1.  If you are using Amsterdam Modeling Suite, PLAMS is shipped as a part of ``scm`` Python package (``$AMSHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``amspython`` command).
     The launch script is added to ``$AMSBIN``, so it should be directly visible from your command line (as long as ``$AMSBIN`` is in your ``$PATH``).
 
 2.  The latest PLAMS stable release can be installed directly from PyPi by typing ``pip install plams`` in your command line.
@@ -108,7 +108,7 @@ To sum up, a proper PLAMS script needs to look like this::
     # =========
     finish()
 
-and it should be executed from the command line with ``python [filename]`` (``startpython [filename]`` in case of AMS Python stack).
+and it should be executed from the command line with ``python [filename]`` (``amspython [filename]`` in case of AMS Python stack).
 Keeping these restrictions in mind can be a bit inconvenient, so PLAMS comes with the launcher that takes care of the proper initialization and cleaning.
 See |master-script| for details.
 
@@ -166,7 +166,7 @@ Without the launcher::
     # =========
     finish()
 
-executed with ``python [filename]`` (or ``startpython [filename]``).
+executed with ``python [filename]`` (or ``amspython [filename]``).
 
 With the launcher::
 

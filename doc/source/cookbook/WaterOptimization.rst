@@ -8,7 +8,7 @@ Geometry optimization of water
     To execute this PLAMS script:
     
     * :download:`Download WaterOptimization.py <../../../examples/WaterOptimization.py>`
-    * ``$ADFIBN/plams WaterOptimization.py``
+    * ``$ADFBIN/plams WaterOptimization.py``
 
 **Output**
 

@@ -38,7 +38,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
 
 .. toctree::
 
-    adf_crs
+    ams_crs
     adffragment
     ReorganizationEnergy
     adfnbo

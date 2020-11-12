@@ -1,4 +1,4 @@
-Workflow: filtering moleucles based on excitation energies
+Workflow: filtering molecules based on excitation energies
 ==========================================================
 
 Identifying systems with certain physical properties out of a large database of molecules is a typical task that can be easily automatized.
@@ -12,7 +12,7 @@ In our toy study, we want to scan a database of structures, looking for all mole
 A simple approach would be to calculate the excitation energies (and the corresponding oscillator strengths) using ADF's `time-dependent DFT <../../ADF/Input/Excitation_energies.html>`__ (TD-DFT) for all the molecules in out database of structures.
 Since TD-DFT is an expensive method, this procedure can be computationally demanding for large numbers of molecules.
 
-A faster approach would be to pre-screen the large database of molecules by first using a less accurate but more efficient method (e.g. time-dependent `DFTB <../../DFTB/index.html>`__ (TD-DFTB)) and then run the expensive TD-DFT calculations with ADF only for the systems exhibiting the most promising adsorption energies in the faster-but-less-accurate calculations.
+A faster approach would be to pre-screen the large database of molecules by first using a less accurate but more efficient method (e.g. time-dependent `DFTB <../../DFTB/index.html>`__ (TD-DFTB)) and then run the expensive TD-DFT calculations with ADF only for the systems exhibiting the most promising absorption energies in the faster-but-less-accurate calculations.
 
 The basic workflow may look as follows:
 
@@ -37,7 +37,7 @@ Note: in this example we focus on the **scripting** aspects rather than studying
     
     * :download:`Download ExcitationsWorkflow.py <../../../examples/ExcitationsWorkflow.py>`
     * :download:`Download molecules.tar <../../../../../../examples/plams/ExcitationsWorkflow/molecules.tar>` and extract it
-    * ``$ADFIBN/plams ExcitationsWorkflow.py``
+    * ``$ADFBIN/plams ExcitationsWorkflow.py``
 
 **Output**
 

@@ -8,7 +8,7 @@ Helium dimer dissociation curve
     To execute this PLAMS script:
     
     * :download:`Download He2DissociationCurve.py <../../../examples/He2DissociationCurve.py>`
-    * ``$ADFIBN/plams He2DissociationCurve.py``
+    * ``$ADFBIN/plams He2DissociationCurve.py``
 
 **Output**
 

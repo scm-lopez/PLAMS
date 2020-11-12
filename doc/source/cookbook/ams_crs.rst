@@ -1,12 +1,12 @@
-.. _adf_crs_workflow:
+.. _ams_crs_workflow:
 
 ADF and COSMO-RS workflow
 -------------------------
 
 (*contributed by* `Bas van Beek <https://www.researchgate.net/profile/Bas_Beek>`_\)
 
-.. autofunction:: scm.plams.recipes.adf_crs.run_crs_adf
+.. autofunction:: scm.plams.recipes.ams_crs.run_crs_ams
 
 The source code:
 
-.. literalinclude:: ../../../recipes/adf_crs.py
+.. literalinclude:: ../../../recipes/ams_crs.py

@@ -27,7 +27,7 @@ In ``ReorganizationEnergyResults``, the reorganization energy is computed by fet
     
     * :download:`Download ReorganizationEnergy.py <../../../examples/ReorganizationEnergy.py>`
     * :download:`Download pyrrole.xyz <../../../../../../examples/plams/ReorganizationEnergy/pyrrole.xyz>` 
-    * ``$ADFIBN/plams ReorganizationEnergy.py``
+    * ``$ADFBIN/plams ReorganizationEnergy.py``
 
 **Output**
 

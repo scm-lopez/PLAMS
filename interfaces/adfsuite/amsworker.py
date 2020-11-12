@@ -913,13 +913,17 @@ class AMSWorkerPool:
     def __init__(self, settings, num_workers, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
 
         self.workers = num_workers * [None]
-
-        threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir))
-                    for i in range(num_workers) ]
-        for t in threads: t.start()
-        for t in threads: t.join()
-        if None in self.workers:
-            raise PlamsError('Some AMSWorkers failed to start')
+        if num_workers == 1:
+            # Do all the work in the main thread
+            AMSWorkerPool._spawn_worker(self.workers, settings, 0, workerdir_root, workerdir_prefix, keep_crashed_workerdir)
+        else:
+            # Spawn all workers from separate threads to overlap the ams.exe startup latency
+            threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir))
+                        for i in range(num_workers) ]
+            for t in threads: t.start()
+            for t in threads: t.join()
+            if None in self.workers:
+                raise AMSWorkerError('Some AMSWorkers in the pool failed to start')
 
 
     @staticmethod
@@ -937,22 +941,30 @@ class AMSWorkerPool:
         The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`_solve_from_settings <AMSWorker._solve_from_settings>` method of the pool's |AMSWorker| instances.
         """
 
-        results = [None]*len(items)
 
-        q = queue.Queue()
+        if len(self.workers) == 1:
 
-        threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
-        for t in threads: t.start()
+            # Do all the work in the main thread
+            results = [ self.workers[0]._solve_from_settings(name, mol, settings) for name, mol, settings in items ]
 
-        for i, item in enumerate(items):
-            if len(item) == 3:
-                name, mol, settings = item
-            else:
-                raise JobError('AMSWorkerPool._solve_from_settings expects a list containing only 3-tuples (name, molecule, settings).')
-            q.put((i, name, mol, settings))
+        else:
 
-        for t in threads: q.put(None) # signal for the thread to end
-        for t in threads: t.join()
+            # Build a queue of things to do and spawn threads that grab from from the queue in parallel
+            results = [None]*len(items)
+            q = queue.Queue()
+
+            threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
+            for t in threads: t.start()
+
+            for i, item in enumerate(items):
+                if len(item) == 3:
+                    name, mol, settings = item
+                else:
+                    raise JobError('AMSWorkerPool._solve_from_settings expects a list containing only 3-tuples (name, molecule, settings).')
+                q.put((i, name, mol, settings))
+
+            for t in threads: q.put(None) # signal for the thread to end
+            for t in threads: t.join()
 
         return results
 

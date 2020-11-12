@@ -9,7 +9,7 @@ Many jobs in parallel
     
     * :download:`Download ManyJobsInParallel.py <../../../examples/ManyJobsInParallel.py>`
     * :download:`Download molecules.tar <../../../../../../examples/plams/ManyJobsInParallel/molecules.tar>` and extract it
-    * ``$ADFIBN/plams ManyJobsInParallel.py``
+    * ``$ADFBIN/plams ManyJobsInParallel.py``
 
 **Output**
 

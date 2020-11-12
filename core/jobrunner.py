@@ -129,7 +129,7 @@ class GridRunner(JobRunner):
 
     There are many different queueing systems that are popular nowadays (for example: TORQUE, SLURM, OGE). Usually they use different commands for submitting jobs or checking the queue status. |GridRunner| class tries to build a common interface to these systems. The commands used to communicate with the queueing system are not hard-coded, but rather taken from a |Settings| instance. Thanks to that the user has almost full control over the behavior of a |GridRunner| instance and the behavior can be ajdusted dynamically.
 
-    The behavior of a |GridRunner| instance is determined by the contents of a |Settings| instance stored in its ``settings`` attribute. That |Settings| instance can be manually supplied by the user or taken from a collection of predefined instances stored as branches of ``config.gridrunner``. The adjustment is done with the *grid* parameter which should be a string or a |Settings| instance. If it's a string, it has to be a key occurring in ``config.gridrunner`` or ``'auto'`` for autodetection. For example, if ``grid='slurm'`` is passed, ``config.gridrunner.slurm`` is used as settings. If ``grid='auto'`` then entries present in ``config.gridrunner`` are tested and the first one that works (its submit command is present on your system) is chosen. When a |Settings| instance is passed as *grid*, it is directly used as ``settings``.
+    The behavior of a |GridRunner| instance is determined by the contents of a |Settings| instance stored in its ``settings`` attribute. That |Settings| instance can be manually supplied by the user or taken from a collection of predefined instances stored as branches of ``GridRunner.config``. The adjustment is done with the *grid* parameter which should be a string or a |Settings| instance. If it's a string, it has to be a key occurring in ``GridRunner.config`` or ``'auto'`` for autodetection. For example, if ``grid='slurm'`` is passed, ``GridRunner.config.slurm`` is used as settings. If ``grid='auto'`` then entries present in ``GridRunner.config`` are tested and the first one that works (its submit command is present on your system) is chosen. When a |Settings| instance is passed as *grid*, it is directly used as ``settings``.
 
     Currently two predefined schemes are available (see :ref:`plams-defaults`): ``slurm`` for SLURM and ``pbs`` for queueing systems following PBS syntax (PBS, TORQUE, Oracle Grid Engine etc.).
 
@@ -146,30 +146,84 @@ class GridRunner(JobRunner):
 
     See :meth:`call` for more details and examples.
 
-    The *sleepstep* parameter defines how often the queue check is performed. It should be a numerical value telling how many seconds should the interval between two consecutive checks last. If ``None`` is used, the global default from ``config.sleepstep`` is taken.
+    The *sleepstep* parameter defines how often the queue check is performed. It should be a numerical value telling how many seconds should the interval between two consecutive checks last.
 
     .. note::
         Usually queueing systems are configured in such a way that output of your calculation is captured somewhere else and copied to the location indicated by the output flag only when the job is finished. Because of that it is not possible to have a peek at your output while your job is running (for example, to see if your calculation is going well). This limitation can be circumvented with ``myjob.settings.runscript.stdout_redirect`` flag. If set to ``True``, the output redirection will not be handled by the queueing system, but rather placed in the runscript using the shell redirection ``>``. That forces the output file to be created directly in *workdir* and updated live as the job proceeds.
     """
-    def __init__(self, grid='auto', sleepstep=None, parallel=True, maxjobs=0):
+
+    # GridRunner mechanism for testing if a job is finished:
+    #if [...].commands.finished exists it is used to check if the job is finished. It should be a function that takes a single string (job_id) as an argument and returns True or False
+    #otherwise [...].commands.check is combined with job_id, executed as a subprocess and returned exit code is tested (nonzero return code indicates that job has finished)
+
+    def __slurm_get_jobid(output):
+        s = output.split()
+        if len(s) > 0 and all([ch.isdigit() for ch in s[-1]]):
+            return s[-1]
+        return None
+
+    def __slurm_running(output):
+        lines = output.splitlines()[1:]
+        return [line.split()[0] for line in lines]
+
+    def __pbs_get_jobid(output):
+        s = output.split('.')
+        if len(s) > 0 and all([ch.isdigit() for ch in s[0]]):
+            return s[0]
+        return None
+
+    def __pbs_running(output):
+        lines = output.splitlines()[2:]
+        return [line.split()[0].split('.')[0] for line in lines]
+
+    # Static config holding the preconfigured grids:
+    config = Settings()
+    # PBS
+    config.pbs.workdir = '-d'
+    config.pbs.output  = '-o'
+    config.pbs.error   = '-e'
+    config.pbs.special.nodes    = '-l nodes='
+    config.pbs.special.walltime = '-l walltime='
+    config.pbs.special.memory = '-l mem='
+    config.pbs.special.queue    = '-q '
+    config.pbs.commands.submit  = 'qsub'
+    config.pbs.commands.check  = 'qstat'
+    config.pbs.commands.getid   = __pbs_get_jobid
+    config.pbs.commands.running = __pbs_running
+    # Slurm
+    config.slurm.workdir = '-D'
+    config.slurm.output  = '-o'
+    config.slurm.error   = '-e'
+    config.slurm.special.nodes    = '-N '
+    config.slurm.special.cores    = '-n '
+    config.slurm.special.walltime = '-t '
+    config.slurm.special.memory = '--mem='
+    config.slurm.special.queue    = '-p '
+    config.slurm.commands.submit  = 'sbatch'
+    config.slurm.commands.check  = 'squeue'
+    config.slurm.commands.getid   = __slurm_get_jobid
+    config.slurm.commands.running = __slurm_running
+
+
+    def __init__(self, grid='auto', sleepstep=5, parallel=True, maxjobs=0):
         JobRunner.__init__(self, parallel=parallel, maxjobs=maxjobs)
-        self.sleepstep = sleepstep or config.sleepstep
+        self.sleepstep = sleepstep
         self._active_jobs = {}
         self._active_lock = threading.Lock()
         self._mainlock = threading.Lock()
 
-        if grid == 'auto':
+        if isinstance(grid, Settings):
+            self.settings = grid
+        elif grid == 'auto':
             self.settings = self._autodetect()
-        elif grid in config.gridrunner:
-            self.settings = config.gridrunner[grid]
+        elif grid in GridRunner.config:
+            self.settings = GridRunner.config[grid]
             try:
                 saferun([self.settings.commands.submit, '--version'], stdout=DEVNULL, stderr=DEVNULL)
             except OSError:
                 raise PlamsError('GridRunner: {} command not found'.format(self.settings.commands.submit))
-        elif isinstance(grid, Settings):
-            self.settings = grid
         else:
-            raise PlamsError("GridRunner: invalid 'grid' argument. 'grid' should be either a Settings instance (see documentations for details) or a string occurring in config.gridrunner or 'auto' for autodetection")
+            raise PlamsError("GridRunner: invalid 'grid' argument. 'grid' should be either a Settings instance (see documentations for details) or a string occurring in GridRunner.config or 'auto' for autodetection")
 
 
     def call(self, runscript, workdir, out, err, runflags):
@@ -283,15 +337,15 @@ class GridRunner(JobRunner):
     def _autodetect(self):
         """Try to autodetect the type of queueing system.
 
-        The autodetection mechanism is very simple. For each entry in ``config.gridrunner`` the submit command followed by ``--version`` is executed (for example ``qsub --version``). If the execution was successful (which is indicated by the exit code 0), that queueing system is present and it is chosen. Thus if there are multiple queueing systems installed, only one of them is picked -- the one which "name" (indicated by a key in ``config.gridrunner``) is first in the lexicographical order.
+        The autodetection mechanism is very simple. For each entry in ``GridRunner.config`` the submit command followed by ``--version`` is executed (for example ``qsub --version``). If the execution was successful (which is indicated by the exit code 0), that queueing system is present and it is chosen. Thus if there are multiple queueing systems installed, only one of them is picked -- the one which "name" (indicated by a key in ``GridRunner.config``) is first in the lexicographical order.
 
-        Returned value is one of ``config.gridrunner`` branches. If autodetection was not successful, an exception is raised.
+        Returned value is one of ``GridRunner.config`` branches. If autodetection was not successful, an exception is raised.
         """
-        for grid in config.gridrunner:
+        for grid in GridRunner.config:
             try:
-                process = saferun([config.gridrunner[grid].commands.submit, '--version'], stdout=DEVNULL, stderr=DEVNULL)
+                process = saferun([GridRunner.config[grid].commands.submit, '--version'], stdout=DEVNULL, stderr=DEVNULL)
             except OSError: continue
             if process.returncode == 0:
                 log("Grid type autodetected as '{}'".format(grid), 5)
-                return config.gridrunner[grid]
+                return GridRunner.config[grid]
         raise PlamsError('GridRunner: Failed to autodetect grid type')

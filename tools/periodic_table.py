@@ -142,6 +142,9 @@ class PeriodicTable:
 
     symtonum = {d[0]:i for i,d in enumerate(data)}
 
+    # Collection of symbols used for different kinds of dummy atoms:
+    dummysymbols = ['Xx','El','Eh']
+
 
     def __init__(self):
         raise PTError('Instances of PeriodicTable cannot be created')
@@ -150,6 +153,8 @@ class PeriodicTable:
     @classmethod
     def get_atomic_number(cls, symbol):
         """Convert atomic symbol to atomic number."""
+        if symbol.lower().capitalize() in cls.dummysymbols:
+            return 0
         try:
             number = cls.symtonum[symbol.capitalize()]
         except KeyError:
@@ -170,7 +175,10 @@ class PeriodicTable:
     @classmethod
     def get_mass(cls, arg):
         """Convert atomic symbol or atomic number to atomic mass."""
-        return cls._get_property(arg, 1)
+        if isinstance(arg, str) and arg.lower().capitalize() in ['El','Eh']:
+            return cls.get_mass('H')
+        else:
+            return cls._get_property(arg, 1)
 
 
     @classmethod
