@@ -2,7 +2,8 @@
 __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
-           'partition_protein', 'readpdb', 'writepdb', 'get_substructure', 'get_conformations']
+           'partition_protein', 'readpdb', 'writepdb', 'get_substructure', 'get_conformations',
+           'yield_coords']
 
 """
 @author: Lars Ridder
@@ -912,8 +913,53 @@ def get_substructure(mol, func_list):
     gen = (_get_match(mol, rdmol, i) for i in rdmol_func_list)
     return {key: value for key, value in zip(func_list, gen) if value}
 
+  
+def yield_coords(rdmol, id=-1):
+    """Take an rdkit molecule and yield its coordinates as 3-tuples.
+
+    .. code-block:: python
+
+        >>> from scm.plams import yield_coords
+        >>> from rdkit import Chem
+
+        >>> rdmol = Chem.Mol(...)  # e.g. Methane
+        >>> for xyz in yield_coords(rdmol):
+        ...     print(xyz)
+        (-0.0, -0.0, -0.0)
+        (0.6405, 0.6405, -0.6405)
+        (0.6405, -0.6405, 0.6405)
+        (-0.6405, 0.6405, 0.6405)
+        (-0.6405, -0.6405, -0.6405)
+
+
+    The iterator produced by this function can, for example, be passed to
+    :meth:`Molecule.from_array()<scm.plams.mol.molecule.Molecule.from_array>`
+    the update the coordinates of a PLAMS Molecule in-place.
+
+    .. code-block:: python
+
+        >>> from scm.plams import Molecule
+
+        >>> mol = Molecule(...)
+
+        >>> xyz_iterator = yield_coords(rdmol)
+        >>> mol.from_array(xyz_iterator)
+
+
+    :parameter rdmol: An RDKit mol.
+    :type rdmol: rdkit.Chem.Mol
+    :parameter int id: The ID of the desired conformer.
+    :return: An iterator yielding 3-tuples with *rdmol*'s Cartesian coordinates.
+    :rtype: iterator
+    """
+    conf = rdmol.GetConformer(id=id)
+    for atom in rdmol.GetAtoms():
+        pos = conf.GetAtomPosition(atom.GetIdx())
+        yield (pos.x, pos.y, pos.z)
+
+        
 @add_to_class(Molecule)
-def assign_chirality (self) :
+def assign_chirality(self):
     """
     Assigns stereo-info to PLAMS molecule by invoking RDKIT
     """
@@ -931,8 +977,9 @@ def assign_chirality (self) :
         if pl_bond.properties.stereo:
             self.bonds[ibond] = pl_bond.properties.stereo
 
+            
 @add_to_class(Molecule)
-def get_chirality (self) :
+def get_chirality(self):
     """
     Returns the chirality of the atoms
     """
