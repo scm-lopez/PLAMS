@@ -43,9 +43,9 @@ class Settings(dict):
 
         for k, v in self.items():
             if isinstance(v, dict) and type(v) is not cls:
-                self[k] = Settings(v)
+                self[k] = cls(v)
             if isinstance(v, list):
-                self[k] = [Settings(i) if (isinstance(i, dict) and type(i) is not cls) else i for i in v]
+                self[k] = [cls(i) if (isinstance(i, dict) and type(i) is not cls) else i for i in v]
 
 
     def copy(self):
