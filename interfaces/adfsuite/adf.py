@@ -192,10 +192,10 @@ class ADFResults(SCMResults):
                     with InputParser() as parser:
                         inp = parser.to_settings('adf', new_input)
                 except:
-                    log('Failed to recreate input settings from {}'.format(self._kf.path, 5))
+                    log('Failed to recreate input settings from {}'.format(self._kf.path), 5)
                     return None
             except:
-                log('Failed to recreate input settings from {}'.format(self._kf.path, 5))
+                log('Failed to recreate input settings from {}'.format(self._kf.path), 5)
                 return None
 
             s = Settings()
