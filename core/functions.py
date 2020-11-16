@@ -146,6 +146,9 @@ def load_all(path, jobmanager=None):
 def delete_job(job):
     """Remove *job* from its corresponding |JobManager| and delete the job folder from the disk. Mark *job* as 'deleted'."""
 
+    if job.status != 'created':
+        job.results.wait()
+
     #In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
     if job.jobmanager is not None:
         job.jobmanager.remove_job(job)

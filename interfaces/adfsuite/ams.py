@@ -41,7 +41,7 @@ class AMSResults(Results):
             n = main[('EngineResults','nEntries')]
             for i in range(1, n+1):
                 title =  main[('EngineResults','Title({})'.format(i))]
-                files =  main[('EngineResults','Files({})'.format(i))].splitlines()
+                files =  main[('EngineResults','Files({})'.format(i))].split('\x00')
                 if files[0].endswith('.rkf'):
                     key = files[0][:-4]
                     self.rkfs[key] = KFFile(opj(self.job.path, files[0]))
@@ -329,7 +329,8 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        freqs = np.array(self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine))
+        freqs = self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine)
+        freqs = np.array(freqs) if isinstance(freqs,list) else np.array([freqs])
         return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
@@ -520,7 +521,7 @@ class AMSJob(SingleJob):
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
         if self.settings.runscript.stdout_redirect:
-            ret += ' >"{}"'.formatself._filename('out')
+            ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
         return AMSJob._slurm_env(self.settings) + ret
 

@@ -2150,7 +2150,15 @@ class Molecule:
         if 'nLatticeVectors' in sectiondict:
             ret.lattice = Units.convert([tuple(sectiondict['LatticeVectors'][i:i+3]) for i in range(0,len(sectiondict['LatticeVectors']),3)], 'bohr', 'angstrom')
         if 'EngineAtomicInfo' in sectiondict:
-            suffixes = sectiondict['EngineAtomicInfo'].splitlines()
+            if len(ret) == 1:
+                # Just one atom: Need to make the list of length 1 explicitly.
+                suffixes = [sectiondict['EngineAtomicInfo']]
+            elif '\x00' in sectiondict['EngineAtomicInfo']:
+                # AMS>2020: Separated with C NULL characters.
+                suffixes = sectiondict['EngineAtomicInfo'].split('\x00')
+            else:
+                # AMS<=2019: Separated with new line characters
+                suffixes = sectiondict['EngineAtomicInfo'].splitlines()
             for at, suffix in zip(ret, suffixes):
                 at.properties.suffix = suffix
         return ret
