@@ -521,7 +521,7 @@ class AMSJob(SingleJob):
             ret += ' -n {}'.format(self.settings.runscript.nproc)
         ret += ' <"{}"'.format(self._filename('inp'))
         if self.settings.runscript.stdout_redirect:
-            ret += ' >"{}"'.formatself._filename('out')
+            ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
         return AMSJob._slurm_env(self.settings) + ret
 
