@@ -13,9 +13,7 @@ from .scmjob import SCMResults
 from .scmjob import SCMJob, SCMResults
 
 
-
 __all__ = ['ReaxFFJob', 'ReaxFFResults', 'load_reaxff_control', 'reaxff_control_to_settings']
-
 
 
 class ReaxFFResults(SCMResults):
@@ -24,8 +22,6 @@ class ReaxFFResults(SCMResults):
 
     def _int2inp(self):
         return list(range(1, 1+len(self.job.molecule)))
-
-
 
 
 class ReaxFFJob(SingleJob):
@@ -176,7 +172,6 @@ class ReaxFFJob(SingleJob):
                 f.writelines(atoms)
 
 
-
     @staticmethod
     def _convert_lattice(lattice):
         """Convert a *lattice* expressed as three 3-dimensional vectors to (*a*, *b*, *c*, *alpha*, *beta*, *gamma*) format. Lengths of lattice vectors are expressed as *a*, *b* and *c*, angles between them as *alpha*, *beta*, *gamma*.
@@ -280,13 +275,16 @@ def reaxff_control_to_settings(fpath:str) -> Settings:
                         s.input.ams.moleculardynamics.barostat.tau = d['pdamp1']
 
     elif s.input.ams.task == 'geometryoptimization':
+        grads_set, fire = False, True
         if 'endmm' in d:
-            s.input.ams.geometryoptimization.convergence.gradients = d['endmm']
+            s.input.ams.geometryoptimization.convergence.gradients = d['endmm'] * Units.conversion_ratio('kcal/mol','hartree')
+            grads_set = True
         if 'imaxmo':
             v = d['imaxmo']
             s.input.ams.geometryoptimization.pretendconverged = True
             if v == 0:
                 s.input.ams.geometryoptimization.method = 'ConjugateGradients'
+                fire = False
             else:
                 s.input.ams.geometryoptimization.convergence.step = v*1e-6
         if 'imaxit' in d:
@@ -294,5 +292,11 @@ def reaxff_control_to_settings(fpath:str) -> Settings:
             s.input.ams.geometryoptimization.maxiterations = d['imaxit']
         if 'icelop' in d and d['icelop'] > 0:
             s.input.ams.geometryoptimization.optimizelattice = True
+            s.input.ams.geometryoptimization.method = 'FIRE' # CG does not support lattice optimization
+            fire = True
+
+        if grads_set and fire:
+            # FIRE calculates rms on atomic gradients (1/Natoms) whereas others calculate components (1/3Natoms)
+            s.input.ams.geometryoptimization.convergence.gradients *= np.sqrt(3)
 
     return s

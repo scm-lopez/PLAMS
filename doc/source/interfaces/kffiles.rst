@@ -20,3 +20,8 @@ PLAMS offers a dictionary-like interface to KF format which allows for reading, 
 
 .. autoclass:: KFReader
     :exclude-members: __weakref__
+
+
+
+.. autoclass:: KFHistory
+    :exclude-members: __weakref__
