@@ -201,6 +201,23 @@ class Settings(dict):
         return key
 
 
+    def get(self, key, default=None):
+        """Like regular ``get``, but ignore the case."""
+        return dict.get(self, self.find_case(key), default)
+
+
+    def pop(self, key, *args):
+        """Like regular ``pop``, but ignore the case."""
+        # A single positional argument can be supplied `*args`,
+        # functioning as a default return value in case `key` is not present in this instance
+        return dict.pop(self, self.find_case(key), *args)
+
+
+    def popitem(self, key):
+        """Like regular ``popitem``, but ignore the case."""
+        return dict.popitem(self, self.find_case(key))
+
+
 
     def as_dict(self):
         """Return a copy of this instance with all |Settings| replaced by regular Python dictionaries.
