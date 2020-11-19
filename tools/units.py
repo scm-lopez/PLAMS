@@ -145,18 +145,26 @@ class Units:
     dicts['stress'] = stress
 
 
+    # Precompute a dict mapping lowercased unit names to quantityName:conversionFactor pairs
+    quantities_for_unit = {}
+    for quantity in dicts:
+        for unit, factor in dicts[quantity].items():
+            unit = unit.lower()
+            if unit not in quantities_for_unit:
+                quantities_for_unit[unit] = {}
+            quantities_for_unit[unit][quantity] = factor
+
+
     def __init__(self):
         raise UnitsError('Instances of Units cannot be created')
 
 
     @classmethod
     def find_unit(cls, unit):
-        ret = {}
-        for quantity in cls.dicts:
-            for k in cls.dicts[quantity]:
-                if k.lower() == unit.lower():
-                    ret[quantity] = k
-        return ret
+        try:
+            return cls.quantities_for_unit[unit.lower()]
+        except KeyError:
+            return {}
 
 
     @classmethod
@@ -167,8 +175,7 @@ class Units:
         common = set(inps.keys()) & set(outs.keys())
         if len(common) > 0:
             quantity = common.pop()
-            d = cls.dicts[quantity]
-            return d[outs[quantity]]/d[inps[quantity]]
+            return outs[quantity]/inps[quantity]
         else:
             if len(inps) == 0 and len(outs) == 0:
                 raise UnitsError("Unsupported units: '{}' and '{}'".format(inp, out))
