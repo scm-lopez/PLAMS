@@ -77,6 +77,7 @@ class Units:
     constants['Avogadro_constant'] = constants['NA'] =  6.022140857e23   #http://physics.nist.gov/cgi-bin/cuu/Value?na
     constants['speed_of_light'] = constants['c']     =  299792458   #http://physics.nist.gov/cgi-bin/cuu/Value?c
     constants['electron_charge'] = constants['e']    =  1.6021766208e-19   #http://physics.nist.gov/cgi-bin/cuu/Value?e
+    constants['Boltzmann'] = constants['k_B'] = 1.380649e-23 #J/K
 
 
     distance = {}
@@ -98,7 +99,7 @@ class Units:
     energy['J']                                                      =  4.359744650e-18 
     energy['kcal/mol']                                               =  energy['kJ/mol'] / 4.184
     energy['cm^-1'] = energy['cm-1']                                 =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
-    energy['K'] = energy['Kelvin']                                   =  315775.0248041   #http://physics.nist.gov/cgi-bin/cuu/Value?hrk
+    energy['K'] = energy['J'] / constants['k_B']
 
     angle = {}
     angle['degree'] =  angle['deg'] = 1.0
