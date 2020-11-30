@@ -395,7 +395,8 @@ class AMSResults(Results):
                 return None
             s = Settings()
             s.input = inp
-            del s.input.ams.system
+            if 'system' in s.input.ams:
+                del s.input.ams.system
             s.soft_update(config.job)
             return s
         return None

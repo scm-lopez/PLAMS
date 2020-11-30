@@ -1,4 +1,5 @@
 from ..core.errors import PTError
+import numpy
 
 __all__ = ['PeriodicTable', 'PT']
 
@@ -226,9 +227,10 @@ class PeriodicTable:
     @classmethod
     def _get_property(cls, arg, prop):
         """Get property of element described by either symbol or atomic number. Skeleton method for :meth:`get_radius`, :meth:`get_mass` and  :meth:`get_connectors`."""
+        print(type(arg))
         if isinstance(arg, str):
             pr = cls.data[cls.get_atomic_number(arg)][prop]
-        elif isinstance(arg, int):
+        elif isinstance(arg, int) or isinstance(arg, numpy.int64):
             try:
                 pr = cls.data[arg][prop]
             except KeyError:

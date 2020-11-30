@@ -1721,7 +1721,7 @@ class Molecule:
         atom_dicts = [copy.copy(a.__dict__) for a in mol_dict['atoms']]
         bond_dicts = [copy.copy(b.__dict__) for b in mol_dict['bonds']]
         for a_dict in atom_dicts:
-            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds']]
+            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds'] if id(b) in bond_indices]
             del(a_dict['mol'])
         for b_dict in bond_dicts:
             b_dict['atom1'] = atom_indices[id(b_dict['atom1'])]
