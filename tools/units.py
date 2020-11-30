@@ -161,17 +161,22 @@ class Units:
 
     @classmethod
     def find_unit(cls, unit):
-        try:
-            return cls.quantities_for_unit[unit.lower()]
-        except KeyError:
-            return {}
+        ret = {}
+        u = unit.lower()
+        quantities = cls.quantities_for_unit.get(u, {})
+        for quantity in quantities:
+            for k in cls.dicts[quantity]:
+                if k.lower() == u:
+                    ret[quantity] = k
+                    break
+        return ret
 
 
     @classmethod
     def conversion_ratio(cls, inp, out):
         """Return conversion ratio from unit *inp* to *out*."""
-        inps = cls.find_unit(inp)
-        outs = cls.find_unit(out)
+        inps = cls.quantities_for_unit.get(inp.lower(), {})
+        outs = cls.quantities_for_unit.get(out.lower(), {})
         common = set(inps.keys()) & set(outs.keys())
         if len(common) > 0:
             quantity = common.pop()
