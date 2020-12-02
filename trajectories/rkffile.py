@@ -16,6 +16,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
         def __init__ (self, filename, mode='rb', fileobject=None, ntap=None) :
                 """
                 Creates an RKF file object
+
+                TODO: If the mddata option is set to True, then the file created here works with AMSMovie and the analysis tools.
+                      To also make is work for restarts, two things have to be added:
+                      1. The final velocities have to be converted from bohr/fs to bohr/au (1/41.341373336493) and storede in MDResuts%EndVelocities
+                      2. The final coordinates need to be copied to the Molecule section.
                 """
                 self.position = 0
                 if filename is not None :
@@ -99,7 +104,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.elements = self.file_object.read('Molecule','AtomSymbols').split()
                 self.elements = [el.split('.')[0] for el in self.elements]
                 if 'MDHistory' in self.file_object.reader._sections :
-                        self.timestep = self.file_object.read('MDHistory','Time(1)')[1]
+                        times = self.file_object.read('MDHistory','Time(1)')
+                        if isinstance(times,list) :
+                                self.timestep = times[1]
                 self.ntap = len(self.elements)
                 self.coords = numpy.zeros((self.ntap,3))
                 try :
