@@ -82,7 +82,8 @@ class Settings(dict):
 
         This method is also used when :func:`python3:copy.copy` is called.
         """
-        ret = Settings()
+        cls = type(self)
+        ret = cls()
         for name in self:
             if isinstance(self[name], Settings):
                 ret[name] = self[name].copy()
@@ -200,6 +201,30 @@ class Settings(dict):
                 pass
         return key
 
+
+    def get(self, key, default=None):
+        """Like regular ``get``, but ignore the case."""
+        return dict.get(self, self.find_case(key), default)
+
+
+    def pop(self, key, *args):
+        """Like regular ``pop``, but ignore the case."""
+        # A single positional argument can be supplied `*args`,
+        # functioning as a default return value in case `key` is not present in this instance
+        return dict.pop(self, self.find_case(key), *args)
+
+
+    def popitem(self, key):
+        """Like regular ``popitem``, but ignore the case."""
+        return dict.popitem(self, self.find_case(key))
+
+
+    def setdefault(self, key, default=None):
+        """Like regular ``setdefault``, but ignore the case and if the value is a dict, convert it to |Settings|."""
+        cls = type(self)
+        if isinstance(default, dict) and type(default) is not cls:
+            default = cls(default)
+        return dict.setdefault(self, self.find_case(key), default)
 
 
     def as_dict(self):
@@ -334,7 +359,8 @@ class Settings(dict):
                     ret[k] = v
 
         # Changes keys into tuples
-        ret = Settings()
+        cls = type(self)
+        ret = cls()
         _concatenate((), self)
         return ret
 
@@ -362,7 +388,8 @@ class Settings(dict):
               b:
                 c: 	True
         """
-        ret = Settings()
+        cls = type(self)
+        ret = cls()
         for key, value in self.items():
             s = ret
             for k1, k2 in zip(key[:-1], key[1:]):
@@ -400,7 +427,8 @@ class Settings(dict):
 
         The behaviour of this method can be suppressed by initializing the :class:`.Settings.suppress_missing` context manager.
         """
-        self[name] = Settings()
+        cls = type(self)
+        self[name] = cls()
         return self[name]
 
 
@@ -416,8 +444,9 @@ class Settings(dict):
 
     def __setitem__(self, name, value):
         """Like regular ``__setitem__``, but ignore the case and if the value is a dict, convert it to |Settings|."""
-        if isinstance(value, dict) and not isinstance(value, Settings):
-            value = Settings(value)
+        cls = type(self)
+        if isinstance(value, dict) and type(value) is not cls:
+            value = cls(value)
         dict.__setitem__(self, self.find_case(name), value)
 
 
