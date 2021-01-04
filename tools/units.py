@@ -193,6 +193,8 @@ class Units:
 
         *value* can be a single number or a container (list, tuple, numpy.array etc.). In the latter case a container of the same type and length is returned. Conversion happens recursively, so this method can be used to convert, for example, a list of lists of numbers, or any other hierarchical container structure. Conversion is applied on all levels, to all values that are numbers (also numpy number types). All other values (strings, bools etc.) remain unchanged.
         """
+        if inp == out:
+            return value
         if value is None or isinstance(value, (bool, str)):
             return value
         if isinstance(value, collections.abc.Iterable):
