@@ -158,16 +158,13 @@ class AMSWorkerResults:
     def get_energy(self, unit='au'):
         """Return the total energy, expressed in *unit*.
         """
-        unit = Units.conversion_ratio('au', unit) if unit != 'au' else 1.
-        return self._results["energy"] * unit
+        return self._results["energy"] * Units.conversion_ratio('au', unit)
 
     @_restrict
     def get_gradients(self, energy_unit='au', dist_unit='au'):
         """Return the nuclear gradients of the total energy, expressed in *energy_unit* / *dist_unit*.
         """
-        energy_unit = Units.conversion_ratio('au', energy_unit) if energy_unit != 'au' else 1.
-        dist_unit   = Units.conversion_ratio('au',   dist_unit) if dist_unit   != 'au' else 1.
-        return self._results["gradients"] * energy_unit / dist_unit
+        return self._results["gradients"] * Units.conversion_ratio('au', energy_unit) / Units.conversion_ratio('au', dist_unit)
 
     @_restrict
     def get_stresstensor(self):

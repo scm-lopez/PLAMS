@@ -282,8 +282,7 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        unit = Units.conversion_ratio('au', unit) if unit != 'au' else 1.
-        return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * unit
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
 
 
     def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
@@ -291,9 +290,7 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        energy_unit = Units.conversion_ratio('au', energy_unit) if energy_unit != 'au' else 1.
-        dist_unit   = Units.conversion_ratio('au',   dist_unit) if dist_unit   != 'au' else 1.
-        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Gradients'), engine)).reshape(-1,3) * energy_unit / dist_unit
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Gradients'), engine)).reshape(-1,3) * Units.conversion_ratio('au', energy_unit) / Units.conversion_ratio('au', dist_unit)
 
 
     def get_stresstensor(self, engine=None):
@@ -332,10 +329,9 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        unit = Units.conversion_ratio('cm^-1', unit) if unit != 'cm^-1' else 1.
         freqs = self._process_engine_results(lambda x: x.read('Vibrations', 'Frequencies[cm-1]'), engine)
         freqs = np.array(freqs) if isinstance(freqs,list) else np.array([freqs])
-        return freqs * unit
+        return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
     def get_charges(self, engine=None):

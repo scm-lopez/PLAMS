@@ -95,7 +95,7 @@ class Units:
     energy['au'] = energy['a.u.'] = energy['Hartree'] = energy['Ha'] =  1.0
     energy['eV']                                                     =  27.211386245988   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
     energy['kJ/mol']                                                 =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
-    energy['J']                                                      =  4.359744650e-18 
+    energy['J']                                                      =  4.359744650e-18
     energy['kcal/mol']                                               =  energy['kJ/mol'] / 4.184
     energy['cm^-1'] = energy['cm-1']                                 =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
     energy['K'] = energy['J'] / constants['k_B']
@@ -132,7 +132,7 @@ class Units:
     stress['bar'] = stress['Pa'] * 1e-5
     stress['atm'] = stress['bar'] / 1.01325
 
-        
+
 
     dicts = {}
     dicts['distance'] = distance
@@ -162,6 +162,8 @@ class Units:
     @classmethod
     def conversion_ratio(cls, inp, out):
         """Return conversion ratio from unit *inp* to *out*."""
+        if inp == out:
+            return 1.
         inps = cls.find_unit(inp)
         outs = cls.find_unit(out)
         common = set(inps.keys()) & set(outs.keys())
@@ -202,4 +204,3 @@ class Units:
         if isinstance(value, (int, float, np.generic)):
             return value * cls.conversion_ratio(inp,out)
         return value
-
