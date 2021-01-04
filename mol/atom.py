@@ -179,7 +179,7 @@ class Atom:
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
+        ratio = 1. if unit is 'angstrom' else Units.conversion_ratio(unit, 'angstrom')
         self.coords = tuple(i + j*ratio for i,j in zip(self, vector))
 
 
@@ -190,7 +190,7 @@ class Atom:
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
+        ratio = 1. if unit is 'angstrom' else Units.conversion_ratio(unit, 'angstrom')
         self.coords = tuple(i*ratio for i in point)
 
 
@@ -201,11 +201,11 @@ class Atom:
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
+        ratio = 1. if unit is 'angstrom' else Units.conversion_ratio(unit, 'angstrom')
         res = 0.0
         for i,j in zip(self,point):
             res += (i - j*ratio)**2
-        return Units.convert(math.sqrt(res), 'angstrom', result_unit)
+        return math.sqrt(res) if result_unit is 'angstrom' else Units.convert(math.sqrt(res), 'angstrom', result_unit)
 
 
     def vector_to(self, point, unit='angstrom', result_unit='angstrom'):
@@ -215,8 +215,8 @@ class Atom:
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
-        resultratio = Units.conversion_ratio('angstrom', result_unit)
+        ratio = 1. if unit is 'angstrom' else Units.conversion_ratio(unit, 'angstrom')
+        resultratio = 1. if result_unit is 'angstrom' else Units.conversion_ratio('angstrom', result_unit)
         return tuple((i*ratio-j)*resultratio for i,j in zip(point, self))
 
 
@@ -229,7 +229,7 @@ class Atom:
         """
         num = np.dot(self.vector_to(point1, point1unit), self.vector_to(point2, point2unit))
         den = self.distance_to(point1, point1unit) * self.distance_to(point2, point2unit)
-        return Units.convert(math.acos(num/den), 'radian', result_unit)
+        return math.acos(num/den) if result_unit is 'radian' else Units.convert(math.acos(num/den), 'radian', result_unit)
 
 
     def rotate(self, matrix):
