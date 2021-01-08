@@ -196,8 +196,11 @@ class AMSResults(Results):
             if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
                 mol.bonds = []
                 index = main.read('History', f'Bonds.Index({step})')
+                if not isinstance(index, list): index = [index]
                 atoms = main.read('History', f'Bonds.Atoms({step})')
+                if not isinstance(atoms, list): atoms = [atoms]
                 orders = main.read('History', f'Bonds.Orders({step})')
+                if not isinstance(orders, list): orders = [orders]
                 for i in range(len(index)-1):
                     for j in range(index[i], index[i+1]):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
