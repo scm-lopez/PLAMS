@@ -103,8 +103,21 @@ class XYZTrajectoryFile (TrajectoryFile) :
                         return self._move_cursor_without_reading()
 
                 cell = None
-
                 # Read the coordinates
+                self.read_coordinates(molecule)
+
+                if self.firsttime :
+                        self.firsttime = False
+
+                self.position += 1
+                
+                return self.coords, cell
+
+        def read_coordinates (self, molecule) :
+                """
+                Read the coordinates from file, and place them in the molecule
+                """
+                cell = None
                 for i in range(2) :
                         line = self.file_object.readline()
                         if len(line) == 0 :
@@ -115,13 +128,6 @@ class XYZTrajectoryFile (TrajectoryFile) :
 
                 if isinstance(molecule,Molecule) :
                         self._set_plamsmol(self.coords, cell, molecule)
-
-                if self.firsttime :
-                        self.firsttime = False
-
-                self.position += 1
-                
-                return self.coords, cell
 
         def _is_endoffile (self) :
                 """
@@ -141,19 +147,27 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 """
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements = self._read_plamsmol(molecule)[:3]
-                        self.elements = elements
+                        if self.position == 0 :
+                                self.elements = elements
                 cell = self._convert_cell(cell)
 
+                self.write_moldata(coords, cell, energy, step)
+
+                self.position += 1
+
+        def write_moldata (self, coords, cell, energy, step) :
+                """
+                Write all molecular info to file
+                """
                 if step is None :
                         block = create_xyz_string(self.elements, coords)
-                else :
+                else :  
                         box = None
                         if cell is not None :
                                 #box = PDBMolecule().box_from_vectors(cell)
                                 box = cell_shape(cell)
                         block = create_xyz_string(self.elements,coords,energy,box,step,self.name)
                 self.file_object.write(block)
-                self.position += 1
 
         def _rewind_to_first_frame(self) :
                 """
