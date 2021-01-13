@@ -1287,10 +1287,15 @@ class Molecule:
         return tuple(center * Units.conversion_ratio('angstrom', unit))
 
 
-    def get_mass(self):
-        """Return the mass of the molecule, expressed in atomic units."""
-        return sum([at.mass for at in self.atoms])
+    def get_mass(self, unit='amu'):
+        """Return the mass of the molecule, by default in atomic mass units."""
+        return sum([at.mass for at in self.atoms]) * Units.convert(1.0, 'amu', unit)
 
+    def get_density(self):
+        """Return the density in kg/m^3"""
+        vol = self.unit_cell_volume(unit='angstrom') * 1e-30 # in m^3
+        mass = self.get_mass(unit='kg')
+        return mass/vol
 
     def get_formula(self, as_dict=False):
         """Calculate the molecular formula of the molecule.

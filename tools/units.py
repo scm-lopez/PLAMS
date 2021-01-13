@@ -100,6 +100,11 @@ class Units:
     energy['cm^-1'] = energy['cm-1']                                 =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
     energy['K'] = energy['J'] / constants['k_B']
 
+    mass = {}
+    mass['au'] = mass['a.u.'] = mass['amu'] = 1.0
+    mass['kg'] = 1.66053906660e-27
+    mass['g'] = mass['kg'] * 1e3
+
     angle = {}
     angle['degree'] =  angle['deg'] = 1.0
     angle['radian'] =  angle['rad'] = math.pi / 180.0
@@ -137,6 +142,7 @@ class Units:
     dicts = {}
     dicts['distance'] = distance
     dicts['energy'] = energy
+    dicts['mass'] = mass
     dicts['angle'] = angle
     dicts['dipole'] = dipole
     dicts['reciprocal distance'] = rec_distance
