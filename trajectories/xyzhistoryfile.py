@@ -1,24 +1,84 @@
 #!/usr/bin/env python
 
-"""
-Class representing an XYZ MD file with changing numbers of atoms
-"""
-
 import numpy
 from ..tools.periodic_table import PT
 from ..mol.molecule import Molecule
 from ..mol.atom import Atom
 from ..core.settings import Settings
 from .xyzfile import XYZTrajectoryFile
-from .rkffile import bohr_to_angstrom
 
 __all__ = ['XYZHistoryFile']
 
 class XYZHistoryFile (XYZTrajectoryFile) :
+        """
+        Class representing an XYZ file containing a molecular simulation history with varying numbers of atoms
+
+        An instance of this class has the following attributes:
+
+        *   ``file_object`` -- A Python :py:class:`file` object, referring to the actual XYZ file
+        *   ``position``    -- The frame to which the cursor is currently pointing in the XYZ file
+        *   ``mode``        -- Designates whether the file is in read or write mode ('r' or 'w')
+        *   ``elements``    -- The elements of the atoms in the system at the current frame
+
+        An |XYZHistoryFile| object behaves very similar to a regular file object.
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
+        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
+        the cursor to any frame in the file and reads from there.
+        The amount of information stored in memory is kept to a minimum, as only information from the current frame
+        is ever stored.
+
+        Reading and writing to and from the files can be done as follows::
+
+            >>> from scm.plams import XYZHistoryFile
+
+            >>> xyz = XYZHistoryFile('old.xyz')
+            >>> mol = xyz.get_plamsmol()
+
+            >>> xyzout = XYZHistoryFile('new.xyz',mode='w')
+
+            >>> for i in range(xyz.get_length()) :
+            >>>     crd,cell = xyz.read_frame(i,molecule=mol)
+            >>>     xyzout.write_next(molecule=mol)
+
+        The above script reads information from the XYZ file ``old.xyz`` into the |Molecule| object ``mol``
+        in a step-by-step manner.
+        The |Molecule| object is then passed to the :meth:`write_next` method of the new |XYZHistoryFile|
+        object corresponding to the new xyz file ``new.xyz``.
+        All coordinate information needs to be passed to and from the |Molecule| object
+        for each frame, which can be time-consuming.
+        Alternatively, the |Molecule| object can be bypassed all together::
+
+            >>> xyz = XYZHistoryFile('old.xyz')
+
+            >>> xyzout = XYZHistoryFile('new.xyz',mode='w',ntap=xyz.ntap)
+
+            >>> for crd,cell in xyz :
+            >>>     xyzout.write_next(coords=crd,elements=xyz.elements)
+
+        By default the write mode will create a minimal version of the XYZ file, containing only elements
+        and coordinates. 
+        Additional information can be written to the file by supplying additional arguments
+        to the :meth:`write_next` method. 
+        The additional keywords `step` and `energy` trigger the writing of a remark containing
+        the molecule name, the step number, the energy, and the lattice vectors.
+
+            >>> mol = Molecule('singleframe.xyz')
+
+            >>> xyzout = XYZHistoryFile('new.xyz',mode='w')
+            >>> xyzout.set_name('MyMol')
+
+            >>> xyzout.write_next(molecule=mol, step=0, energy=5.)
+        """
 
         def __init__ (self, filename, mode='r', fileobject=None, ntap=None) :
                 """
-                Initializes the XYZHistoryFile object
+                Initiates an XYZTrajectoryFile object
+
+                * ``filename``   -- The path to the XYZ file
+                * ``mode``       -- The mode in which to open the XYZ file ('r' or 'w')
+                * ``fileobject`` -- Optionally, a file object can be passed instead (filename needs to be set to None)
+                * ``ntap``       -- If the file is in write mode, the number of atoms can be passed here
                 """
                 XYZTrajectoryFile.__init__(self,filename,mode,fileobject,ntap)
 
@@ -41,7 +101,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                                 break
                 return end
 
-        def read_coordinates (self, molecule) :
+        def _read_coordinates (self, molecule) :
                 """
                 Read the coordinates at current step
                 """
@@ -80,15 +140,26 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 if isinstance(molecule,Molecule) :
                         self._set_plamsmol(self.coords,None,molecule,bonds=None)
 
-        def write_next (self,coords=None,molecule=None,elements=None,cell=[0.,0.,0.],energy=0.,step=None,conect=None) :
-                """             
-                Write the coordinates to the next available spot in the file
+        def write_next (self,coords=None,molecule=None,elements=None,cell=[0.,0.,0.],energy=None,step=None,conect=None) :
+                """ 
+                Write frame to next position in trajectory file
+
+                * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates
+                * ``molecule`` -- A molecule object to read the molecular data from
+                * ``elements`` -- The element symbols of the atoms in the system
+                * ``cell``     -- A set of lattice vectors or cell diameters
+                * ``energy``   -- An energy value to be written to the remark line
+                * ``conect``   -- A dictionary containing connectivity info (not used)
+
+                .. note::
+
+                        Either ``coords`` and ``elements`` or ``molecule`` are mandatory arguments
                 """
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements = self._read_plamsmol(molecule)[:3]
                 self.elements = elements
                 cell = self._convert_cell(cell)
                         
-                self.write_moldata(coords, cell, energy, step)
+                self._write_moldata(coords, cell, energy, step)
                 
                 self.position += 1

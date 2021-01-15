@@ -31,7 +31,7 @@ class TrajectoryFile (object) :
 
                 # Required setup before frames can be read/written
                 if self.mode == 'r' :
-                        self.read_header()
+                        self._read_header()
 
         def __iter__ (self) :
                 """
@@ -79,7 +79,7 @@ class TrajectoryFile (object) :
                 except AttributeError :
                         pass
 
-        def read_header (self) :
+        def _read_header (self) :
                 """
                 Set up info required for reading frames
 
@@ -89,7 +89,7 @@ class TrajectoryFile (object) :
 
         def close (self) :
                 """
-                Makes sure that all commands that come before are executed.
+                Cleanly close and garbage collect the file
                 """
                 del(self)
 
@@ -134,10 +134,10 @@ class TrajectoryFile (object) :
 
         def read_frame (self, frame, molecule=None) :
                 """
-                Reads a specified geometry step from the file
-                
-                @param frame :
-                        The number of the geometry to be read (numbering starts at zero)
+                Reads the relevant info from frame ``frame`` and returns it, or stores it in ``molecule``
+
+                * ``frame``    -- The frame number to be read from the file
+                * ``molecule`` -- |Molecule| object in which the new coordinates need to be stored
                 """
                 if frame < self.position :
                         nframes = abs(frame - self.position)
@@ -212,10 +212,9 @@ class TrajectoryFile (object) :
 
         def rewind (self,nframes=None) :
                 """ 
-                Rewind the file to just after the header.
+                Rewind the file either by ``nframes`` or to the first frame
 
-                @param nframes :
-                        The number of frames to rewind
+                *   ``nframes`` -- The number of frames to rewind
                 """
                 if nframes is None or nframes == self.position :
                         # Go back to the beginning
@@ -233,7 +232,7 @@ class TrajectoryFile (object) :
                 self.file_object.seek(0)
                 self.firsttime = True
                 self.position = 0
-                self.read_header()
+                self._read_header()
                 
         def _rewind_n_frames(self,nframes) :
                 """
@@ -243,7 +242,7 @@ class TrajectoryFile (object) :
 
         def get_length (self) :
                 """
-                Get the number of steps in the file
+                Get the number of frames in the file
                 """
                 oldposition = self.position
                 while 1 :
@@ -262,7 +261,7 @@ class TrajectoryFile (object) :
 
         def read_last_frame (self, molecule=None) :
                 """
-                Reads the last geometry from the file
+                Reads the last frame from the file
                 """
                 step = 0
                 while 1 :

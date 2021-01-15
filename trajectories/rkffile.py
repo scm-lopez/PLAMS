@@ -8,7 +8,6 @@ from ..tools.kftools import KFFile
 from ..tools.units import Units
 from ..interfaces.adfsuite.ams import AMSResults
 from ..core.errors import PlamsError
-#from scm.plams import KFFile, Molecule, Bond, AMSResults, Units, PeriodicTable, PlamsError
 from .trajectoryfile import TrajectoryFile
 
 __all__ = ['RKFTrajectoryFile']
@@ -17,21 +16,107 @@ bohr_to_angstrom = Units.conversion_ratio('bohr','angstrom')
 
 class RKFTrajectoryFile (TrajectoryFile) :
         """
-        Class that represents an RKF file
+        Class representing an RKF file containing a molecular trajectory
+
+        An instance of this class has the following attributes:
+
+        *   ``file_object`` -- A PLAMS |KFFile| object, referring to the actual RKF file
+        *   ``position``    -- The frame to which the cursor is currently pointing in the RKF file
+        *   ``mode``        -- Designates whether the file is in read or write mode ('rb' or 'wb')
+        *   ``ntap``        -- The number of atoms in the molecular system (needs to be constant throughout)
+        *   ``elements``    -- The elements of the atoms in the system (needs to be constant throughout)
+        *   ``conect``      -- The connectivity information of the current frame
+        *   ``mddata``      -- Read mode only: A dictionary containing data from the MDHistory section in the RKF file
+        *   ``read_lattice``-- Read mode only: Wether the lattice vectors will be read from the file
+        *   ``read_bonds``  -- Wether the connectivity information will be read from the file
+        *   ``saving_freq`` -- How often the 'wb' file is written (default: only when :meth:`close` is called)
+
+        An |RKFTrajectoryFile| object behaves very similar to a regular file object.
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
+        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
+        the cursor to any frame in the file and reads from there.
+        The amount of information stored in memory is kept to a minimum, as only information from the latest frame
+        is ever stored.
+
+        Reading and writing to and from the files can be done as follows::
+
+            >>> from scm.plams import RKFTrajectoryFile
+
+            >>> rkf = RKFTrajectoryFile('ams.rkf')
+            >>> mol = rkf.get_plamsmol()
+
+            >>> rkfout = RKFTrajectoryFile('new.rkf',mode='wb',ntap=rkf.ntap)
+
+            >>> for i in range(rkf.get_length()) :
+            >>>     crd,cell = rkf.read_frame(i,molecule=mol)
+            >>>     rkfout.write_next(molecule=mol)
+            >>> rkfout.close()
+
+        The above script reads information from the RKF file ``ams.rkf`` into the |Molecule| object ``mol``
+        in a step-by-step manner.
+        The |Molecule| object is then passed to the :meth:`write_next` method of the new |RKFTrajectoryFile|
+        object corresponding to the new rkf file ``new.rkf``.
+        All coordinate, cell, and connectivity information needs to be passed to and from the |Molecule| object
+        for each frame, which can be time-consuming.
+        Some time can be saved by bypassing the |Molecule| object::
+
+            >>> rkf = RKFTrajectoryFile('ams.rkf')
+
+            >>> rkfout = RKFTrajectoryFile('new.rkf',mode='wb',ntap=rkf.ntap)
+            >>> rkfout.set_elements(rkf.get_elements())
+
+            >>> for crd,cell in rkf :
+            >>>     rkfout.write_next(coords=crd,cell=cell,conect=rkf.conect)
+            >>> rkfout.close()
+
+        The only mandatory argument to the :meth:`write_next` method is ``coords``.
+        Further time can be saved by setting the ``read_lattice`` and ``read_bonds`` variables to False.
+
+        By default the write mode will create a minimal version of the RKF file, containing only elements,
+        coordinates, lattice, and connectivity information.
+        This minimal file format can be read by AMSMovie.
+
+        It is possible to store additional information, such as energies, velocities, and charges.
+        To enable this, the method :meth:`store_mddata` needs to be called after creation,
+        and a dictionary of mddata needs to be passed to the :meth:`write_next` method.
+        When that is done, the AMS trajectory analysis tools can be used on the file.
+        Restarting an MD run with such a file is however currently not possible::
+
+            >>> rkf = RKFTrajectoryFile('ams.rkf')
+            >>> rkf.store_mddata()
+            >>> mol = rkf.get_plamsmol()
+
+            >>> rkf_out = RKFTrajectoryFile('new.rkf',mode='wb',ntap=rkf.ntap)
+            >>> rkf_out.set_elements(rkf.get_elements())
+            >>> rkf_out.timestep = rkf.timestep
+            >>> rkf_out.store_mddata(rkf)
+
+            >>> for i in range(rkf.get_length()) :
+            >>>         crd,cell = rkf.read_frame(i,molecule=mol)
+            >>>         rkf_out.write_next(molecule=mol,mddata=rkf.mddata)
+            >>> rkf_out.close()
         """
         def __init__ (self, filename, mode='rb', fileobject=None, ntap=None) :
                 """
-                Creates an RKF file object
+                Initiates an RKFTrajectoryFile object
 
-                TODO: If the mddata option is set to True, then the file created here works with AMSMovie and the analysis tools.
-                      To also make is work for restarts, two things have to be added:
-                      1. The final velocities have to be converted from bohr/fs to bohr/au (1/41.341373336493) and storede in MDResuts%EndVelocities
-                      2. The final coordinates need to be copied to the Molecule section.
+                * ``filename``   -- The path to the RKF file
+                * ``mode``       -- The mode in which to open the RKF file ('rb' or 'wb')
+                * ``fileobject`` -- Optionally, a file object can be passed instead (filename needs to be set to None)
+                * ``ntap``       -- If the file is in write mode, the number of atoms needs to be passed here
                 """
+                #TODO: If the mddata option is set to True, then the file created here works with AMSMovie and the analysis tools.
+                #      To also make is work for restarts, two things have to be added:
+                #      1. The final velocities have to be converted from bohr/fs to bohr/au (1/41.341373336493) 
+                #         and stored in MDResuts%EndVelocities
+                #      2. The final coordinates need to be copied to the Molecule section.
+
                 self.position = 0
                 if filename is not None :
                         fileobject = KFFile(filename,autosave=False)
                         #fileobject = KFFile(filename,autosave=False,fastsave=True)
+                        # This fastsave option (no copying) was not worth it, so I removed it.
                         if fileobject is None :
                                 raise PlamsError('KFFile %s not found.'%(rkfname))
                 self.file_object = fileobject
@@ -41,10 +126,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if ntap is not None :
                         self.ntap = ntap
                 self.firsttime = True
-                self.coords = numpy.zeros((self.ntap,3))                # Only for reading purposes, to avoid creating the array each time
-
+                self.coords = numpy.zeros((self.ntap,3))                # Only for reading purposes,
+                                                                        # to avoid creating the array each time
                 # RKF specific attributes
-                #self.saving_freq = 100
                 self.nvecs = 3
                 self.latticevecs = numpy.zeros((3,3))
                 self.elements = ['H']*self.ntap
@@ -56,10 +140,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.include_mddata = False
                 self.mddata = None
                 self.mdunits = None
-
+                self.saving_freq = None                # By default the 'wb' file is only written upon closing
+                                                       # Saving more often is much slower.
                 # Skip to the trajectory part of the file (only if in read mode, because coords are required in header)
                 if self.mode == 'rb' :
-                        self.read_header()
+                        self._read_header()
                 elif self.mode == 'wb' :
                         sections = self.file_object.sections()
                         if len(sections) > 0 : 
@@ -69,13 +154,15 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
         def store_mddata (self, rkf=None) :
                 """
-                Include the md units from this other rkf object
+                Read/write an MDHistory section
+
+                * ``rkf`` -- If in write mode an RKFTrajectoryFile object in read mode needs to be passed to extract unit info
                 """
                 self.include_mddata = True
                 if 'r' in self.mode :
-                        self.set_mddata_units()
+                        self._set_mddata_units()
                 elif 'w' in self.mode :
-                        self.set_mdunits(rkf.mdunits)
+                        self._set_mdunits(rkf.mdunits)
 
         def get_elements (self) :
                 """
@@ -85,21 +172,15 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
         def set_elements (self, elements) :
                 """
-                Sets the elements. Needed in write mode.
+                Sets the elements attribute (needed in write mode).
 
-                @param elements : The element names of the atoms
+                *   ``elements`` -- A list containing the element symbol of each atom
                 """
                 self.elements = elements
 
-        def set_name (self, name) :
-                """
-                Sets the name of the system. Needed in write mode
-                """
-                self.name = name
-
         def close (self) :
                 """
-                Makes sure that all commands that come before are executed.
+                Execute all prior commands and cleanly close and garbage collect the RKF file
                 """
                 # Write the step info
                 if self.timestep is not None and self.mode == 'wb' :
@@ -114,7 +195,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         self.file_object.save()
                 del(self)
 
-        def read_header (self, molecule_section='Molecule') :
+        def _read_header (self, molecule_section='Molecule') :
                 """
                 Set up info required for reading frames
                 """
@@ -135,7 +216,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 except KeyError :
                         pass
 
-        def set_mddata_units (self) :
+        def _set_mddata_units (self) :
                 """
                 Get the units for the mddata, if those are to be read
                 """
@@ -153,7 +234,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 self.mdunits = unit_dic
 
-        def write_header (self, coords, cell) :
+        def _write_header (self, coords, cell) :
                 """
                 Write Molecule info to file (elements, periodicity)
                 """
@@ -195,7 +276,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         self.file_object.write(section,'LatticeVectors',vecs)
                 # Should it write bonds?
 
-        def set_mdunits (self, mdunits) :
+        def _set_mdunits (self, mdunits) :
                 """
                 Store the dictionary with MD Units
                 """
@@ -204,7 +285,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
         def get_plamsmol (self) :
                 """
-                Creates a PLAMS molecule object from the xyz-trajectory file
+                Extracts a PLAMS molecule object from the RKF file
                 """
                 try :
                         section_dict = self.file_object.read_section('InputMolecule')
@@ -215,16 +296,16 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
         def read_frame (self, i, molecule=None) :
                 """
-                Reads the relevant info from frame i
+                Reads the relevant info from frame ``i`` and returns it, or stores it in ``molecule``
 
-                @param latticevecs: Numpy array for the cellvectors in kffile (self.nvecs*3)
-                @param vecs       : Numpy array for output cellvectors (3,3)
+                * ``i``        -- The frame number to be read from the RKF file
+                * ``molecule`` -- |Molecule| object in which the new coordinates need to be stored
                 """
                 # Read the cell data
                 cell = None
                 if self.read_lattice :
                         try :
-                                cell = self.read_cell_data (i)
+                                cell = self._read_cell_data (i)
                         except KeyError :
                                 pass
 
@@ -232,24 +313,24 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 conect = None
                 bonds = None
                 if self.read_bonds :
-                        conect, bonds = self.read_bond_data(section='History', step=i)
+                        conect, bonds = self._read_bond_data(section='History', step=i)
                 self.conect = conect
 
                 # Read the coordinates, and possible pass them to molecule
                 try :
-                        self.read_coordinates(i, molecule, cell, bonds)
+                        self._read_coordinates(i, molecule, cell, bonds)
                         # This has changed self.coords behind the scenes
                 except KeyError :
                         return None, None
 
                 # Read and store all MDData for this frame
                 if self.include_mddata :
-                        self.store_mddata_for_step(i)
+                        self._store_mddata_for_step(i)
 
                 self.position = i
                 return self.coords, cell
 
-        def read_coordinates (self, i, molecule, cell, bonds) :
+        def _read_coordinates (self, i, molecule, cell, bonds) :
                 """
                 Read the coordinates at step i, and possible pass them to molecule
                 """
@@ -264,7 +345,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if isinstance(molecule,Molecule) :
                         self._set_plamsmol(self.coords,cell,molecule,bonds)
 
-        def read_cell_data (self, i) :
+        def _read_cell_data (self, i) :
                 """
                 Read the cell data at step i
                 """
@@ -277,7 +358,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 cell = self.cell
                 return cell
 
-        def read_bond_data (self, section, step=None) :
+        def _read_bond_data (self, section, step=None) :
                 """
                 Read the bond data from the rkf file
                 """
@@ -317,7 +398,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         pass
                 return conect, bonds
 
-        def store_mddata_for_step (self, istep) :
+        def _store_mddata_for_step (self, istep) :
                 """
                 Store the data from the MDHistory section
                 """
@@ -359,7 +440,10 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
         def read_next (self, molecule=None, read=True) :
                 """
-                Reads the relevant info from frame self.position
+                Reads coordinates and lattice vectors from the current position of the cursor and returns it
+
+                * ``molecule`` -- |Molecule| object in which the new coordinates need to be stored
+                * ``read``     -- If set to False the cursor will move to the next frame without reading
                 """
                 if not read and not self.firsttime :
                         return self._move_cursor_without_reading()
@@ -372,12 +456,23 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Write frame to next position in trajectory file
 
-                mddata: A dictionary. It can contain the following keys:
-                        'TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
-                        'Charges', 'ConservedEnergy', 'Time', 'Temperature'
+                * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates
+                * ``molecule`` -- A molecule object to read the molecular data from
+                * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system)
+                * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
+                * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
+
+                The ``mddata`` dictionary can contain the following keys:
+                ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
+                'Charges', 'ConservedEnergy', 'Time', 'Temperature')
+
+                .. note::
+
+                        Either ``coords`` or ``molecule`` are mandatory arguments
                 """
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements, conect = self._read_plamsmol(molecule)
+                        if self.position == 0 : self.elements = elements
                 # Make sure that the cell consists of three vectors
                 cell = self._convert_cell(cell)
                 if conect is not None :
@@ -390,7 +485,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # If this is the first step, write the header
                 if self.position == 0 :
-                        self.write_header(coords,cell)
+                        self._write_header(coords,cell)
 
                 # Define some local variables
                 step = self.position
@@ -403,15 +498,17 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Write the history section
                 counter = 1
-                counter = self.write_history_entry(step, coords, cell, conect, energy, counter)
+                counter = self._write_history_entry(step, coords, cell, conect, energy, counter)
 
                 if self.include_mddata and mddata is not None :
-                        self.write_mdhistory_entry(mddata)
+                        self._write_mdhistory_entry(mddata)
 
                 self.position += 1
-                #if self.position%self.saving_freq == 0 : self.file_object.save()
 
-        def write_history_entry (self, step, coords, cell, conect, energy, counter=1) :
+                if self.saving_freq is not None :
+                        if self.position%self.saving_freq == 0 : self.file_object.save()
+
+        def _write_history_entry (self, step, coords, cell, conect, energy, counter=1) :
                 """
                 Write the full entry into the History section
                 """
@@ -434,11 +531,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Write the bond info
                 if conect is not None :
-                        counter = self.write_bonds_in_history(conect, counter, len(coords))
+                        counter = self._write_bonds_in_history(conect, counter, len(coords))
 
                 return counter
 
-        def write_bonds_in_history (self, conect, counter, nats) :
+        def _write_bonds_in_history (self, conect, counter, nats) :
                 """
                 Write the bond data into the history section
                 """
@@ -464,7 +561,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 return counter
 
-        def write_mdhistory_entry (self, mddata) :
+        def _write_mdhistory_entry (self, mddata) :
                 """
                 Write the entry in the MDHistory section
                 """
@@ -491,7 +588,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Block code: if the data is to be written as blocks, then step and values need to be replaced.
                 if section == 'MDHistory' :
-                        step, values = self.get_block_info (key, perAtom, dim, step, values, section)
+                        step, values = self._get_block_info (key, perAtom, dim, step, values, section)
                                 
                 # The rest should be independent on format (block or individual)
                 self.file_object.write(section,'%s(%i)'%(key,step),values)
@@ -503,7 +600,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 if key in self.mdunits :
                                         self.file_object.write(section,'%s(units)'%(key),self.mdunits[key])
 
-        def get_block_info (self, key, perAtom, dim, step, values, section) :
+        def _get_block_info (self, key, perAtom, dim, step, values, section) :
                 """
                 If the data is to be written as blocks, then step and values need to be replaced.
                 """
@@ -528,24 +625,23 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
         def rewind (self, nframes=None) :
                 """
-                Rewind the file to just after the header.
+                Rewind the file either by ``nframes`` or to the first frame
 
-                @param nframes :
-                        The number of frames to rewind
+                *   ``nframes`` -- The number of frames to rewind
                 """
                 self.firsttime = True
                 self.position = 0
 
         def get_length (self) :
                 """
-                Get the number of steps in the file
+                Get the number of frames in the file
                 """
                 nsteps = self.file_object.read('History', 'nEntries')
                 return nsteps
 
         def read_last_frame (self, molecule=None) :
                 """
-                Reads the last geometry from the file
+                Reads the last frame from the file
                 """
                 nsteps = self.get_length()
                 crd,cell = self.read_frame(nsteps-1, molecule)
