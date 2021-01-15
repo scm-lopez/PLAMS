@@ -15,7 +15,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
 
         *   ``file_object`` -- A Python :py:class:`file` object, referring to the actual XYZ file
         *   ``position``    -- The frame to which the cursor is currently pointing in the XYZ file
-        *   ``mode``        -- Designates whether the file is in read or write mode ('rb' or 'wb')
+        *   ``mode``        -- Designates whether the file is in read or write mode ('r' or 'w')
         *   ``ntap``        -- The number of atoms in the molecular system (needs to be constant throughout)
         *   ``elements``    -- The elements of the atoms in the system (needs to be constant throughout)
 
@@ -34,7 +34,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
             >>> xyz = XYZTrajectoryFile('old.xyz')
             >>> mol = xyz.get_plamsmol()
 
-            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='wb',ntap=xyz.ntap)
+            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w',ntap=xyz.ntap)
 
             >>> for i in range(xyz.get_length()) :
             >>>     crd,cell = xyz.read_frame(i,molecule=mol)
@@ -50,7 +50,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
 
             >>> xyz = XYZTrajectoryFile('old.xyz')
 
-            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='wb',ntap=xyz.ntap)
+            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w',ntap=xyz.ntap)
             >>> xyzout.set_elements(xyz.get_elements())
 
             >>> for crd,cell in xyz :
@@ -66,7 +66,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
 
             >>> mol = Molecule('singleframe.xyz')
 
-            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='wb',ntap=len(mol))
+            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w',ntap=len(mol))
             >>> xyzout.set_elements([at.symbol for at in mol.atoms])
             >>> xyzout.set_name('MyMol')
 
