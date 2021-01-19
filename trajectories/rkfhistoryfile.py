@@ -5,6 +5,7 @@ from ..tools.periodic_table import PT
 from ..mol.molecule import Molecule
 from ..mol.atom import Atom
 from ..core.settings import Settings
+from ..core.errors import PlamsError
 from .rkffile import RKFTrajectoryFile
 from .rkffile import bohr_to_angstrom
 
@@ -243,6 +244,11 @@ class RKFHistoryFile (RKFTrajectoryFile) :
 
                         Either ``coords`` and ``elements`` or ``molecule`` are mandatory arguments
                 """
+                # Check for common error in the arguments
+                if coords is not None :
+                        if isinstance(coords,Molecule) :
+                                raise PlamsError('The PLAMS molecule needs to be passed as the second argument (molecule)')
+
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements, conect = self._read_plamsmol(molecule)
                 # Make sure that the cell consists of three vectors

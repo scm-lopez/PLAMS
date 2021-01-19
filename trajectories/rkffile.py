@@ -470,6 +470,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                         Either ``coords`` or ``molecule`` are mandatory arguments
                 """
+                # Check for common error in the arguments
+                if coords is not None :
+                        if isinstance(coords,Molecule) :
+                                raise PlamsError('The PLAMS molecule needs to be passed as the second argument (molecule)')
+
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements, conect = self._read_plamsmol(molecule)
                         if self.position == 0 : self.elements = elements
