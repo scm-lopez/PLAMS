@@ -349,6 +349,8 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 removed_atoms = []
                 position = 0
                 for i,el in enumerate(self.elements) :
+                        if position == len(elements) : 
+                                break
                         if el == elements[position] :
                                 position += 1
                         else :
