@@ -109,10 +109,10 @@ class Atom:
         numformat = '{:>%i.%if}'%(space,decimal)
         f = lambda x: numformat.format(Units.convert(x, 'angstrom', unit)) if isinstance(x, (int,float)) else strformat.format(str(x))
         if symbol is False:
-            return ('{0}{1}{2} '+suffix).format(*map(f,self.coords), **suffix_dict)
+            return ('{0} {1} {2} '+suffix).format(*map(f,self.coords), **suffix_dict)
         if symbol is True:
             symbol = self.symbol
-        return ('{0:>10s}{1}{2}{3} '+suffix).format(symbol, *map(f,self.coords), **suffix_dict)
+        return ('{0:>10s}{1} {2} {3} '+suffix).format(symbol, *map(f,self.coords), **suffix_dict)
 
 
     def __str__(self):
