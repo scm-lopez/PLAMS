@@ -145,16 +145,26 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         removed_atoms = []
                         if 'RemovedAtoms(%i)'%(new_version) in self.file_object.reader._sections['SystemVersionHistory'] :
                                 removed_atoms = self.file_object.read('SystemVersionHistory','RemovedAtoms(%i)'%(new_version))
+                        if not isinstance(removed_atoms,list) :
+                                removed_atoms = [removed_atoms]
                         added_atoms = []
                         if 'AddedAtoms(%i)'%(new_version) in self.file_object.reader._sections['SystemVersionHistory'] :
                                 added_atoms = self.file_object.read('SystemVersionHistory','AddedAtoms(%i)'%(new_version))
+                        if not isinstance(added_atoms,list) :
+                                added_atoms = [added_atoms]
                         # Now find the corresponding elements
                         chemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(new_version))
-                        sectionname = 'ChemicalSystem(%i)'%(chemSysNum-1)
-                        if chemSysNum-1 == 0 :
+                        # Compare to the previous chemical system
+                        prev_version = new_version - 1
+                        if prev_version == 0 :
                                 sectionname = 'InputMolecule'
+                        else :
+                                prevChemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(prev_version))
+                                sectionname = 'ChemicalSystem(%i)'%(prevChemSysNum)
+                        #if prevChemSysNum == 0 :
+                        #        sectionname = 'InputMolecule'
+                        #print (i, chemSysNum, new_version)
                         elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
-                        elements = self.file_object.read(sectionname,'AtomSymbols')
                         removed_elements = [elements[i-1].split('.')[0] for i in removed_atoms]
                         sectionname = 'ChemicalSystem(%i)'%(chemSysNum)
                         elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
@@ -176,6 +186,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 self._write_general_section()
                 
                 # Then write the input molecule
+                self._update_celldata(cell)
                 self._write_molecule_section(coords, cell)
                 # I think the InputMolecule is mandatory in this case
                 self._write_molecule_section(coords, cell, section='InputMolecule')
@@ -219,10 +230,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 for i in range(frame+1) :
                         if i in self.removed_atoms :
                                 # Insert them into the elements list, in the correct place
-                                elements = [el for iat,el in enumerate(elements) if not iat in self.removed_atoms[i]]
+                                elements = [el for iat,el in enumerate(elements) if not iat+1 in self.removed_atoms[i]]
                         if i in self.added_atoms :
                                 for iat,el in self.added_atoms[i].items() :
-                                        elements.insert(iat,el)
+                                        elements.insert(iat-1,el)
                 return elements
 
         def write_next (self, coords=None, molecule=None, elements=None, cell=[0.,0.,0.], conect=None, mddata=None) :
@@ -350,6 +361,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 position = 0
                 for i,el in enumerate(self.elements) :
                         if position == len(elements) : 
+                                removed_atoms += [j for j in range(i,len(self.elements))]
                                 break
                         if el == elements[position] :
                                 position += 1

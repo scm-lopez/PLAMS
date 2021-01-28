@@ -242,6 +242,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self._write_general_section()
 
                 # Then write the input molecule
+                self._update_celldata(cell)
                 self._write_molecule_section(coords, cell)
                 if self.include_mddata :
                         self._write_molecule_section(coords, cell, section='InputMolecule')
@@ -255,6 +256,15 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.file_object.write('General','file-ident','RKF')
                 self.file_object.write('General','termination status','NORMAL TERMINATION')
                 self.file_object.write('General','program','ams')
+
+        def _update_celldata (self, cell) :
+                """
+                Use the newly supplied cell to update the dimensionality of the system
+                """
+                shape = numpy.array(cell).shape
+                if len(shape) == 2 :
+                        self.nvecs = shape[0]
+                        self.latticevecs = numpy.zeros((self.nvecs,3)) # Not really necessay
 
         def _write_molecule_section (self, coords, cell, section='Molecule') :
                 """
@@ -478,7 +488,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements, conect = self._read_plamsmol(molecule)
                         if self.position == 0 : self.elements = elements
-                # Make sure that the cell consists of three vectors
+                # Make sure that the cell consists of vectors
                 cell = self._convert_cell(cell)
                 if conect is not None :
                         if len(conect) == 0 : conect = None
