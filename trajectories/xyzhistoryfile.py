@@ -108,7 +108,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 # Find the number of atoms
                 line = self.file_object.readline()
                 if len(line) == 0 :
-                        return None, None           # End of file is reached
+                        return None           # End of file is reached
                 nats = int(line.split()[0])
                 line = self.file_object.readline()
 
@@ -139,6 +139,8 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 # Assign the data to the molecule object
                 if isinstance(molecule,Molecule) :
                         self._set_plamsmol(self.coords,None,molecule,bonds=None)
+
+                return coords
 
         def write_next (self,coords=None,molecule=None,elements=None,cell=[0.,0.,0.],energy=None,step=None,conect=None) :
                 """ 

@@ -173,7 +173,9 @@ class XYZTrajectoryFile (TrajectoryFile) :
 
                 cell = None
                 # Read the coordinates
-                self._read_coordinates(molecule)
+                crd = self._read_coordinates(molecule)
+                if crd is None :
+                        return None, None       # End of file is reached
 
                 if self.firsttime :
                         self.firsttime = False
@@ -190,13 +192,15 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 for i in range(2) :
                         line = self.file_object.readline()
                         if len(line) == 0 :
-                                return None, None           # End of file is reached
+                                return None           # End of file is reached
                 for i in range(self.ntap) :
                         line = self.file_object.readline()
                         self.coords[i,:] = [float(w) for w in line.split()[1:4]]
 
                 if isinstance(molecule,Molecule) :
                         self._set_plamsmol(self.coords, cell, molecule)
+
+                return self.coords
 
         def _is_endoffile (self) :
                 """
