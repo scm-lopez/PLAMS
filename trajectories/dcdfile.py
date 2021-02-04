@@ -92,8 +92,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 # Skip to the trajectory part of the file
                 if self.mode == 'rb' :
                         self._read_header()
-                elif self.mode == 'wb' :
-                        self._write_header()
+                #elif self.mode == 'wb' :
+                #        self._write_header()
 
         def set_byteorder (self, byteorder) :
                 """
@@ -361,7 +361,12 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 test = self.file_object.read(self.stepsize)
                 return len(test) < self.stepsize
 
-        def _write_header (self) :
+        def _write_header (self, ntap=0) :
+                """
+                Write the header of the DCD file
+                """
+                self.ntap = ntap
+                self.coords = numpy.zeros((self.ntap,3))
 
                 # This should be an int32
                 self._write_variable(84,'i')
@@ -439,6 +444,10 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 if isinstance(molecule,Molecule) :
                         coords, cell = self._read_plamsmol(molecule)[:2]
                 cell = self._convert_cell(cell)
+
+                # If this is the first step, write the header
+                if self.position == 0 :
+                        self._write_header(len(coords))
 
                 if self.ntap != len(coords) :
                         print('BAD coordinate  list')

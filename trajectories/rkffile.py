@@ -114,6 +114,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 self.position = 0
                 if filename is not None :
+                        #fileobject = KFFile(filename,autosave=False,keep_file_open=True)
                         fileobject = KFFile(filename,autosave=False)
                         #fileobject = KFFile(filename,autosave=False,fastsave=True)
                         # This fastsave option (no copying) was not worth it, so I removed it.
@@ -336,6 +337,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 # Read and store all MDData for this frame
                 if self.include_mddata :
                         self._store_mddata_for_step(i)
+                # Finalize
+                if self.firsttime :
+                        self.firsttime = False
 
                 self.position = i
                 return self.coords, cell
@@ -457,6 +461,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 if not read and not self.firsttime :
                         return self._move_cursor_without_reading()
+
+                if self.firsttime :
+                        self.firsttime = False
 
                 crd, vecs = self.read_frame (self.position,molecule)
                 self.position += 1
