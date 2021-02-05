@@ -682,7 +682,7 @@ class AMSWorker:
             if self.use_restart_cache and prev_results is not None and prev_results.name in self.restart_cache:
                 args["prevTitle"] = prev_results.name
 
-            if task == 'geometryoptimization':
+            if task.lower() == 'geometryoptimization':
                 if method is not None: args["method"] = str(method)
                 if coordinatetype is not None: args["coordinateType"] = str(coordinatetype)
                 if usesymmetry is not None: args["useSymmetry"] = bool(usesymmetry)
