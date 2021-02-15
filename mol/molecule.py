@@ -2148,6 +2148,10 @@ class Molecule:
             if isghost: newatom.properties.ghost = True
             ret.add_atom(newatom)
         if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
+            for k in ['fromAtoms', 'toAtoms', 'bondOrders']:
+                if not isinstance(sectiondict[k], list):
+                    sectiondict[k] = [sectiondict[k]]
+                
             for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
                 ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
         if sectiondict['Charge'] != 0:
