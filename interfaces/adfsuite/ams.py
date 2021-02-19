@@ -220,8 +220,12 @@ class AMSResults(Results):
         """ Return the values of *varname* in the history section *history_section*."""
         if not 'ams' in self.rkfs: return
         main = self.rkfs['ams']
-        nentries = main.read(history_section,'nEntries')
-        as_block = self._values_stored_as_blocks(main, varname, history_section)
+        if (history_section,'nScanCoord') in main: # PESScan
+            nentries = main.read(history_section,'nScanCoord') 
+            as_block = False
+        elif (history_section,'nEntries') in main: 
+            nentries = main.read(history_section,'nEntries')
+            as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
             nblocks = main.read(history_section,'nBlocks')
             values = [main.read(history_section,f"{varname}({iblock})",return_as_list=True) for iblock in range(1,nblocks+1)]
