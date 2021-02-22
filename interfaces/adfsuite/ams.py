@@ -271,15 +271,28 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
+
         def properties(kf):
-            n = kf.read('Properties', 'nEntries')
+            if not 'Properties' in kf:
+                return {}
+            # There are two *kinds* of "Properties" sections:
+            # - ADF simply has a set of variables in the properties section
+            # - DFTB and some other engines have a *scheme* for storing "Properties". See the fortran 'RKFileModule' (RKFile.f90) 
+            #   for more details on this.
             ret = {}
-            for i in range(1, n+1):
-                tp = kf.read('Properties', 'Type({})'.format(i)).strip()
-                stp = kf.read('Properties', 'Subtype({})'.format(i)).strip()
-                val = kf.read('Properties', 'Value({})'.format(i))
-                key = stp if stp.endswith(tp) else ('{} {}'.format(stp, tp) if stp else tp)
-                ret[key] = val
+            if ('Properties', 'nEntries') in kf:
+                # This is a 'RKFileModule' properties section:
+                n = kf.read('Properties', 'nEntries')
+                for i in range(1, n+1):
+                    tp = kf.read('Properties', 'Type({})'.format(i)).strip()
+                    stp = kf.read('Properties', 'Subtype({})'.format(i)).strip()
+                    val = kf.read('Properties', 'Value({})'.format(i))
+                    key = stp if stp.endswith(tp) else ('{} {}'.format(stp, tp) if stp else tp)
+                    ret[key] = val
+            else:
+                skeleton = kf.get_skeleton()
+                for variable in skeleton['Properties']:
+                    ret[variable] = kf.read('Properties', variable)
             return ret
         return self._process_engine_results(properties, engine)
 
