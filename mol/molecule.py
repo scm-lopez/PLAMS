@@ -2220,3 +2220,20 @@ class Molecule:
     #Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb, 'rkf':readrkf}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
+
+
+    def add_hatoms(self) -> 'Molecule':
+        """
+        Adds missing hydrogen atoms to the current molecule.
+        Returns a new Molecule instance.
+        """
+        from subprocess import Popen
+        from tempfile import NamedTemporaryFile
+        with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_in:
+            self.writexyz(f_in)
+            f_in.seek(0)
+            with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_out:
+                p = Popen(f'amsprep -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True)
+                p.communicate()
+                retmol = self.__class__(f_out.name)
+        return retmol
