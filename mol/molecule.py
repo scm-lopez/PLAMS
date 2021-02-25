@@ -2226,6 +2226,21 @@ class Molecule:
         """
         Adds missing hydrogen atoms to the current molecule.
         Returns a new Molecule instance.
+
+        Example::
+
+            >>> o = Molecule()
+            >>> o.add_atom(Atom(atnum=8))
+            >>> print(o)
+              Atoms: 
+                1         O      0.000000       0.000000       0.000000 
+            >>> h2o = o.add_hatoms()
+            >>> print(h2o)
+              Atoms: 
+                1         O      0.000000       0.000000       0.000000 
+                2         H     -0.109259       0.893161       0.334553 
+                3         H      0.327778       0.033891      -0.901672 
+
         """
         from subprocess import Popen
         from tempfile import NamedTemporaryFile
