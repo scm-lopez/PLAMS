@@ -440,6 +440,91 @@ class AMSResults(Results):
         return self.job.name
 
 
+    class EnergyLandscape:
+
+        class State:
+            def __init__(self, landscape, engfile, energy, mol, count, isTS, reactantsID=None, productsID=None):
+                self._landscape = landscape
+                self.engfile = engfile
+                self.energy = energy
+                self.molecule = mol
+                self.count = count
+                self.isTS = isTS
+                self.reactantsID = reactantsID
+                self.productsID = productsID
+
+            @property
+            def id(self):
+                return self._landscape.states.index(self)
+
+            @property
+            def reactants(self):
+                return self._landscape.states[self.reactantsID]
+
+            @property
+            def products(self):
+                return self._landscape.states[self.productsID]
+
+            def __str__(self):
+                if self.isTS:
+                    lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
+                    lines += [f"├ Reactants: {self.reactants}"]
+                    lines += [f"└ Products:  {self.products}"]
+                else:
+                    lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
+                return "\n".join(lines)
+
+        def __init__(self, results):
+            sec = results.read_rkf_section("EnergyLandscape")
+
+            nStates = sec['nStates']
+            self.states = []
+
+            for iState in range(nStates):
+                energy  = sec['energies'][iState]
+                resfile = os.path.splitext(sec['fileNames'][160*iState:160*(iState+1)].strip())[0]
+                mol = results.get_molecule('Molecule',file=resfile)
+                count = sec['counts'][iState]
+                if not sec['isTS'][iState]:
+                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, False))
+                else:
+                    reactantsID = sec['reactants'][iState]-1
+                    productsID  = sec['products'][iState]-1
+                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
+
+        @property
+        def minima(self):
+            return [s for s in self.states if not s.isTS ]
+
+        @property
+        def transition_states(self):
+            return [s for s in self.states if s.isTS]
+
+        def __str__(self):
+            return 'All stationary points:\n'+\
+                   '======================\n'+\
+                   '\n'.join(str(s) for s in self.states)
+
+
+    def get_energy_landscape(self):
+        """Returns the energy landscape obtained from a PESExploration job run by the AMS driver. The energy landscape is a set of stationary PES points (local minima and transition states).
+
+        The returned object is of the type ``AMSResults.EnergyLandscape`` and offers convenient access to the states' energies, geometries as well as the information on which transition states connect which minima.
+
+        .. code-block:: python
+
+            el = results.get_energy_landscape()
+
+            for state in el:
+                print(f"Energy = {state.energy}")
+                print(f"Is transition state = {state.isTS}")
+                print("Geometry:", state.molecule)
+                if state.isTS:
+                    print(f"Forward  barrier: {state.energy - state.reactants.energy}")
+                    print(f"Backward barrier: {state.energy - state.products.energy}")
+        """
+        return AMSResults.EnergyLandscape(self)
+
 
     #=========================================================================
 
