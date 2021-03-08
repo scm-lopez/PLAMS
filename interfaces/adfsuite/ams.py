@@ -468,14 +468,20 @@ class AMSResults(Results):
             def __str__(self):
                 if self.isTS:
                     lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
-                    lines += [f"├ Reactants: {self.reactants}"]
-                    lines += [f"└ Products:  {self.products}"]
+                    if self.reactantsID != None: lines += [f"├ Reactants: {self.reactants}"]
+                    if self.productsID != None:  lines += [f"└ Products:  {self.products}"]
                 else:
                     lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
                 return "\n".join(lines)
 
         def __init__(self, results):
             sec = results.read_rkf_section("EnergyLandscape")
+
+            # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats'). 
+            # For convenience here we make sure that the following variables are always 'lists':
+            for var in ['energies', 'counts', 'isTS', 'reactants', 'products']:
+                if not isinstance(sec[var], list):
+                    sec[var] = [sec[var]]
 
             nStates = sec['nStates']
             self.states = []
@@ -488,8 +494,8 @@ class AMSResults(Results):
                 if not sec['isTS'][iState]:
                     self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, False))
                 else:
-                    reactantsID = sec['reactants'][iState]-1
-                    productsID  = sec['products'][iState]-1
+                    reactantsID = sec['reactants'][iState]-1 if sec['reactants'][iState] > 0 else None
+                    productsID  = sec['products'][iState]-1 if sec['products'][iState] > 0 else None
                     self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
 
         @property
