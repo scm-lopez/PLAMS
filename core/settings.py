@@ -85,7 +85,7 @@ class Settings(dict):
         cls = type(self)
         ret = cls()
         for name in self:
-            if isinstance(self[name], Settings):
+            if isinstance(self[name], (list, Settings)):
                 ret[name] = self[name].copy()
             else:
                 ret[name] = self[name]
@@ -125,7 +125,7 @@ class Settings(dict):
         Shortcut ``A += B`` can be used instead of ``A.soft_update(B)``.
         """
         for name in other:
-            if isinstance(other[name], Settings):
+            if isinstance(other[name], (list, Settings)):
                 if name not in self:
                     self[name] = other[name].copy()
                 elif isinstance(self[name], Settings):
@@ -167,7 +167,7 @@ class Settings(dict):
         """
         for name in other:
             if isinstance(other[name], Settings):
-                if name not in self or not isinstance(self[name], Settings):
+                if name not in self or not isinstance(self[name], (list, Settings)):
                     self[name] = other[name].copy()
                 else:
                     self[name].update(other[name])
