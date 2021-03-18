@@ -468,8 +468,8 @@ class AMSResults(Results):
             def __str__(self):
                 if self.isTS:
                     lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
-                    if self.reactantsID != None: lines += [f"├ Reactants: {self.reactants}"]
-                    if self.productsID != None:  lines += [f"└ Products:  {self.products}"]
+                    if self.reactantsID != None: lines += [f"|- Reactants: {self.reactants}"]
+                    if self.productsID != None:  lines += [f"+- Products:  {self.products}"]
                 else:
                     lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
                 return "\n".join(lines)
