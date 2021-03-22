@@ -235,7 +235,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 self.mdunits = unit_dic
 
-        def _write_header (self, coords, cell) :
+        def _write_header (self, coords, cell, molecule=None) :
                 """
                 Write Molecule info to file (elements, periodicity)
                 """
@@ -244,9 +244,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Then write the input molecule
                 self._update_celldata(cell)
-                self._write_molecule_section(coords, cell)
+                self._write_molecule_section(coords, cell, molecule=molecule)
                 if self.include_mddata :
-                        self._write_molecule_section(coords, cell, section='InputMolecule')
+                        self._write_molecule_section(coords, cell, section='InputMolecule', molecule=molecule)
                         # Start setting up the MDHistory section as well
                         self.file_object.write('MDHistory','blockSize',100)
 
@@ -267,7 +267,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         self.nvecs = shape[0]
                         self.latticevecs = numpy.zeros((self.nvecs,3)) # Not really necessay
 
-        def _write_molecule_section (self, coords, cell, section='Molecule') :
+        def _write_molecule_section (self, coords, cell, section='Molecule', molecule=None) :
                 """
                 Write the molecule section
                 """
@@ -286,6 +286,18 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         vecs = [Units.convert(float(v),'angstrom','bohr') for vec in cell for v in vec]
                         self.file_object.write(section,'LatticeVectors',vecs)
                 # Should it write bonds?
+                # Write atom properties
+                if molecule is not None :
+                        suffixes = []
+                        present = False
+                        for at in molecule :
+                                if 'suffix' in at.properties :
+                                        present = True
+                                        suffixes.append(at.properties.suffix)
+                                else :
+                                        suffixes.append('')
+                        if present :
+                                self.file_object.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
 
         def _set_mdunits (self, mdunits) :
                 """
@@ -298,9 +310,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Extracts a PLAMS molecule object from the RKF file
                 """
-                try :
-                        section_dict = self.file_object.read_section('InputMolecule')
-                except :
+                section_dict = self.file_object.read_section('InputMolecule')
+                if len(section_dict) == 0 :
                         section_dict = self.file_object.read_section('Molecule')
                 plamsmol = Molecule._mol_from_rkf_section(section_dict)
                 return plamsmol
@@ -507,7 +518,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # If this is the first step, write the header
                 if self.position == 0 :
-                        self._write_header(coords,cell)
+                        self._write_header(coords,cell,molecule)
 
                 # Define some local variables
                 step = self.position

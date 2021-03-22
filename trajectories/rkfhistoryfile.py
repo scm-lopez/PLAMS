@@ -103,6 +103,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 """
                 self.added_atoms = None
                 self.removed_atoms = None
+                self.chemical_systems = None
                 RKFTrajectoryFile.__init__(self,filename,mode,fileobject,ntap)
 
                 self.input_elements = self.elements[:]
@@ -121,20 +122,39 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 RKFTrajectoryFile.set_elements(self, elements)
                 self.input_elements = elements
 
+        def get_plamsmol (self) :
+                """
+                Extracts a PLAMS molecule object from the RKF file
+                """
+                section_dict = self.file_object.read_section('ChemicalSystem(1)')
+                if len(section_dict) == 0 :
+                        section_dict = self.file_object.read_section('InputMolecule')
+                if len(section_dict) == 0 :
+                        section_dict = self.file_object.read_section('Molecule')
+                plamsmol = Molecule._mol_from_rkf_section(section_dict)
+                return plamsmol
+
         def _read_header (self) :
                 """
                 Read the start molecule data from the InputMolecule section (not the Molecule section)
                 """
-                RKFTrajectoryFile._read_header (self, molecule_section='InputMolecule')
+                self.added_atoms = {}
+                self.removed_atoms = {} 
+                self.chemical_systems = {} 
+                secname = 'ChemicalSystem(1)'
+                if self.file_object.reader._sections is None :
+                        self.file_object.reader._create_index()
+                if not 'SystemVersionHistory' in self.file_object.reader._sections :
+                        secname = 'InputMolecule'
+                RKFTrajectoryFile._read_header (self, molecule_section=secname)
 
                 # Now store the added and removed atoms along the trajectory
                 # (This might be slow?)
                 # I could also do it on the fly, but that may be messy when we move back and forth through the file
                 if not 'SystemVersionHistory' in self.file_object.reader._sections :
                         return
-                self.added_atoms = {}
-                self.removed_atoms = {}
-                version = 0
+                #version = 0
+                version = 1
                 for i in range(self.get_length()) :
                         new_version = self.file_object.read('History','SystemVersion(%i)'%(i+1))
                         if new_version == version :
@@ -156,11 +176,11 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         chemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(new_version))
                         # Compare to the previous chemical system
                         prev_version = new_version - 1
-                        if prev_version == 0 :
-                                sectionname = 'InputMolecule'
-                        else :
-                                prevChemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(prev_version))
-                                sectionname = 'ChemicalSystem(%i)'%(prevChemSysNum)
+                        #if prev_version == 0 :
+                        #        sectionname = 'InputMolecule'
+                        #else :
+                        prevChemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(prev_version))
+                        sectionname = 'ChemicalSystem(%i)'%(prevChemSysNum)
                         #if prevChemSysNum == 0 :
                         #        sectionname = 'InputMolecule'
                         #print (i, chemSysNum, new_version)
@@ -174,11 +194,12 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 self.removed_atoms[i][iat] = el 
                         for iat,el in zip(added_atoms,added_elements) :
                                 self.added_atoms[i][iat] = el
+                        self.chemical_systems[i] = chemSysNum
                         version = new_version
 
         # FIXME: The _write_header section writes the starting molecule to the Molecule section, 
         #        not the final molecule (like the Fortran code does)
-        def _write_header (self, coords, cell) :
+        def _write_header (self, coords, cell, molecule=None) :
                 """
                 Write Molecule info to file (elements, periodicity)
                 """
@@ -187,9 +208,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 
                 # Then write the input molecule
                 self._update_celldata(cell)
-                self._write_molecule_section(coords, cell)
+                self._write_molecule_section(coords, cell, molecule=molecule)
                 # I think the InputMolecule is mandatory in this case
-                self._write_molecule_section(coords, cell, section='InputMolecule')
+                self._write_molecule_section(coords, cell, section='InputMolecule', molecule=molecule)
                 if self.include_mddata :
                         # Start setting up the MDHistory section as well
                         self.file_object.write('MDHistory','blockSize',100)
@@ -207,11 +228,16 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         coords = self.coords.reshape((len(elements)*3))
                         # Rebuild the molecule (bonds will disappear for now)
                         if isinstance(molecule,Molecule) :
+                                ifr = [iframe for iframe in self.chemical_systems.keys() if iframe<=i][-1]
+                                secname = 'ChemicalSystem(%i)'%(self.chemical_systems[ifr])
+                                section_dict = self.file_object.read_section(secname)
+                                new_mol = Molecule._mol_from_rkf_section(section_dict)
                                 for at in reversed(molecule.atoms) :
                                         molecule.delete_atom(at)
                                 molecule.properties = Settings()
-                                for el in elements :
-                                        atom = Atom(PT.get_atomic_number(el))
+                                for iel,el in enumerate(elements) :
+                                        atom = new_mol.atoms[iel]
+                                        #atom = Atom(PT.get_atomic_number(el))
                                         molecule.add_atom(atom)
 
                 coords[:] = self.file_object.read('History', 'Coords(%i)'%(i+1))
@@ -271,7 +297,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 # If this is the first step, write the header
                 if self.position == 0 :
                         self.elements = elements
-                        self._write_header(coords,cell)
+                        self._write_header(coords,cell,molecule=molecule)
                         # This is specific for the history-file object
                         self.input_elements = elements[:]
 
@@ -298,7 +324,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         self.elements = elements
                         # Write the molecule sections
                         chemsysversion = len(self.system_versions)
-                        self._write_molecule_section (coords, cell, section='ChemicalSystem(%i)'%(chemsysversion))
+                        self._write_molecule_section (coords, cell, section='ChemicalSystem(%i)'%(chemsysversion), molecule=molecule)
                         #self._write_molecule_section(coords, cell)
                 counter = self._write_system_version_history_entry(counter)
 
