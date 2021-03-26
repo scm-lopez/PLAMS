@@ -67,17 +67,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 * ``fileobject`` -- Optionally, a file object can be passed instead (filename needs to be set to None)
                 * ``ntap``       -- If the file is in write mode, the number of atoms needs to be passed here
                 """
-                self.position = 0
-                if filename is not None :
-                        fileobject = open(filename,mode) 
-                self.file_object = fileobject
-                if self.file_object is not None :
-                        self.mode = self.file_object.mode
-                self.ntap = 0
-                if ntap is not None :
-                        self.ntap = ntap
-                self.firsttime = True
-                self.coords = numpy.zeros((self.ntap,3))
+                TrajectoryFile.__init__(self, filename, mode, fileobject, ntap)
 
                 # DCD specific attributes
                 self.celldata = False                   # Whether the cell data is in the file (only set in read-mode)
@@ -235,6 +225,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 self.stepsize += 3 * self.ntap * self.floatsize
                 self.stepsize += 5 * self.intsize
+
+                self.elements = ['H']*self.ntap
 
         def read_next (self,molecule=None,read=True) :
                 """

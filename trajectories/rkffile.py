@@ -129,10 +129,14 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.firsttime = True
                 self.coords = numpy.zeros((self.ntap,3))                # Only for reading purposes,
                                                                         # to avoid creating the array each time
+                # PLAMS molecule related settings
+                self.elements = ['H']*self.ntap
+                self.current_molecule = None
+                self.store_molecule = True # Even if True, the molecule attribute is only stored during iteration
+        
                 # RKF specific attributes
                 self.nvecs = 3
                 self.latticevecs = numpy.zeros((3,3))
-                self.elements = ['H']*self.ntap
                 self.read_lattice = True               # Reading time can be saved by skipping the lattice info
                 self.read_bonds = True
                 self.cell = numpy.zeros((3,3))
@@ -164,20 +168,6 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         self._set_mddata_units()
                 elif 'w' in self.mode :
                         self._set_mdunits(rkf.mdunits)
-
-        def get_elements (self) :
-                """
-                Get the elements attribute
-                """ 
-                return self.elements
-
-        def set_elements (self, elements) :
-                """
-                Sets the elements attribute (needed in write mode).
-
-                *   ``elements`` -- A list containing the element symbol of each atom
-                """
-                self.elements = elements
 
         def close (self) :
                 """

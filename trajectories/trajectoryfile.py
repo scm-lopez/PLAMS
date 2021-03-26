@@ -2,7 +2,8 @@
 
 import os
 import numpy
-from scm.plams import Bond
+from..mol.molecule import Bond
+from ..core.errors import PlamsError
 
 __all__ = ['TrajectoryFile']
 
@@ -14,7 +15,10 @@ class TrajectoryFile (object) :
                 """
                 Would create a generic trajectory  file object
 
-                @param ntap : Number of atoms (constant throughout trajectory)
+                * ``filename``   -- The path to the DCD file
+                * ``mode``       -- The mode in which to open the DCD file ('rb' or 'wb')
+                * ``fileobject`` -- Optionally, a file object can be passed instead (filename needs to be set to None)
+                * ``ntap``       -- If the file is in write mode, the number of atoms needs to be passed here
                 """
                 self.position = 0
                 if filename is not None :
@@ -29,28 +33,48 @@ class TrajectoryFile (object) :
                 self.firsttime = True
                 self.coords = numpy.zeros((self.ntap,3))                # Only for reading purposes, to avoid creating the array each time
 
-                # Required setup before frames can be read/written
-                if self.mode == 'r' :
-                        self._read_header()
+                # PLAMS molecule related settings
+                self.elements = ['H']*self.ntap
+                self.current_molecule = None
+                self.store_molecule = True # Even if True, the molecule attribute is only stored during iteration
 
         def __iter__ (self) :
                 """
                 Magic method that makes this an iterator
-                """
-                return self
 
-        def __next__ (self) :
-                """
-                Magic method that makes this an iterator
+                Note: Iterates starting from current cursor position
                 """
                 if self.mode[0] == 'r' :
-                        crd,cell = self.read_next()
-                        if crd is None :
-                                raise StopIteration
-                        else :
-                                return crd,cell
+                        if self.current_molecule is None and self.store_molecule :
+                                self.current_molecule = self.get_plamsmol()
+                        for i in range(len(self)-self.position) :
+                                crd,cell = self.read_next(molecule=self.current_molecule)
+                                yield crd,cell
+                        self.current_molecule = None
                 else :
-                        raise Exception('Cannot iterate over writable trajectoryfile')
+                        raise PlamsError('Cannot iterate over writable trajectoryfile')
+
+        @property
+        def molecule (self) :
+                """
+                Returns the current molecule, which exists only when the object is used as an iterator
+                """
+                if not self.store_molecule :
+                        raise PlamsError ('Try setting the store_molecule attribute to True')
+                elif self.current_molecule is None :
+                        raise PlamsError ('molecule attribute only exists during iteration')
+                return self.current_molecule
+
+        def __call__ (self, molecule=None, read=True) :
+                """
+                Magic method that makes an instance of this class into a callable
+                """
+                if self.mode[0] == 'r' :
+                        for i in range(len(self)-self.position) :
+                                crd,cell = self.read_next(molecule, read)
+                                yield crd,cell
+                else :
+                        raise PlamsError('Cannot iterate over writable trajectoryfile')
 
         def __len__ (self) :
                 """
@@ -79,6 +103,20 @@ class TrajectoryFile (object) :
                 except AttributeError :
                         pass
 
+        def get_elements (self) :
+                """
+                Get the elements attribute
+                """
+                return self.elements
+
+        def set_elements (self, elements) :
+                """
+                Sets the elements attribute (needed in write mode).
+
+                *   ``elements`` -- A list containing the element symbol of each atom
+                """
+                self.elements = elements
+
         def _read_header (self) :
                 """
                 Set up info required for reading frames
@@ -86,6 +124,24 @@ class TrajectoryFile (object) :
                 Sets self.ntap and self.coords to proper value/size
                 """
                 pass
+
+        def get_plamsmol (self) :
+                """
+                Extracts a PLAMS molecule object from the XYZ trajectory file
+                """
+                from scm.plams import Molecule
+                oldposition = self.position
+                self.rewind()
+                coords, cell = self.read_next()
+                plamsmol = Molecule.from_elements(self.elements)
+                plamsmol.from_array(coords)
+
+                # Return to original position
+                self.rewind()
+                for i in range(oldposition) :
+                        self.read_next(read=False)
+
+                return plamsmol
 
         def close (self) :
                 """

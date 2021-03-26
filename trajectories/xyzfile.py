@@ -81,40 +81,14 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 * ``fileobject`` -- Optionally, a file object can be passed instead (filename needs to be set to None)
                 * ``ntap``       -- If the file is in write mode, the number of atoms needs to be passed here
                 """
-                self.position = 0
-                if filename is not None :
-                        fileobject = open(filename,mode)
-                self.file_object = fileobject
-                if self.file_object is not None :
-                        self.mode = self.file_object.mode
-                
-                self.ntap = 0
-                if ntap is not None :
-                        self.ntap = ntap
-                self.firsttime = True
-                self.coords = numpy.zeros((self.ntap,3))                # Only for reading purposes,
-                                                                        # to avoid creating the array each time
+                TrajectoryFile.__init__(self, filename, mode, fileobject, ntap)
+
                 # XYZ specific attributes
-                self.elements = ['H']*self.ntap
                 self.name = 'PlamsMol'
 
                 # Required setup before frames can be read/written
                 if self.mode == 'r' :
                         self._read_header()
-
-        def get_elements (self) :        
-                """
-                Get the elements attribute
-                """
-                return self.elements
-
-        def set_elements (self, elements) :
-                """
-                Sets the elements attribute (needed in write mode).
-
-                *   ``elements`` -- A list containing the element symbol of each atom
-                """
-                self.elements = elements
 
         def set_name (self, name) :
                 """
@@ -142,24 +116,6 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 self.elements = elements
 
                 self.file_object.seek(0)
-
-        def get_plamsmol (self) :
-                """
-                Extracts a PLAMS molecule object from the XYZ trajectory file
-                """
-                from scm.plams import Molecule
-                oldposition = self.position
-                self.rewind()
-                coords, cell = self.read_next()
-                plamsmol = Molecule.from_elements(self.elements)
-                plamsmol.from_array(coords)
-
-                # Return to original position
-                self.rewind()
-                for i in range(oldposition) :
-                        self.read_next(read=False)
-
-                return plamsmol
 
         def read_next (self, molecule=None, read=True) :
                 """
