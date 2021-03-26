@@ -46,9 +46,20 @@ class DCDTrajectoryFile (TrajectoryFile) :
         in a step-by-step manner.
         The |Molecule| object is then passed to the :meth:`write_next` method of the new |DCDTrajectoryFile|
         object corresponding to the new dcd file ``new.dcd``.
-        All coordinate information needs to be passed to and from the |Molecule| object
+
+        The exact same result can also be achieved by iterating over the instance as a callable
+
+            >>> dcd = DCDTrajectoryFile('old.dcd')
+            >>> mol = dcd.get_plamsmol()
+
+            >>> dcdout = DCDTrajectoryFile('new.dcd',mode='wb',ntap=dcd.ntap)
+
+            >>> for crd,cell in dcd(mol) :
+            >>>     dcdout.write_next(molecule=mol)
+
+        This procedure requires all coordinate information to be passed to and from the |Molecule| object
         for each frame, which can be time-consuming.
-        Alternatively, the |Molecule| object can be bypassed all together::
+        It is therefore also possible to bypass the |Molecule| object when reading through the frames::
 
             >>> dcd = DCDTrajectoryFile('old.dcd')
 

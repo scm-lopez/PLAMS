@@ -34,7 +34,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
             >>> xyz = XYZTrajectoryFile('old.xyz')
             >>> mol = xyz.get_plamsmol()
 
-            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w',ntap=xyz.ntap)
+            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w')
 
             >>> for i in range(xyz.get_length()) :
             >>>     crd,cell = xyz.read_frame(i,molecule=mol)
@@ -44,13 +44,24 @@ class XYZTrajectoryFile (TrajectoryFile) :
         in a step-by-step manner.
         The |Molecule| object is then passed to the :meth:`write_next` method of the new |XYZTrajectoryFile|
         object corresponding to the new xyz file ``new.xyz``.
-        All coordinate information needs to be passed to and from the |Molecule| object
+
+        The exact same result can also be achieved by iterating over the instance as a callable
+
+            >>> xyz = XYZTrajectoryFile('old.xyz')
+            >>> mol = xyz.get_plamsmol()
+
+            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w')
+
+            >>> for crd,cell in xyz(mol) :
+            >>>     xyzout.write_next(molecule=mol)
+
+        This procedure requires all coordinate information to be passed to and from the |Molecule| object
         for each frame, which can be time-consuming.
-        Alternatively, the |Molecule| object can be bypassed all together::
+        It is therefore also possible to bypass the |Molecule| object when reading through the frames::
 
             >>> xyz = XYZTrajectoryFile('old.xyz')
 
-            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w',ntap=xyz.ntap)
+            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w')
             >>> xyzout.set_elements(xyz.get_elements())
 
             >>> for crd,cell in xyz :
@@ -66,8 +77,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
 
             >>> mol = Molecule('singleframe.xyz')
 
-            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w',ntap=len(mol))
-            >>> xyzout.set_elements([at.symbol for at in mol.atoms])
+            >>> xyzout = XYZTrajectoryFile('new.xyz',mode='w')
             >>> xyzout.set_name('MyMol')
 
             >>> xyzout.write_next(molecule=mol, step=0, energy=5.)

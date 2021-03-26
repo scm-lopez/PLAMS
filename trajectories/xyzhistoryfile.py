@@ -45,13 +45,24 @@ class XYZHistoryFile (XYZTrajectoryFile) :
         in a step-by-step manner.
         The |Molecule| object is then passed to the :meth:`write_next` method of the new |XYZHistoryFile|
         object corresponding to the new xyz file ``new.xyz``.
-        All coordinate information needs to be passed to and from the |Molecule| object
+
+        The exact same result can also be achieved by iterating over the instance as a callable
+
+            >>> xyz = XYZHistoryFile('old.xyz')
+            >>> mol = xyz.get_plamsmol()
+
+            >>> xyzout = XYZHistoryFile('new.xyz',mode='w')
+
+            >>> for crd,cell in xyz(mol) :
+            >>>     xyzout.write_next(molecule=mol)
+
+        This procedure requires all coordinate information to be passed to and from the |Molecule| object
         for each frame, which can be time-consuming.
-        Alternatively, the |Molecule| object can be bypassed all together::
+        It is therefore also possible to bypass the |Molecule| object when reading through the frames::
 
             >>> xyz = XYZHistoryFile('old.xyz')
 
-            >>> xyzout = XYZHistoryFile('new.xyz',mode='w',ntap=xyz.ntap)
+            >>> xyzout = XYZHistoryFile('new.xyz',mode='w')
 
             >>> for crd,cell in xyz :
             >>>     xyzout.write_next(coords=crd,elements=xyz.elements)
@@ -73,7 +84,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
 
         def __init__ (self, filename, mode='r', fileobject=None, ntap=None) :
                 """
-                Initiates an XYZTrajectoryFile object
+                Initiates an XYZHistoryFile object
 
                 * ``filename``   -- The path to the XYZ file
                 * ``mode``       -- The mode in which to open the XYZ file ('r' or 'w')

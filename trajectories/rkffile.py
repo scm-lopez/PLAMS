@@ -46,7 +46,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
             >>> rkf = RKFTrajectoryFile('ams.rkf')
             >>> mol = rkf.get_plamsmol()
 
-            >>> rkfout = RKFTrajectoryFile('new.rkf',mode='wb',ntap=rkf.ntap)
+            >>> rkfout = RKFTrajectoryFile('new.rkf',mode='wb')
 
             >>> for i in range(rkf.get_length()) :
             >>>     crd,cell = rkf.read_frame(i,molecule=mol)
@@ -57,13 +57,25 @@ class RKFTrajectoryFile (TrajectoryFile) :
         in a step-by-step manner.
         The |Molecule| object is then passed to the :meth:`write_next` method of the new |RKFTrajectoryFile|
         object corresponding to the new rkf file ``new.rkf``.
-        All coordinate, cell, and connectivity information needs to be passed to and from the |Molecule| object
+
+        The exact same result can also be achieved by iterating over the instance as a callable
+
+            >>> rkf = RKFTrajectoryFile('ams.rkf')
+            >>> mol = rkf.get_plamsmol()
+
+            >>> rkfout = RKFTrajectoryFile('new.rkf',mode='wb')
+
+            >>> for crd,cell in rkf(mol) :
+            >>>     rkfout.write_next(molecule=mol)
+            >>> rkfout.close()
+
+        This procedure requires all coordinate information to be passed to and from the |Molecule| object
         for each frame, which can be time-consuming.
         Some time can be saved by bypassing the |Molecule| object::
 
             >>> rkf = RKFTrajectoryFile('ams.rkf')
 
-            >>> rkfout = RKFTrajectoryFile('new.rkf',mode='wb',ntap=rkf.ntap)
+            >>> rkfout = RKFTrajectoryFile('new.rkf',mode='wb')
             >>> rkfout.set_elements(rkf.get_elements())
 
             >>> for crd,cell in rkf :
@@ -87,12 +99,10 @@ class RKFTrajectoryFile (TrajectoryFile) :
             >>> rkf.store_mddata()
             >>> mol = rkf.get_plamsmol()
 
-            >>> rkf_out = RKFTrajectoryFile('new.rkf',mode='wb',ntap=rkf.ntap)
-            >>> rkf_out.set_elements(rkf.get_elements())
-            >>> rkf_out.timestep = rkf.timestep
+            >>> rkf_out = RKFTrajectoryFile('new.rkf',mode='wb')
             >>> rkf_out.store_mddata(rkf)
 
-            >>> for i in range(rkf.get_length()) :
+            >>> for i in range(len(rkf)) :
             >>>         crd,cell = rkf.read_frame(i,molecule=mol)
             >>>         rkf_out.write_next(molecule=mol,mddata=rkf.mddata)
             >>> rkf_out.close()
@@ -167,7 +177,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if 'r' in self.mode :
                         self._set_mddata_units()
                 elif 'w' in self.mode :
-                        self._set_mdunits(rkf.mdunits)
+                        if rkf is not None :
+                                self.timestep = rkf.timestep
+                                self._set_mdunits(rkf.mdunits)
 
         def close (self) :
                 """

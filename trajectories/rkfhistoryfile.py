@@ -52,9 +52,21 @@ class RKFHistoryFile (RKFTrajectoryFile) :
         in a step-by-step manner..
         The |Molecule| object is then passed to the :meth:`write_next` method of the new |RKFHistoryFile|
         object corresponding to the new rkf file ``new.rkf``.
-        All coordinate, cell, and connectivity information need to be passed to and from the |Molecule| object
+
+        The exact same result can also be achieved by iterating over the instance as a callable
+
+            >>> rkf = RKFHistoryFile('ams.rkf')
+            >>> mol = rkf.get_plamsmol()
+
+            >>> rkfout = RKFHistoryFile('new.rkf',mode='wb')
+
+            >>> for crd,cell in rkf(mol) :
+            >>>     rkfout.write_next(molecule=mol)
+            >>> rkfout.close()
+
+        This procedure requires all coordinate information to be passed to and from the |Molecule| object
         for each frame, which can be time-consuming.
-        Alternatively, the |Molecule| object can be bypassed all together::
+        Some time can be saved by bypassing the |Molecule| object::
 
             >>> rkf = RKFHistoryFile('ams.rkf')
 
@@ -83,7 +95,6 @@ class RKFHistoryFile (RKFTrajectoryFile) :
             >>> mol = rkf.get_plamsmol()
 
             >>> rkf_out = RKFHistoryFile('new.rkf',mode='wb')
-            >>> rkf_out.timestep = rkf.timestep
             >>> rkf_out.store_mddata(rkf)
 
             >>> for i in range(rkf.get_length()) :
