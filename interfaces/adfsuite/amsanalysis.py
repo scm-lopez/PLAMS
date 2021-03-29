@@ -3,15 +3,26 @@ from .scmjob import SCMJob, SCMResults
 
 __all__ = ['AMSAnalysisJob', 'AMSAnalysisResults','convert_to_unicode']
 
-class AMSAnalysisXYResults:
+class AMSAnalysisPlots:
+    """
+    Class representing a plot of 2D or higher
+
+    * ``x``       -- A list of lists containing the values in each of the multiple x-axes
+    * ``y``       -- A list containing the values along the y-axis
+    * ``y_sigma`` -- A list containing the standard deviation of the values onthe y-axis
+    """
     def __init__(self):
+        """
+        Initiate an instance of the plot class
+        """
         self.x = []
-        self.y = []
-        self.x_units = None
+        self.x_units = []
+        self.x_names = []
+
+        self.y = None
         self.y_units = None
-        self.x_name = None
         self.y_name = None
-        self.y_sigma = [] # stadard deviation for y_values
+        self.y_sigma = None # stadard deviation for y_values
 
         self.properties = None
         self.legend = None
@@ -20,12 +31,17 @@ class AMSAnalysisXYResults:
         """
         Read the xy data for a section from the kf file
         """
-        xkey = 'x(1)-axis'
+        # Read all the x-values. There can be multiple axes for ND plots (n=3,4,....)
+        xkeys = [k for k in kf.reader._sections[sec] if 'x(' in k and ')-axis' in k]
+        xnums = sorted([int(k.split('(')[1].split(')')[0]) for k in xkeys])
+        for i in xnums :
+                xkey = 'x(%i)-axis'%(i)
+        self.x.append(kf.read(sec, xkey))
         x_name = kf.read(sec, '%s(label)'%(xkey))
-        self.x = kf.read(sec, xkey)
-        self.x_name = convert_to_unicode(x_name)
-        self.x_units = convert_to_unicode(kf.read(sec, '%s(units)'%(xkey)))
+        self.x_names.append(convert_to_unicode(x_name))
+        self.x_units.append(convert_to_unicode(kf.read(sec, '%s(units)'%(xkey))))
 
+        # Read the y-values
         ykey = 'y-axis'
         y_name = kf.read(sec, '%s(label)'%(ykey))
         self.y = kf.read(sec, ykey)
@@ -61,14 +77,27 @@ class AMSAnalysisXYResults:
         """
         Print this plot to a text file
         """
+        # Place property string
         parts = []
         for propname,prop in self.properties.items() :
             parts.append('%-30s %s\n'%(propname, prop))
-        x_name = '%s(%s)'%(self.x_name,self.x_units)
+
+        # Place the string with the column names
+        x_name = ''
+        for xname,xunit in zip(self.x_names,self.x_units) :
+            x_str = '%s(%s)'%(xname,self.xunit)
+            x_name += '%30s '%(x_str)
         y_name = '%s(%s)'%(self.y_name,self.y_units)
-        parts.append('%30s %30s %30s\n'%(x_name,y_name,'sigma'))
-        for x,y,s in zip(self.x,self.y,self.y_sigma) :
-            parts.append('%30.10e %30.10e %30.10e\n'%(x,y,s))
+        parts.append('%s %30s %30s\n'%(x_name,y_name,'sigma'))
+
+        # Place the values
+        value_lists = self.x + [self.y] + [self.y_sigma]
+        for values in zip(*value_lists) :
+            v_str = ''
+            for v in values :
+                v_str += '%30.10e '%(v)
+            v_str += '\n'
+            parts.append(v_str)
         block = ''.join(parts)
 
         if outfilename is not None :
@@ -98,7 +127,7 @@ class AMSAnalysisResults(SCMResults):
         return sections
 
     def get_xy(self, section='', i=1):
-        xy = AMSAnalysisXYResults()
+        xy = AMSAnalysisPlots()
 
         task = self.job.settings.input.Task
         if section == '' :
@@ -117,16 +146,26 @@ class AMSAnalysisResults(SCMResults):
 
         return xy
 
-    def write_all_plots (self) :
+    def get_all_plots (self) :
         """
-        Get a list of all the plots created by the analysis job
+        Get a list of all the plot objects created by the analysis jobs
         """
         sections = self.get_sections()
+        plots = []
         for section in sections :
             name_part = section.split('(')[0]
             num_part = int(section.split('(')[1].split(')')[0])
             outfilename = '%s_%i.dat'%(name_part,num_part)
             xy = self.get_xy(name_part,num_part)
+            plots.append(xy)
+        return plots
+
+    def write_all_plots (self) :
+        """
+        Write all the plots created by the analysis job to file
+        """
+        plots = self.get_all_plots()
+        for xy in plots :
             xy.write_plot('%s'%(outfilename))
 
     def get_D(self, i=1):
