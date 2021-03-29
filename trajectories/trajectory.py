@@ -64,27 +64,40 @@ class Trajectory :
                                 crd,cell = rkf.read_frame(i,molecule=mol)
                                 yield mol.copy()
 
-        def __getitem__ (self, i) :
+        def __getitem__ (self, s) :
                 """
                 Returns Molecule object
-                """
-                irkf, istep = self._get_filenum_and_stepnum(i)
-                mol = self.molecules[irkf].copy()
-                crd,cell = self.files[irkf].read_frame(istep,molecule=mol)
-                self.files[irkf].rewind()
-                return mol
 
-        def run_analysis (self, settings, range=None) :
+                * ``s`` -- Python slice object
+                """
+                if isinstance(s,int) :
+                        s = slice(s)
+                        start, stop, step = s.indices(len(self))
+                        indices = range(stop,stop+1)
+                elif isinstance(s,slice) :
+                        start, stop, step = s.indices(len(self))
+                        indices = range(start,stop,step)
+                mols = []
+                for i in indices :
+                        irkf, istep = self._get_filenum_and_stepnum(i)
+                        mol = self.molecules[irkf].copy()
+                        crd,cell = self.files[irkf].read_frame(istep,molecule=mol)
+                        mols.append(mol)
+                if len(mols) == 1 :
+                        mols = mols[0]
+                return mols
+
+        def run_analysis (self, settings, steprange=None) :
                 """
                 Calls the AMS analysis tool behind the scene
 
-                * ``settings`` -- PLAMS Settings object
-                                  Example :
-                                  settings = Settings()
-                                  settings.input.Task = 'AutoCorrelation' 
-                                  settings.input.AutoCorrelation.Property = 'Velocities'
-                                  settings.input.AutoCorrelation.MaxStep = 2000
-                * ``range``    -- Not implemented yet
+                * ``settings``  -- PLAMS Settings object
+                                   Example :
+                                   settings = Settings()
+                                   settings.input.Task = 'AutoCorrelation' 
+                                   settings.input.AutoCorrelation.Property = 'Velocities'
+                                   settings.input.AutoCorrelation.MaxStep = 2000
+                * ``steprange`` -- Not implemented yet
                 """
                 trajecsettings = []
                 for ikf,rkf in enumerate(self.files) :
