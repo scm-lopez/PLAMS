@@ -3,13 +3,18 @@ from .scmjob import SCMJob, SCMResults
 
 __all__ = ['AMSAnalysisJob', 'AMSAnalysisResults','convert_to_unicode']
 
-class AMSAnalysisPlots:
+class AMSAnalysisPlot:
     """
     Class representing a plot of 2D or higher
 
     * ``x``       -- A list of lists containing the values in each of the multiple x-axes
     * ``y``       -- A list containing the values along the y-axis
     * ``y_sigma`` -- A list containing the standard deviation of the values onthe y-axis
+    * ``name``    -- The name of the plot
+
+    The most important method is the write method, which returns a string containing all the plot info,
+    and can also write a corresponding file if a filename is provided as argument.
+    This file can be read by e.g. gnuplot.
     """
     def __init__(self):
         """
@@ -25,7 +30,7 @@ class AMSAnalysisPlots:
         self.y_sigma = None # stadard deviation for y_values
 
         self.properties = None
-        self.legend = None
+        self.name = None
 
     def read_data (self, kf, sec) :
         """
@@ -71,9 +76,9 @@ class AMSAnalysisPlots:
         # Now set the instance variables
         self.properties = properties
         if 'Legend' in properties :
-            self.legend = properties['Legend']
+            self.name = properties['Legend']
 
-    def write_plot (self, outfilename=None) :
+    def write (self, outfilename=None) :
         """
         Print this plot to a text file
         """
@@ -127,7 +132,7 @@ class AMSAnalysisResults(SCMResults):
         return sections
 
     def get_xy(self, section='', i=1):
-        xy = AMSAnalysisPlots()
+        xy = AMSAnalysisPlot()
 
         task = self.job.settings.input.Task
         if section == '' :
@@ -166,7 +171,7 @@ class AMSAnalysisResults(SCMResults):
         """
         plots = self.get_all_plots()
         for xy in plots :
-            xy.write_plot('%s'%(outfilename))
+            xy.write('%s'%(outfilename))
 
     def get_D(self, i=1):
         """ returns a 2-tuple (D, D_units) from the AutoCorrelation(i) section on the .kf file. """

@@ -151,7 +151,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 """
                 self.added_atoms = {}
                 self.removed_atoms = {} 
-                self.chemical_systems = {} 
+                self.chemical_systems = {0:1} 
                 secname = 'ChemicalSystem(1)'
                 if self.file_object.reader._sections is None :
                         self.file_object.reader._create_index()
@@ -166,6 +166,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         return
                 #version = 0
                 version = 1
+                self._set_system_versions()
                 for i in range(self.get_length()) :
                         new_version = self.file_object.read('History','SystemVersion(%i)'%(i+1))
                         if new_version == version :
@@ -186,19 +187,21 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         # Now find the corresponding elements
                         chemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(new_version))
                         # Compare to the previous chemical system
-                        prev_version = new_version - 1
-                        #if prev_version == 0 :
-                        #        sectionname = 'InputMolecule'
-                        #else :
-                        prevChemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(prev_version))
+                        #prev_version = new_version - 1
+                        #prevChemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(prev_version))
+                        prevChemSysNum = self.chemical_systems[max(self.chemical_systems.keys())]
                         sectionname = 'ChemicalSystem(%i)'%(prevChemSysNum)
-                        #if prevChemSysNum == 0 :
-                        #        sectionname = 'InputMolecule'
-                        #print (i, chemSysNum, new_version)
-                        elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
-                        removed_elements = [elements[i-1].split('.')[0] for i in removed_atoms]
+                        prev_elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
                         sectionname = 'ChemicalSystem(%i)'%(chemSysNum)
                         elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
+                        ################
+                        # Read badly written files
+                        diff = (len(added_atoms) - len(removed_atoms)) - (len(elements)-len(prev_elements))
+                        if diff != 0 :
+                                chemSysNum, elements = self._correct_chemical_system(elements,prev_elements,added_atoms,removed_atoms)
+                        #print ('chemSysNum: ',i,chemSysNum, len(elements),added_atoms,removed_atoms)
+                        ####################
+                        removed_elements = [prev_elements[i-1].split('.')[0] for i in removed_atoms]
                         added_elements = [elements[i-1].split('.')[0] for i in added_atoms]
                         # Now store the elements
                         for iat,el in zip(removed_atoms,removed_elements) :
@@ -207,6 +210,25 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 self.added_atoms[i][iat] = el
                         self.chemical_systems[i] = chemSysNum
                         version = new_version
+
+        def _correct_chemical_system (self, elements, prev_elements, added_atoms, removed_atoms) :
+                """
+                Check if the referenced chemical system is correct, and if not, find one matching added/removed atoms
+                """
+                new_elements = [el for el in prev_elements]
+                for ra in reversed(removed_atoms) :
+                        new_elements.pop(ra-1)
+                for aa in added_atoms :
+                        new_elements.insert(aa-1,'*') # Add a wildcard
+                chemSysNum = self._check_for_chemical_system(new_elements)
+                if chemSysNum is None :
+                        print ('Chemical system does not exist')
+                        chemSysNum = self._check_for_chemical_system(new_elements,compare_elements=False)
+                        if chemSysNum is None :
+                                raise Exception('Chemical system with this number of atoms does not exist')
+                sectionname = 'ChemicalSystem(%i)'%(chemSysNum)
+                elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
+                return chemSysNum, elements
 
         # FIXME: The _write_header section writes the starting molecule to the Molecule section, 
         #        not the final molecule (like the Fortran code does)
@@ -250,6 +272,14 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                         atom = new_mol.atoms[iel]
                                         #atom = Atom(PT.get_atomic_number(el))
                                         molecule.add_atom(atom)
+                                # Now what if the elements found in this ChemicalSystem section
+                                # do not match the expected elements (self.elements)?
+                                new_elements = [at.symbol for at in molecule.atoms]
+                                if new_elements != self.elements :
+                                        print ('Chemical section does not match',i)
+                                        atnums = [PT.get_atomic_number(el) for el in self.elements]
+                                        for iat,atnum in enumerate(atnums) :
+                                                molecule.atoms[iat].atnum = atnum
 
                 coords[:] = self.file_object.read('History', 'Coords(%i)'%(i+1))
                 coords *= bohr_to_angstrom
@@ -330,13 +360,15 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 
                 # If a change took place, write it.       
                 if elements != self.elements or self.position==0 :
+                        # version history has to be checked before the elements can be updated
+                        chemsysversion = self._check_for_chemical_system(elements)
                         self._write_version_history(elements, coords, cell)
                         # Now update the elements
                         self.elements = elements
                         # Write the molecule sections
-                        chemsysversion = len(self.system_versions)
-                        self._write_molecule_section (coords, cell, section='ChemicalSystem(%i)'%(chemsysversion), molecule=molecule)
-                        #self._write_molecule_section(coords, cell)
+                        if chemsysversion is None :
+                                chemsysversion = len(self.system_versions)
+                                self._write_molecule_section (coords, cell, section='ChemicalSystem(%i)'%(chemsysversion), molecule=molecule)
                 counter = self._write_system_version_history_entry(counter)
 
                 self.position += 1
@@ -415,13 +447,42 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 #        self.added_atoms[self.position][iat] = elements[iat]
                 return added_atoms, removed_atoms
 
-        def _check_for_chemical_system (self, elements) :
+        def _check_for_chemical_system (self, elements, compare_elements=True) :
                 """
                 Check if the new chemical system was encountered before
                 """
+                if isinstance(self.system_versions,list) :
+                        indices = range(len(self.system_versions))
+                        values = self.system_versions
+                        iterator = zip(indices,values)
+                else :
+                        iterator = self.system_versions.items()
+
                 version = None
-                for i,prev_elements in enumerate(self.system_versions) :
-                        if elements == prev_elements :
+                for i,prev_elements in iterator :
+                #for i,prev_elements in enumerate(self.system_versions) :
+                        equal = True
+                        if len(prev_elements) != len(elements) :
+                                continue
+                        #print (i,len(prev_elements),len(elements))
+                        if compare_elements :
+                                for el,pel in zip(elements,prev_elements) :
+                                        if el != pel :
+                                                if el == '*' : continue
+                                                equal = False
+                                                break
+                        if equal :
+                        #if elements == prev_elements :
                                 version = i+1
                 return version
 
+        def _set_system_versions (self) :
+                """
+                Store all chemical systems from the file
+                """
+                self.system_versions = {}
+                keys = [key for key in self.file_object.reader._sections.keys() if 'ChemicalSystem' in key]
+                nums = [int(k.split('(')[1].split(')')[0])-1 for k in keys]
+                for num,key in zip(nums,keys) :
+                        elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(key,'AtomicNumbers')]
+                        self.system_versions[num] = elements

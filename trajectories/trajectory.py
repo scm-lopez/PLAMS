@@ -98,15 +98,44 @@ class Trajectory :
                                    settings.input.AutoCorrelation.Property = 'Velocities'
                                    settings.input.AutoCorrelation.MaxStep = 2000
                 * ``steprange`` -- Not implemented yet
+
+                Returns a list of AMSAnalysisPlot objects.
+                Main attributes of the AMSAnalysisPlot objects are :
+                        * ``name``    -- The name of the plot
+                        * ``x``       -- A list of lists containing the values of the coordinate system
+                                         If the coordinate system is 1D, then it is a list containing a single list of values
+                                         x = [[x1,x2,x3,x4,...,xn]]
+                        * ``y``       -- A list containing the function values
+                        * ``write()`` -- A method returning a string containing all plot info
                 """
+                #First get all the indices
+                s = slice(steprange)
+                start,stop,step = s.indices(len(self))
+                indices = range(start,stop,step)
+                if steprange is not None :
+                        if len(steprange) == 1 :
+                                indices = range(stop,stop+1)
+                stepnums = {}
+                for i in indices :
+                        irkf,istep = self._get_filenum_and_stepnum(i)
+                        if not irkf in stepnums :
+                                stepnums[irkf] = []
+                        stepnums[irkf].append(istep)
+                ranges = []
+                for irkf,values in stepnums.items() :
+                        ranges.append((values[0]+1,values[-1]+1,step))
+                print ('ranges: ',ranges)
+                
+                # Now completel the settings object
                 trajecsettings = []
                 for ikf,rkf in enumerate(self.files) :
                         s = Settings()
                         s.Trajectory.KFFilename = self.files[0].file_object.path
-                        #s.Trajectory.Range = '1 10000'
+                        s.Trajectory.Range = '%i %i %i'%(ranges[irkf][0],ranges[irkf][1],ranges[irkf][2])
                         trajecsettings.append(s)
                 settings.input.TrajectoryInfo = trajecsettings
 
+                # Run the analysis job and extract the plots
                 job = AMSAnalysisJob(settings=settings)
                 result = job.run()
                 plots = result.get_all_plots()
