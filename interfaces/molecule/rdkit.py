@@ -122,7 +122,7 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
 
     # Add atoms and assign properties to the RDKit atom if *properties* = True
     for pl_atom in plams_mol.atoms:
-        rd_atom = Chem.Atom(pl_atom.atnum)
+        rd_atom = Chem.Atom(int(pl_atom.atnum))
         if 'charge' in pl_atom.properties:
             rd_atom.SetFormalCharge(pl_atom.properties.charge)
         if properties:

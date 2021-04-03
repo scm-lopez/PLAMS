@@ -292,11 +292,11 @@ def reaxff_control_to_settings(fpath:str) -> Settings:
             s.input.ams.geometryoptimization.maxiterations = d['imaxit']
         if 'icelop' in d and d['icelop'] > 0:
             s.input.ams.geometryoptimization.optimizelattice = True
-            s.input.ams.geometryoptimization.method = 'FIRE' # CG does not support lattice optimization
-            fire = True
+            fire = True # CG does not support lattice optimization
 
         if grads_set and fire:
             # FIRE calculates rms on atomic gradients (1/Natoms) whereas others calculate components (1/3Natoms)
             s.input.ams.geometryoptimization.convergence.gradients *= np.sqrt(3)
+            s.input.ams.geometryoptimization.method = 'FIRE'
 
     return s

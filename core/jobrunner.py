@@ -71,6 +71,7 @@ class JobRunner(metaclass=_MetaRunner):
 
     def __init__ (self, parallel=False, maxjobs=0):
         self.parallel = parallel
+        self.maxjobs  = maxjobs
         self.semaphore = threading.BoundedSemaphore(maxjobs) if maxjobs else None
 
 

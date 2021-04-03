@@ -235,6 +235,12 @@ rst_epilog = """
 .. |PeriodicTable| replace:: :class:`~scm.plams.tools.periodic_table.PeriodicTable`
 .. |Units| replace:: :class:`~scm.plams.tools.units.Units`
 
+.. |RKFTrajectoryFile| replace:: :class:`~scm.plams.trajectories.rkffile.RKFTrajectoryFile`
+.. |RKFHistoryFile| replace:: :class:`~scm.plams.trajectories.rkfhistoryfile.RKFHistoryFile`
+.. |XYZTrajectoryFile| replace:: :class:`~scm.plams.trajectories.xyzfile.XYZTrajectoryFile`
+.. |XYZHistoryFile| replace:: :class:`~scm.plams.trajectories.xyzhistoryfile.XYZHistoryFile`
+.. |DCDTrajectoryFile| replace:: :class:`~scm.plams.trajectories.dcdfile.DCDTrajectoryFile`
+
 .. |JobManager| replace:: :class:`~scm.plams.core.jobmanager.JobManager`
 .. |load_job| replace:: :meth:`~scm.plams.core.jobmanager.JobManager.load_job`
 

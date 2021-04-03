@@ -1287,10 +1287,15 @@ class Molecule:
         return tuple(center * Units.conversion_ratio('angstrom', unit))
 
 
-    def get_mass(self):
-        """Return the mass of the molecule, expressed in atomic units."""
-        return sum([at.mass for at in self.atoms])
+    def get_mass(self, unit='amu'):
+        """Return the mass of the molecule, by default in atomic mass units."""
+        return sum([at.mass for at in self.atoms]) * Units.convert(1.0, 'amu', unit)
 
+    def get_density(self):
+        """Return the density in kg/m^3"""
+        vol = self.unit_cell_volume(unit='angstrom') * 1e-30 # in m^3
+        mass = self.get_mass(unit='kg')
+        return mass/vol
 
     def get_formula(self, as_dict=False):
         """Calculate the molecular formula of the molecule.
@@ -1721,7 +1726,7 @@ class Molecule:
         atom_dicts = [copy.copy(a.__dict__) for a in mol_dict['atoms']]
         bond_dicts = [copy.copy(b.__dict__) for b in mol_dict['bonds']]
         for a_dict in atom_dicts:
-            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds']]
+            a_dict['bonds'] = [bond_indices[id(b)] for b in a_dict['bonds'] if id(b) in bond_indices]
             del(a_dict['mol'])
         for b_dict in bond_dicts:
             b_dict['atom1'] = atom_indices[id(b_dict['atom1'])]
@@ -2143,7 +2148,11 @@ class Molecule:
             if isghost: newatom.properties.ghost = True
             ret.add_atom(newatom)
         if 'fromAtoms' in sectiondict and 'toAtoms' in sectiondict and 'bondOrders' in sectiondict:
-            for fromAt, toAt, bondOrder in zip(sectiondict['fromAtoms'], sectiondict['toAtoms'], sectiondict['bondOrders']):
+            fromAtoms = sectiondict['fromAtoms'] if isinstance(sectiondict['fromAtoms'], list) else [sectiondict['fromAtoms']]
+            toAtoms = sectiondict['toAtoms'] if isinstance(sectiondict['toAtoms'], list) else [sectiondict['toAtoms']]
+            bondOrders = sectiondict['bondOrders'] if isinstance(sectiondict['bondOrders'], list) else [sectiondict['bondOrders']]
+                
+            for fromAt, toAt, bondOrder in zip(fromAtoms, toAtoms, bondOrders):
                 ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
         if sectiondict['Charge'] != 0:
             ret.properties.charge = sectiondict['Charge']
@@ -2211,3 +2220,35 @@ class Molecule:
     #Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb, 'rkf':readrkf}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
+
+
+    def add_hatoms(self) -> 'Molecule':
+        """
+        Adds missing hydrogen atoms to the current molecule.
+        Returns a new Molecule instance.
+
+        Example::
+
+            >>> o = Molecule()
+            >>> o.add_atom(Atom(atnum=8))
+            >>> print(o)
+              Atoms: 
+                1         O      0.000000       0.000000       0.000000 
+            >>> h2o = o.add_hatoms()
+            >>> print(h2o)
+              Atoms: 
+                1         O      0.000000       0.000000       0.000000 
+                2         H     -0.109259       0.893161       0.334553 
+                3         H      0.327778       0.033891      -0.901672 
+
+        """
+        from subprocess import Popen
+        from tempfile import NamedTemporaryFile
+        with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_in:
+            self.writexyz(f_in)
+            f_in.seek(0)
+            with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_out:
+                p = Popen(f'amsprep -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True)
+                p.communicate()
+                retmol = self.__class__(f_out.name)
+        return retmol

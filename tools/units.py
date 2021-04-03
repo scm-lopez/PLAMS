@@ -95,10 +95,15 @@ class Units:
     energy['au'] = energy['a.u.'] = energy['Hartree'] = energy['Ha'] =  1.0
     energy['eV']                                                     =  27.211386245988   #http://physics.nist.gov/cgi-bin/cuu/Value?hrev
     energy['kJ/mol']                                                 =  4.359744650e-21 * constants['NA']  #http://physics.nist.gov/cgi-bin/cuu/Value?hrj
-    energy['J']                                                      =  4.359744650e-18 
+    energy['J']                                                      =  4.359744650e-18
     energy['kcal/mol']                                               =  energy['kJ/mol'] / 4.184
     energy['cm^-1'] = energy['cm-1']                                 =  219474.6313702   #http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
     energy['K'] = energy['J'] / constants['k_B']
+
+    mass = {}
+    mass['au'] = mass['a.u.'] = mass['amu'] = 1.0
+    mass['kg'] = 1.66053906660e-27
+    mass['g'] = mass['kg'] * 1e3
 
     angle = {}
     angle['degree'] =  angle['deg'] = 1.0
@@ -132,11 +137,12 @@ class Units:
     stress['bar'] = stress['Pa'] * 1e-5
     stress['atm'] = stress['bar'] / 1.01325
 
-        
+
 
     dicts = {}
     dicts['distance'] = distance
     dicts['energy'] = energy
+    dicts['mass'] = mass
     dicts['angle'] = angle
     dicts['dipole'] = dipole
     dicts['reciprocal distance'] = rec_distance
@@ -162,6 +168,8 @@ class Units:
     @classmethod
     def conversion_ratio(cls, inp, out):
         """Return conversion ratio from unit *inp* to *out*."""
+        if inp == out:
+            return 1.
         inps = cls.find_unit(inp)
         outs = cls.find_unit(out)
         common = set(inps.keys()) & set(outs.keys())
@@ -191,6 +199,8 @@ class Units:
 
         *value* can be a single number or a container (list, tuple, numpy.array etc.). In the latter case a container of the same type and length is returned. Conversion happens recursively, so this method can be used to convert, for example, a list of lists of numbers, or any other hierarchical container structure. Conversion is applied on all levels, to all values that are numbers (also numpy number types). All other values (strings, bools etc.) remain unchanged.
         """
+        if inp == out:
+            return value
         if value is None or isinstance(value, (bool, str)):
             return value
         if isinstance(value, collections.abc.Iterable):
@@ -202,4 +212,3 @@ class Units:
         if isinstance(value, (int, float, np.generic)):
             return value * cls.conversion_ratio(inp,out)
         return value
-
