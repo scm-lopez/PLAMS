@@ -196,8 +196,11 @@ class AMSResults(Results):
             if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
                 mol.bonds = []
                 index = main.read('History', f'Bonds.Index({step})')
+                if not isinstance(index, list): index = [index]
                 atoms = main.read('History', f'Bonds.Atoms({step})')
+                if not isinstance(atoms, list): atoms = [atoms]
                 orders = main.read('History', f'Bonds.Orders({step})')
+                if not isinstance(orders, list): orders = [orders]
                 for i in range(len(index)-1):
                     for j in range(index[i], index[i+1]):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
@@ -217,8 +220,12 @@ class AMSResults(Results):
         """ Return the values of *varname* in the history section *history_section*."""
         if not 'ams' in self.rkfs: return
         main = self.rkfs['ams']
-        nentries = main.read(history_section,'nEntries')
-        as_block = self._values_stored_as_blocks(main, varname, history_section)
+        if (history_section,'nScanCoord') in main: # PESScan
+            nentries = main.read(history_section,'nScanCoord') 
+            as_block = False
+        elif (history_section,'nEntries') in main: 
+            nentries = main.read(history_section,'nEntries')
+            as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
             nblocks = main.read(history_section,'nBlocks')
             values = [main.read(history_section,f"{varname}({iblock})",return_as_list=True) for iblock in range(1,nblocks+1)]
@@ -264,15 +271,28 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
+
         def properties(kf):
-            n = kf.read('Properties', 'nEntries')
+            if not 'Properties' in kf:
+                return {}
+            # There are two *kinds* of "Properties" sections:
+            # - ADF simply has a set of variables in the properties section
+            # - DFTB and some other engines have a *scheme* for storing "Properties". See the fortran 'RKFileModule' (RKFile.f90) 
+            #   for more details on this.
             ret = {}
-            for i in range(1, n+1):
-                tp = kf.read('Properties', 'Type({})'.format(i)).strip()
-                stp = kf.read('Properties', 'Subtype({})'.format(i)).strip()
-                val = kf.read('Properties', 'Value({})'.format(i))
-                key = stp if stp.endswith(tp) else ('{} {}'.format(stp, tp) if stp else tp)
-                ret[key] = val
+            if ('Properties', 'nEntries') in kf:
+                # This is a 'RKFileModule' properties section:
+                n = kf.read('Properties', 'nEntries')
+                for i in range(1, n+1):
+                    tp = kf.read('Properties', 'Type({})'.format(i)).strip()
+                    stp = kf.read('Properties', 'Subtype({})'.format(i)).strip()
+                    val = kf.read('Properties', 'Value({})'.format(i))
+                    key = stp if stp.endswith(tp) else ('{} {}'.format(stp, tp) if stp else tp)
+                    ret[key] = val
+            else:
+                skeleton = kf.get_skeleton()
+                for variable in skeleton['Properties']:
+                    ret[variable] = kf.read('Properties', variable)
             return ret
         return self._process_engine_results(properties, engine)
 
@@ -395,7 +415,8 @@ class AMSResults(Results):
                 return None
             s = Settings()
             s.input = inp
-            del s.input.ams.system
+            if 'system' in s.input.ams:
+                del s.input.ams.system
             s.soft_update(config.job)
             return s
         return None
@@ -418,6 +439,97 @@ class AMSResults(Results):
         """Retrun the :attr:`job.name` of the job associated with this results instance."""
         return self.job.name
 
+
+    class EnergyLandscape:
+
+        class State:
+            def __init__(self, landscape, engfile, energy, mol, count, isTS, reactantsID=None, productsID=None):
+                self._landscape = landscape
+                self.engfile = engfile
+                self.energy = energy
+                self.molecule = mol
+                self.count = count
+                self.isTS = isTS
+                self.reactantsID = reactantsID
+                self.productsID = productsID
+
+            @property
+            def id(self):
+                return self._landscape.states.index(self)
+
+            @property
+            def reactants(self):
+                return self._landscape.states[self.reactantsID]
+
+            @property
+            def products(self):
+                return self._landscape.states[self.productsID]
+
+            def __str__(self):
+                if self.isTS:
+                    lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
+                    if self.reactantsID != None: lines += [f"|- Reactants: {self.reactants}"]
+                    if self.productsID != None:  lines += [f"+- Products:  {self.products}"]
+                else:
+                    lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
+                return "\n".join(lines)
+
+        def __init__(self, results):
+            sec = results.read_rkf_section("EnergyLandscape")
+
+            # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats'). 
+            # For convenience here we make sure that the following variables are always 'lists':
+            for var in ['energies', 'counts', 'isTS', 'reactants', 'products']:
+                if not isinstance(sec[var], list):
+                    sec[var] = [sec[var]]
+
+            nStates = sec['nStates']
+            self.states = []
+
+            for iState in range(nStates):
+                energy  = sec['energies'][iState]
+                resfile = os.path.splitext(sec['fileNames'][160*iState:160*(iState+1)].strip())[0]
+                mol = results.get_molecule('Molecule',file=resfile)
+                count = sec['counts'][iState]
+                if not sec['isTS'][iState]:
+                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, False))
+                else:
+                    reactantsID = sec['reactants'][iState]-1 if sec['reactants'][iState] > 0 else None
+                    productsID  = sec['products'][iState]-1 if sec['products'][iState] > 0 else None
+                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
+
+        @property
+        def minima(self):
+            return [s for s in self.states if not s.isTS ]
+
+        @property
+        def transition_states(self):
+            return [s for s in self.states if s.isTS]
+
+        def __str__(self):
+            return 'All stationary points:\n'+\
+                   '======================\n'+\
+                   '\n'.join(str(s) for s in self.states)
+
+
+    def get_energy_landscape(self):
+        """Returns the energy landscape obtained from a PESExploration job run by the AMS driver. The energy landscape is a set of stationary PES points (local minima and transition states).
+
+        The returned object is of the type ``AMSResults.EnergyLandscape`` and offers convenient access to the states' energies, geometries as well as the information on which transition states connect which minima.
+
+        .. code-block:: python
+
+            el = results.get_energy_landscape()
+
+            for state in el:
+                print(f"Energy = {state.energy}")
+                print(f"Is transition state = {state.isTS}")
+                print("Geometry:", state.molecule)
+                if state.isTS:
+                    print(f"Forward  barrier: {state.energy - state.reactants.energy}")
+                    print(f"Backward barrier: {state.energy - state.products.energy}")
+        """
+        return AMSResults.EnergyLandscape(self)
 
 
     #=========================================================================

@@ -1,42 +1,84 @@
-#!/home4/tc/usr/bin/python
-
-#############################################################################
-#
-# class pytrajectory
-#
-#############################################################################
+#!/usr/bin/env python
 
 import os
 import struct
 import array
 import numpy
-from scm.plams import Molecule, PlamsError
+from ..mol.molecule import Molecule
+from ..core.errors import PlamsError
 from .trajectoryfile import TrajectoryFile
 
 __all__ = ['DCDTrajectoryFile']
 
 class DCDTrajectoryFile (TrajectoryFile) :
         """
-        class for representing a dcd trajectory file
+        Class representing a DCD file containing a molecular trajectory
+
+        An instance of this class has the following attributes:
+
+        *   ``file_object`` -- A Python :py:class:`file` object, referring to the actual DCD file
+        *   ``position``    -- The frame to which the cursor is currently pointing in the DCD file
+        *   ``mode``        -- Designates whether the file is in read or write mode ('rb' or 'wb')
+        *   ``ntap``        -- The number of atoms in the molecular system (needs to be constant throughout)
+
+        An |DCDTrajectoryFile| object behaves very similar to a regular file object.
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
+        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
+        the cursor to any frame in the file and reads from there.
+        The amount of information stored in memory is kept to a minimum, as only information from the current frame
+        is ever stored.
+
+        Reading and writing to and from the files can be done as follows::
+
+            >>> from scm.plams import DCDTrajectoryFile
+
+            >>> dcd = DCDTrajectoryFile('old.dcd')
+            >>> mol = dcd.get_plamsmol()
+
+            >>> dcdout = DCDTrajectoryFile('new.dcd',mode='wb',ntap=dcd.ntap)
+
+            >>> for i in range(dcd.get_length()) :
+            >>>     crd,cell = dcd.read_frame(i,molecule=mol)
+            >>>     dcdout.write_next(molecule=mol)
+
+        The above script reads information from the DCD file old.dcd into the |Molecule| object ``mol``
+        in a step-by-step manner.
+        The |Molecule| object is then passed to the :meth:`write_next` method of the new |DCDTrajectoryFile|
+        object corresponding to the new dcd file ``new.dcd``.
+
+        The exact same result can also be achieved by iterating over the instance as a callable
+
+            >>> dcd = DCDTrajectoryFile('old.dcd')
+            >>> mol = dcd.get_plamsmol()
+
+            >>> dcdout = DCDTrajectoryFile('new.dcd',mode='wb',ntap=dcd.ntap)
+
+            >>> for crd,cell in dcd(mol) :
+            >>>     dcdout.write_next(molecule=mol)
+
+        This procedure requires all coordinate information to be passed to and from the |Molecule| object
+        for each frame, which can be time-consuming.
+        It is therefore also possible to bypass the |Molecule| object when reading through the frames::
+
+            >>> dcd = DCDTrajectoryFile('old.dcd')
+
+            >>> dcdout = DCDTrajectoryFile('new.dcd',mode='wb',ntap=dcd.ntap)
+
+            >>> for crd,cell in dcd :
+            >>>     dcdout.write_next(coords=crd,cell=cell)
         """
 
         def __init__ (self, filename=None, mode='rb', fileobject=None, ntap=None) :
                 """
-                Creates the DCDFile object
+                Initiates a DCDTrajectoryFile object
 
-                @param ntap : Number of atoms (constant throughout trajectory)
+                * ``filename``   -- The path to the DCD file
+                * ``mode``       -- The mode in which to open the DCD file ('rb' or 'wb')
+                * ``fileobject`` -- Optionally, a file object can be passed instead (filename needs to be set to None)
+                * ``ntap``       -- If the file is in write mode, the number of atoms needs to be passed here
                 """
-                self.position = 0
-                if filename is not None :
-                        fileobject = open(filename,mode) 
-                self.file_object = fileobject
-                if self.file_object is not None :
-                        self.mode = self.file_object.mode
-                self.ntap = 0
-                if ntap is not None :
-                        self.ntap = ntap
-                self.firsttime = True
-                self.coords = numpy.zeros((self.ntap,3))
+                TrajectoryFile.__init__(self, filename, mode, fileobject, ntap)
 
                 # DCD specific attributes
                 self.celldata = False                   # Whether the cell data is in the file (only set in read-mode)
@@ -50,23 +92,24 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 # Skip to the trajectory part of the file
                 if self.mode == 'rb' :
-                        self.read_header()
-                elif self.mode == 'wb' :
-                        self.write_header()
+                        self._read_header()
+                #elif self.mode == 'wb' :
+                #        self._write_header()
 
         def set_byteorder (self, byteorder) :
                 """
-                String. Can be either '@', '<', or '>', denoting native endian,
-                        little endian or big endian.
+                Specifies wether the file to be read from or written to is little endian or big endian
+
+                * ``byteorder`` -- Can be either '@', '<', or '>', denoting native endian, little endian, or big endian
                 """
                 self.byte_order = byteorder
 
-        def read_variable (self,size) :
+        def _read_variable (self,size) :
                 """
                 Reads a variable from a binary file
 
-                @note: 
-                        It assumes that the variable has been written on a machine
+                :note:: 
+                        Assumes that the variable has been written on a machine
                         with the same bitsizes for the data
                 """
                 if size == 'i' :
@@ -81,15 +124,19 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 return var
 
-        def write_variable (self,var,size) :
-
+        def _write_variable (self,var,size) :
+                """
+                Writes a variable to a binary file
+                """
                 var_char = struct.pack(size,var)
                 self.file_object.write(var_char)
 
-        def read_header (self) :
-
+        def _read_header (self) :
+                """
+                Reads in the header information in the binary DCD file
+                """
                 # This should be an int32
-                input_integer = self.read_variable('i')
+                input_integer = self._read_variable('i')
                 if input_integer != 84 :
                         print(input_integer)
                         print('BAD DCD FORMAT')
@@ -115,17 +162,17 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 dummies.fromfile(self.file_object,5)
 
                 # NAMNF: The number of free atoms
-                self.namnf = self.read_variable('i')
+                self.namnf = self._read_variable('i')
 
                 # DELTA: The timestep
-                delta = self.read_variable('f')
+                delta = self._read_variable('f')
 
                 # 10 blanc integers
                 dummies = array.array('i')
                 dummies.fromfile(self.file_object,10)
 
                 # The end size of the first block
-                input_integer = self.read_variable('i')
+                input_integer = self._read_variable('i')
                 if input_integer != 84 :
                         print('BAD DCD FORMAT')
                         raise PlamsError
@@ -133,18 +180,18 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 ############################################################
 
                 # The size of the next block
-                input_integer = self.read_variable('i')
+                input_integer = self._read_variable('i')
         
                 if (input_integer-4)%80 == 0 :
                         # NTITLE: The number of 80 char title strings
-                        ntitle = self.read_variable('i')
+                        ntitle = self._read_variable('i')
 
                         for i in range(ntitle) :
                                 car = self.file_object.read(80).decode()
                                 #print car
 
                         # The end size of this block
-                        input_integer = self.read_variable('i')
+                        input_integer = self._read_variable('i')
                 else :
                         print('BAD DCD FORMAT')
                         raise PlamsError
@@ -152,26 +199,26 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 ############################################################
 
                 # This should be an int32
-                input_integer = self.read_variable('i')
+                input_integer = self._read_variable('i')
                 if input_integer != 4 :
                         print('BAD DCD FORMAT')
                         raise PlamsError
 
                 # Read in the number of atoms
-                self.ntap = self.read_variable('i')
+                self.ntap = self._read_variable('i')
                 #print 'ntap: ',self.ntap
                 if self.coords.shape == (0,3) :
                         self.coords = numpy.zeros((self.ntap,3))
 
                 # This should be an int32
-                input_integer = self.read_variable('i')
+                input_integer = self._read_variable('i')
                 if input_integer != 4 :
                         print('BAD DCD FORMAT')
                         raise PlamsError
                 
                 if self.namnf != 0 :
                         # This should be an int32
-                        input_integer = self.read_variable('i')
+                        input_integer = self._read_variable('i')
                         if input_integer != (self.ntap-self.namnf)*4 :
                                 print('BAD DCD FORMAT')
                                 raise PlamsError
@@ -182,7 +229,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                         #print 'list',list(dummies)
 
                         # This should be an int32
-                        input_integer = self.read_variable('i')
+                        input_integer = self._read_variable('i')
                         if input_integer != (self.ntap-self.namnf)*4 :
                                 print('BAD DCD FORMAT')
                                 raise PlamsError
@@ -190,9 +237,14 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.stepsize += 3 * self.ntap * self.floatsize
                 self.stepsize += 5 * self.intsize
 
+                self.elements = ['H']*self.ntap
+
         def read_next (self,molecule=None,read=True) :
                 """
-                Reads the geometry at the cursor position
+                Reads coordinates and lattice info from the current position of the cursor and returns it
+
+                * ``molecule`` -- |Molecule| object in which the new data needs to be stored
+                * ``read``     -- If set to False the cursor will move to the next frame without reading
                 """
                 # Check for end of file
                 # This should be an int32
@@ -224,7 +276,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                         # Coords
                         if self.firsttime :
-                                input_integer = self.read_variable('i')
+                                input_integer = self._read_variable('i')
                         else :
                                 self.file_object.read(self.intsize)
 
@@ -244,7 +296,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
               
                 for i in range(2) : 
                         if self.firsttime :
-                                input_integer = self.read_variable('i') 
+                                input_integer = self._read_variable('i') 
                                 if input_integer != 4*self.ntap :
                                         print('BAD DCD FORMAT')
                                         raise PlamsError
@@ -261,7 +313,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 for i in range(2) :
                         if self.firsttime :
-                                input_integer = self.read_variable('i')
+                                input_integer = self._read_variable('i')
                                 if input_integer != 4*self.ntap :
                                         print('BAD DCD FORMAT')
                                         raise PlamsError
@@ -277,7 +329,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                         return None, None
               
                 if self.firsttime : 
-                        input_integer = self.read_variable('i') 
+                        input_integer = self._read_variable('i') 
                         if input_integer != 4*self.ntap :
                                 print('BAD DCD FORMAT')
                                 raise PlamsError
@@ -312,10 +364,15 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 test = self.file_object.read(self.stepsize)
                 return len(test) < self.stepsize
 
-        def write_header (self) :
+        def _write_header (self, ntap=0) :
+                """
+                Write the header of the DCD file
+                """
+                self.ntap = ntap
+                self.coords = numpy.zeros((self.ntap,3))
 
                 # This should be an int32
-                self.write_variable(84,'i')
+                self._write_variable(84,'i')
 
                 # Read CORD string
                 self.file_object.write('CORD'.encode())
@@ -332,10 +389,10 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.file_object.write(dummies)
 
                 # NAMNF: The number of free atoms
-                self.write_variable(0,'i')
+                self._write_variable(0,'i')
 
                 # DELTA: The timestep
-                delta = self.write_variable(self.delta,'f')
+                delta = self._write_variable(self.delta,'f')
 
                 # 10 blanc integers
                 dummies = array.array('i')
@@ -346,43 +403,54 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.file_object.write(dummies)
 
                 # The end size of the first block
-                self.write_variable(84,'i')
+                self._write_variable(84,'i')
 
                 ############################################################
 
                 # The size of the next block
-                self.write_variable(84,'i')
+                self._write_variable(84,'i')
        
                 ntitle = 1
-                self.write_variable(ntitle,'i')
+                self._write_variable(ntitle,'i')
                 title = 'REMARK Created with py_md'
                 nlet = len(title)
                 for i in range(80-nlet) :
                         title += ' '
                 self.file_object.write(title.encode())
 
-                self.write_variable(84,'i')
+                self._write_variable(84,'i')
  
                 ############################################################
 
                 # This should be an int32
-                self.write_variable(4,'i')
+                self._write_variable(4,'i')
 
                 # Read in the number of atoms
-                self.write_variable(self.ntap,'i')
+                self._write_variable(self.ntap,'i')
 
                 # This should be an int32
-                self.write_variable(4,'i')
+                self._write_variable(4,'i')
 
-        def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], energy=0.,step=None,conect=None) :
+        def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], conect=None) :
                 """
-                Writes the provided coordinates and cell vectors to the next DCD frame
+                Write frame to next position in trajectory file
 
-                The coordinates and cell vectors can be provided directly, or in a molecule object
+                * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates
+                * ``molecule`` -- A molecule object to read the molecular data from
+                * ``cell``     -- A set of lattice vectors or cell diameters
+                * ``conect``   -- A dictionary containing connectivity info (not used)
+
+                .. note::
+
+                        Either ``coords`` or ``molecule`` are mandatory arguments
                 """
                 if isinstance(molecule,Molecule) :
                         coords, cell = self._read_plamsmol(molecule)[:2]
                 cell = self._convert_cell(cell)
+
+                # If this is the first step, write the header
+                if self.position == 0 :
+                        self._write_header(len(coords))
 
                 if self.ntap != len(coords) :
                         print('BAD coordinate  list')
@@ -392,31 +460,31 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 #coords = numpy.array(coords).transpose()
                 
                 # This should be an int32
-                self.write_variable(48,'i')
+                self._write_variable(48,'i')
              
                 cell = array.array('d',cell)
                 self.file_object.write(cell)
-                self.write_variable(0,'f')
+                self._write_variable(0,'f')
                         
                 # Coords
-                self.write_variable(4*self.ntap,'i')
+                self._write_variable(4*self.ntap,'i')
                
                 xcoords = array.array('f',coords[:,0])
                 self.file_object.write(xcoords)
                 
                 for i in range(2) : 
-                        self.write_variable(4*self.ntap,'i')
+                        self._write_variable(4*self.ntap,'i')
                
                 ycoords = array.array('f',coords[:,1])
                 self.file_object.write(ycoords) 
                 
                 for i in range(2) :
-                        self.write_variable(4*self.ntap,'i')
+                        self._write_variable(4*self.ntap,'i')
                
                 zcoords = array.array('f',coords[:,2])
                 self.file_object.write(zcoords) 
 
-                self.write_variable(4*self.ntap,'i') 
+                self._write_variable(4*self.ntap,'i') 
 
                 self.position += 1
 
@@ -441,7 +509,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.firsttime = True
                 self.position = 0
                 self.stepsize = 0
-                self.read_header()
+                self._read_header()
 
         def _rewind_n_frames(self,nframes) :
                 """
