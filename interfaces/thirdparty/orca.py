@@ -1,11 +1,16 @@
 from ...core.basejob import SingleJob
+from ...core.results import Results
 from ...core.settings import Settings
 
+__all__ = ['ORCAJob', 'ORCAResults']
+
+class ORCAResults(Results):
+    """A class for ORCA results."""
+    pass
 
 class ORCAJob(SingleJob):
     """
-    A class representing a single computational job with ORCA
-    `Orca <https://orcaforum.cec.mpg.de>`
+    A class representing a single computational job with `ORCA <https://orcaforum.cec.mpg.de>`_.
     """
 
     def get_input(self):
