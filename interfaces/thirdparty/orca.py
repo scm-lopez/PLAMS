@@ -1,21 +1,127 @@
+import shutil
+from os.path import relpath, basename
+from os.path import join as opj
+from os import symlink
+import numpy as np
+
 from ...core.basejob import SingleJob
 from ...core.results import Results
 from ...core.settings import Settings
+from ...core.errors import JobError
+from ...mol.molecule import Molecule
+from ...tools.units import Units
 
 __all__ = ['ORCAJob', 'ORCAResults']
 
 class ORCAResults(Results):
     """A class for ORCA results."""
-    pass
+
+    def get_runtime(self):
+        """Return runtime in seconds from output."""
+        runtimeString = self.grep_output('TOTAL RUN TIME')[-1]
+        runtimeList = [ int(x) for x in runtimeString.split()[3::2] ]
+        assert len(runtimeList) == 5 #days hours minutes seconds milliseconds
+        runtime = sum([ t * m for t, m in zip(runtimeList, [24*60*60, 60*60, 60, 1, 0.001]) ])
+        return runtime
+
+    def get_timings(self):
+        """Return timings section as dictionary. Units are seconds."""
+        timingsSection = self.get_output_chunk('Timings for individual modules:', end='****')
+        ret = {}
+        for line in timingsSection:
+            line = line.strip()
+            if not line:
+                continue
+            name, data = line.split('...')
+            ret[name.strip()] = float(data.split()[0])
+        return ret
+
+    def check(self):
+        """Returns true if ORCA TERMINATED NORMALLY is in the output"""
+        return bool(self.grep_output('ORCA TERMINATED NORMALLY'))
+
+    def _get_energy_type(self, search='FINAL SINGLE POINT ENERGY', index=-1, unit='a.u.'):
+        # hacky way of getting rid of some entries: first get all, remove those that are '... done'
+        s = self.grep_output(search)
+        s = [ item for item in s if not '...' in item ]
+        s = s[index]
+        if not isinstance(index, slice):
+            return Units.convert(float(s.split()[-1]), 'a.u.', unit)
+        else:
+            return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
+
+    def get_energy(self, index=-1, unit='a.u.'):
+        """Returns 'FINAL SINGLE POINT ENERGY:' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the total energy in the output, *e.g.* to choose an certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('FINAL SINGLE POINT ENERGY', index=index, unit=unit)
+
+    def get_dispersion(self, index=-1, unit='a.u.'):
+        """Returns 'Dispersion correction' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the dispersion energy in the output, *e.g.* to choose a certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('Dispersion correction', index=index, unit=unit)
+
+    def get_forces(self, match=0):
+        """Returns list of ndarrays with forces from the output (there the unit is a.u./bohr).
+
+        ``match`` is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+        """
+        searchBegin = "CARTESIAN GRADIENT"
+        searchEnd = "Difference to translation invariance:"
+        block = self.get_output_chunk(begin=searchBegin, end=searchEnd, match=match)
+        ret = []
+        for line in block:
+            line = line.strip().split()
+            if len(line) == 1: # ---- lines means new set of forces
+                ret.append([])
+                continue
+            if not line: #ignore empty line
+                continue
+            ret[-1].append(line[-3:])
+        return [np.array(item, dtype=float) for item in ret]
+
 
 class ORCAJob(SingleJob):
     """
     A class representing a single computational job with `ORCA <https://orcaforum.cec.mpg.de>`_.
+
+    In addition to the arguments of |SingleJob|, |ORCAJob| takes a ``copy`` argument.
+    ``copy`` can be a list or string, containing paths to files to be copied to the jobs directory.
+    This might e.g. be a molecule, restart files etc. By setting ``copy_symlink``, the files are
+    not copied, but symlinked with relative links.
     """
+    _result_type = ORCAResults
+
+    def __init__(self, copy=None, copy_symlink=False, **kwargs):
+        SingleJob.__init__(self, **kwargs)
+        self.copy_files = copy
+        self.copy_symlink = copy_symlink
+
+    def _get_ready(self):
+        """Copy files to execution dir if self.copy_files is set."""
+        SingleJob._get_ready(self)
+        if self.copy_files:
+            if not isinstance(self.copy_files, list):
+                self.copy_files = [self.copy_files]
+            for f in self.copy_files:
+                if self.copy_symlink:
+                    symlink(relpath(f, self.path), opj(self.path, basename(f)))
+                else:
+                    shutil.copy(f, self.path)
+        return
 
     def get_input(self):
         """
-        Transform all contents of ``input`` branch of  ``settings`` into string with blocks, subblocks, keys and values. The branch self.settings.input.main corresponds to the lines starting with the special character ! in the ORCA input.
+        Transform all contents of ``input`` branch of  ``settings`` into string with blocks, subblocks, keys and values. The branch self.settings.input.main corresponds to the lines starting with the special character ! in the ORCA input. The branch
+        self.settings.input.molecule can be used to manually set the coordinate input line (e.g. to use an external file). The
+        settings branch overwrites any existing molecule.
 
         Orca *end* keyword is mandatory for only a subset of sections. For instance the following orca input shows the keywords *methods* and *basis* use of end::
 
@@ -26,6 +132,7 @@ class ORCAJob(SingleJob):
             %basis NewGTO 26 "CP(PPP)" end
                    NewAuxGTO 26 "TZV/J" end
                    end
+            * xyzfile +2 1 input.xyz
 
         In order to specify when the *end* keyword must be used, the following syntax can be used::
 
@@ -36,6 +143,8 @@ class ORCAJob(SingleJob):
 
             job.settings.input.basis.NewGTO._end = '26 "CP(PPP)"'
             job.settings.input.basis.NewAuxGTO._end = '26 "TZV/J"'
+
+            job.settings.input.molecule = "xyzfile +2 1 input.xyz"
 
         """
         def get_end(s):
@@ -59,42 +168,45 @@ class ORCAJob(SingleJob):
             if isinstance(s, Settings):
                 for k, v in s.items():
                     if k == 'main':
-                        inp += '! {}\n\n'.format(pretty_print_orca(v, indent))
+                        inp += '! {}\n\n'.format(pretty_print_orca(v))
+                    elif k == 'molecule': #skip the molecule
+                        continue
                     else:
                         indent2 = (len(k) + 2) * ' '
                         if not isinstance(v, Settings):
-                            block = pretty_print_orca(v)
+                            inp += "%{} {}\n\n".format(k,pretty_print_orca(v))
                         else:
                             block = pretty_print_inner(v, indent2)
-                        inp += '%{}{}{}end\n\n'.format(k, block, indent2)
+                            inp += '%{}{}{}end\n\n'.format(k, block, indent2)
             elif isinstance(s, list):
-                for elem in s:
-                    inp += '{}'.format(elem)
+                inp += "{}{}".format(indent, " ".join(s))
             else:
-                inp += '{}'.format(s)
+                inp += '{}{}'.format(indent, s)
             return inp
 
         inp = pretty_print_orca(self.settings.input)
-        inp_mol = self.print_molecule()
+        if 'molecule' in self.settings.input:
+            inp += "* {}\n".format(self.settings.input.molecule)
+        elif isinstance(self.molecule, Molecule):
+            inp += self.print_molecule()
+        else:
+            raise JobError("ORCA Job needs a molecule to run.")
 
-        return inp + inp_mol
+        return inp
 
     def print_molecule(self):
         """Print a molecule in the ORCA format."""
         mol = self.molecule
-        if mol:
-            if 'charge' in mol.properties and isinstance(mol.properties.charge, int):
-                charge = mol.properties.charge
-            else:
-                charge = 0
-            if 'multiplicity' in mol.properties and isinstance(mol.properties.multiplicity, int):
-                multi = mol.properties.multiplicity
-            else:
-                multi = 1
-            xyz = '\n'.join(at.str(symbol=True, space=11, decimal=5) for at in mol.atoms)
-            return '* xyz {} {}\n{}\n*\n\n'.format(charge, multi, xyz)
+        if 'charge' in mol.properties and isinstance(mol.properties.charge, int):
+            charge = mol.properties.charge
         else:
-            return ''
+            charge = 0
+        if 'multiplicity' in mol.properties and isinstance(mol.properties.multiplicity, int):
+            multi = mol.properties.multiplicity
+        else:
+            multi = 1
+        xyz = '\n'.join(at.str(symbol=True, space=11, decimal=5) for at in mol.atoms)
+        return '* xyz {} {}\n{}\n*\n\n'.format(charge, multi, xyz)
 
     def get_runscript(self):
         """Returned runscript is just one line:
