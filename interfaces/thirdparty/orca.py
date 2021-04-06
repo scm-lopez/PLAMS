@@ -138,33 +138,7 @@ class ORCAJob(SingleJob):
 
     def get_input(self):
         """
-        Transform all contents of ``input`` branch of  ``settings`` into string with blocks, subblocks, keys and values. The branch self.settings.input.main corresponds to the lines starting with the special character ! in the ORCA input. The branch
-        self.settings.input.molecule can be used to manually set the coordinate input line (e.g. to use an external file). The
-        settings branch overwrites any existing molecule.
-
-        Orca *end* keyword is mandatory for only a subset of sections. For instance the following orca input shows the keywords *methods* and *basis* use of end::
-
-            ! UKS B3LYP/G SV(P) SV/J TightSCF Direct Grid3 FinalGrid4
-            %method SpecialGridAtoms 26
-                    SpecialGridIntAcc 7
-                    end
-            %basis NewGTO 26 "CP(PPP)" end
-                   NewAuxGTO 26 "TZV/J" end
-                   end
-            * xyzfile +2 1 input.xyz
-
-        In order to specify when the *end* keyword must be used, the following syntax can be used::
-
-            job = ORCAJob(molecule=Molecule(<Path/to/molecule>))
-            job.settings.input.main = "UKS B3LYP/G SV(P) SV/J TightSCF Direct Grid3 FinalGrid4"
-            job.settings.input.method.SpecialGridAtoms = 26
-            job.settings.input.method.SpecialGridIntAcc = 7
-
-            job.settings.input.basis.NewGTO._end = '26 "CP(PPP)"'
-            job.settings.input.basis.NewAuxGTO._end = '26 "TZV/J"'
-
-            job.settings.input.molecule = "xyzfile +2 1 input.xyz"
-
+        Transform all contents of ``input`` branch of  ``settings`` into string with blocks, subblocks, keys and values.
         """
         def get_end(s):
             if (not isinstance(s, Settings)) or ('_end' not in s):
@@ -214,7 +188,7 @@ class ORCAJob(SingleJob):
         return inp
 
     def print_molecule(self):
-        """Print a molecule in the ORCA format."""
+        """Print a molecule in the ORCA format using the xyz notation."""
         mol = self.molecule
         if 'charge' in mol.properties and isinstance(mol.properties.charge, int):
             charge = mol.properties.charge
