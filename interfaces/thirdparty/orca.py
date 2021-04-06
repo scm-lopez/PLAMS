@@ -68,6 +68,25 @@ class ORCAResults(Results):
         """
         return self._get_energy_type('Dispersion correction', index=index, unit=unit)
 
+    def get_electrons(self, index=-1, spin_resolved=False):
+        """Get Electron count from Output.
+
+        Set ``spins`` to ``True`` to get a tuple of alpha and beta electrons instead of totals.
+        Set ``index`` to choose the n-th occurcence in the output, *e.g.* to choose a certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        if spin_resolved:
+            alpha = [ float(s.split()[-2]) for s in self.grep_output('N(Alpha)')][index]
+            beta = [ float(s.split()[-2]) for s in self.grep_output('N(Beta)')][index]
+            if isinstance(alpha, float):
+                alpha = [alpha]
+                beta = [beta]
+            ret = [ (a, b) for a, b in zip(alpha, beta) ]
+        else:
+            ret = [ float(s.split()[-2]) for s in self.grep_output('N(Total)')][index]
+        return ret
+
     def get_forces(self, match=0):
         """Returns list of ndarrays with forces from the output (there the unit is a.u./bohr).
 
