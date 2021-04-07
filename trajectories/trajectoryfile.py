@@ -264,7 +264,10 @@ class TrajectoryFile (object) :
                         neighbors = plamsmol.neighbors(atom)
                         if len(neighbors) > 0 :
                                 conect[iat+1] = [neighbor.id for neighbor in neighbors]
-                return coords, cell, elements, conect
+                # Get the properties
+                props = [at.properties.suffix if 'suffix' in at.properties else '' for at in plamsmol.atoms]
+                if sum([len(s) for s in props]) == 0 : props = None
+                return coords, cell, elements, conect, props
 
         def rewind (self,nframes=None) :
                 """ 

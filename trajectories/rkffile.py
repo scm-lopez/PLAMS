@@ -506,7 +506,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 raise PlamsError('The PLAMS molecule needs to be passed as the second argument (molecule)')
 
                 if isinstance(molecule,Molecule) :
-                        coords, cell, elements, conect = self._read_plamsmol(molecule)
+                        coords, cell, elements, conect, props = self._read_plamsmol(molecule)
                         if self.position == 0 : self.elements = elements
                 # Make sure that the cell consists of vectors
                 cell = self._convert_cell(cell)
