@@ -515,7 +515,7 @@ class AMSResults(Results):
             return self._states[i+1]
 
         def __iter__(self):
-            return iter(self._states[1:])
+            return iter(self._states)
 
 
     def get_energy_landscape(self):
