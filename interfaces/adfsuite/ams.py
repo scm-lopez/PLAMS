@@ -455,21 +455,21 @@ class AMSResults(Results):
 
             @property
             def id(self):
-                return self._landscape.states.index(self)
+                return self._landscape._states.index(self)+1
 
             @property
             def reactants(self):
-                return self._landscape.states[self.reactantsID]
+                return self._landscape._states[self.reactantsID-1]
 
             @property
             def products(self):
-                return self._landscape.states[self.productsID]
+                return self._landscape._states[self.productsID-1]
 
             def __str__(self):
                 if self.isTS:
                     lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
                     if self.reactantsID != None: lines += [f"|- Reactants: {self.reactants}"]
-                    if self.productsID != None:  lines += [f"+- Products:  {self.products}"]
+                    if self.productsID  != None: lines += [f"+- Products:  {self.products}"]
                 else:
                     lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
                 return "\n".join(lines)
@@ -484,7 +484,7 @@ class AMSResults(Results):
                     sec[var] = [sec[var]]
 
             nStates = sec['nStates']
-            self.states = []
+            self._states = []
 
             for iState in range(nStates):
                 energy  = sec['energies'][iState]
@@ -492,24 +492,30 @@ class AMSResults(Results):
                 mol = results.get_molecule('Molecule',file=resfile)
                 count = sec['counts'][iState]
                 if not sec['isTS'][iState]:
-                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, False))
+                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, False))
                 else:
-                    reactantsID = sec['reactants'][iState]-1 if sec['reactants'][iState] > 0 else None
-                    productsID  = sec['products'][iState]-1 if sec['products'][iState] > 0 else None
-                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
+                    reactantsID = sec['reactants'][iState] if sec['reactants'][iState] > 0 else None
+                    productsID  = sec['products'][iState] if sec['products'][iState] > 0 else None
+                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
 
         @property
         def minima(self):
-            return [s for s in self.states if not s.isTS ]
+            return [s for s in self._states if not s.isTS ]
 
         @property
         def transition_states(self):
-            return [s for s in self.states if s.isTS]
+            return [s for s in self._states if s.isTS]
 
         def __str__(self):
             return 'All stationary points:\n'+\
                    '======================\n'+\
-                   '\n'.join(str(s) for s in self.states)
+                   '\n'.join(str(s) for s in self._states)
+
+        def __getitem__(self, i):
+            return self._states[i+1]
+
+        def __iter__(self):
+            return iter(self._states[1:])
 
 
     def get_energy_landscape(self):
@@ -520,6 +526,7 @@ class AMSResults(Results):
         .. code-block:: python
 
             el = results.get_energy_landscape()
+            print(el)
 
             for state in el:
                 print(f"Energy = {state.energy}")
