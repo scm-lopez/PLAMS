@@ -50,6 +50,16 @@ class ORCAResults(Results):
         else:
             return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
 
+    def get_scf_iterations(self, index=-1):
+        """Returns Number of SCF Iterations from the Output File.
+
+        Set ``index`` to choose the n-th occurence, *e.g.* to choose an certain step. Also supports slices.
+        Defaults to the last occurence.
+        """
+        s = self.grep_output('SCF CONVERGED AFTER')
+        n = [ int(x.split()[-3]) for x in s ]
+        return n[index]
+
     def get_energy(self, index=-1, unit='a.u.'):
         """Returns 'FINAL SINGLE POINT ENERGY:' from the output file.
 
