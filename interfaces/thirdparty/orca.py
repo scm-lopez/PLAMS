@@ -156,13 +156,15 @@ class ORCAJob(SingleJob):
                     inp += '{}{} {}\n'.format(indent, key, end)
             return inp
 
-        def pretty_print_orca(s, indent=''):
+        def pretty_print_orca(s, indent='', print_main=False):
+            """Set print_main to true for initial call to have main section at the top"""
             inp = ''
+            if print_main:
+                inp += '! {}\n\n'.format(pretty_print_orca(s.main))
+                pretty_print_orca(s, indent)
             if isinstance(s, Settings):
                 for k, v in s.items():
-                    if k == 'main':
-                        inp += '! {}\n\n'.format(pretty_print_orca(v))
-                    elif k == 'molecule': #skip the molecule
+                    if k in ('main', 'molecule'): #skip the molecule and main section
                         continue
                     else:
                         indent2 = (len(k) + 2) * ' '
@@ -177,7 +179,7 @@ class ORCAJob(SingleJob):
                 inp += '{}{}'.format(indent, s)
             return inp
 
-        inp = pretty_print_orca(self.settings.input)
+        inp = pretty_print_orca(self.settings.input, print_main=True)
         if 'molecule' in self.settings.input:
             inp += "* {}\n".format(self.settings.input.molecule)
         elif isinstance(self.molecule, Molecule):
