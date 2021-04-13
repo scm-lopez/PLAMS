@@ -488,7 +488,7 @@ class AMSResults(Results):
 
             for iState in range(nStates):
                 energy  = sec['energies'][iState]
-                resfile = os.path.splitext(sec['fileNames'][160*iState:160*(iState+1)].strip())[0]
+                resfile = os.path.splitext(sec['fileNames'].split('\0')[iState])[0]
                 mol = results.get_molecule('Molecule',file=resfile)
                 count = sec['counts'][iState]
                 if not sec['isTS'][iState]:
