@@ -39,7 +39,7 @@ class VibrationsJob(MultiJob):
     *   ``molecule`` -- |Molecule| object (most propably in the chosen Methods optimized state)
     *   ``settings`` -- |Settings| instance for all Single-Point jobs to be run. Don't forget reference to a restart file if you want to save a lot of computer time!
     *   ``jobType`` -- |Job| Class you want to use.
-    *   ``get_gradients`` -- Function name to retrieve gradients of the |Results| object of your chosen ``jobType.results``. Must take options ``eUnit='eV'`` and ``lUnit='Angstrom'``.
+    *   ``get_gradients`` -- Function name to retrieve gradients of the |Results| object of your chosen ``jobType.results``. Must take options ``energy_unit='eV'`` and ``dist_unit='Angstrom'``.
     *   ``reorder`` -- Function name of ``jobType.results`` to reorder gradients to input order, set to ``None`` if not applicable.
     *   ``aseVibOpt`` -- Options for ``ase.vibrations.Vibrations.__init__``
 
@@ -90,7 +90,7 @@ class VibrationsJob(MultiJob):
             res = child.results
             name = child.name
             # don't rely on gradients beeing numpy arrays
-            f = [ npa(vec) for vec in self.get_grad(res, eUnit='eV', lUnit='Angstrom') ]
+            f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
             force = -1.0 * npa(self.reorder(res, f))
             filename = osPJ(path, name+'.pckl')
             with open(filename, 'wb') as f:
@@ -124,7 +124,7 @@ class IRJob(VibrationsJob):
             res = child.results
             name = child.name
             # don't rely on gradients beeing numpy arrays
-            f = [ npa(vec) for vec in self.get_grad(res, eUnit='eV', lUnit='Angstrom') ]
+            f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
             force = -1.0 * npa(self.reorder(res, f))
             dipole = npa(self.get_dipole(res, unit='au'))
             filename = osPJ(path, name+'.pckl')
