@@ -143,19 +143,19 @@ class ORCAJob(SingleJob):
     def __init__(self, copy=None, copy_symlink=False, **kwargs):
         SingleJob.__init__(self, **kwargs)
         if copy:
-            self.settings.copy_files = copy
+            self.settings.copy = copy
         if copy_symlink:
             self.settings.copy_symlink = copy_symlink
 
     def _get_ready(self):
-        """Copy files to execution dir if self.copy_files is set."""
+        """Copy files to execution dir if self.copy is set."""
         SingleJob._get_ready(self)
-        if 'copy_files' in self.settings:
-            if not isinstance(self.settings.copy_files, list):
-                copy_files = [self.settings.copy_files]
+        if 'copy' in self.settings:
+            if not hasattr(self.settings.copy, '__iter__'):
+                copy = [self.settings.copy]
             else:
-                copy_files = self.settings.copy_files
-            for f in copy_files:
+                copy = self.settings.copy
+            for f in copy:
                 if ('copy_symlink' in self.settings) and (self.settings.copy_symlink):
                     symlink(relpath(f, self.path), opj(self.path, basename(f)))
                 else:
