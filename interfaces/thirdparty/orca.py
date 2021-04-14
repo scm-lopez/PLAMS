@@ -134,23 +134,29 @@ class ORCAJob(SingleJob):
     In addition to the arguments of |SingleJob|, |ORCAJob| takes a ``copy`` argument.
     ``copy`` can be a list or string, containing paths to files to be copied to the jobs directory.
     This might e.g. be a molecule, restart files etc. By setting ``copy_symlink``, the files are
-    not copied, but symlinked with relative links.
+    not copied, but symlinked with relative links. The same things can be passed using the
+    ``settings`` instance of the job, i.e. ``self.settings.copy`` and ``self.settings.copy_symlink``.
+    The former overwrites the latter.
     """
     _result_type = ORCAResults
 
     def __init__(self, copy=None, copy_symlink=False, **kwargs):
         SingleJob.__init__(self, **kwargs)
-        self.copy_files = copy
-        self.copy_symlink = copy_symlink
+        if copy:
+            self.settings.copy_files = copy
+        if copy_symlink:
+            self.settings.copy_symlink = copy_symlink
 
     def _get_ready(self):
         """Copy files to execution dir if self.copy_files is set."""
         SingleJob._get_ready(self)
-        if self.copy_files:
-            if not isinstance(self.copy_files, list):
-                self.copy_files = [self.copy_files]
-            for f in self.copy_files:
-                if self.copy_symlink:
+        if 'copy_files' in self.settings:
+            if not isinstance(self.settings.copy_files, list):
+                copy_files = [self.settings.copy_files]
+            else:
+                copy_files = self.settings.copy_files
+            for f in copy_files:
+                if ('copy_symlink' in self.settings) and (self.settings.copy_symlink):
                     symlink(relpath(f, self.path), opj(self.path, basename(f)))
                 else:
                     shutil.copy(f, self.path)
