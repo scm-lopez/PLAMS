@@ -97,11 +97,12 @@ class ORCAResults(Results):
             ret = [ float(s.split()[-2]) for s in self.grep_output('N(Total)')][index]
         return ret
 
-    def get_forces(self, match=0):
+    def get_gradients(self, match=0, engergy_unit='a.u.', dist_unit='bohr'):
         """Returns list of ndarrays with forces from the output (there the unit is a.u./bohr).
 
         ``match`` is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
         """
+        conv = Units.conversion_ratio('a.u.', energy_unit) / Units.conversion_ratio('bohr', dist_unit)
         searchBegin = "CARTESIAN GRADIENT"
         searchEnd = "Difference to translation invariance:"
         block = self.get_output_chunk(begin=searchBegin, end=searchEnd, match=match)
@@ -114,7 +115,16 @@ class ORCAResults(Results):
             if not line: #ignore empty line
                 continue
             ret[-1].append(line[-3:])
-        return [np.array(item, dtype=float) for item in ret]
+        return [ np.array(item, dtype=float)*conv for item in ret ]
+
+    def get_dipole_vector(self, index=-1, unit='a.u.'):
+        """Get the Dipole Vector
+        Returns the dipole vector, expressed in *unit*.
+        """
+        lines = self.grep_output('Total Dipole Moment')
+        conv = Units.conversion_ratio('a.u.', unit)
+        vectors = [ np.array(l.split()[-3], dtype=float)*conv for l in lines  ]
+        return vectors[index]
 
 
 class ORCAJob(SingleJob):
