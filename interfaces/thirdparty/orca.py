@@ -131,31 +131,31 @@ class ORCAJob(SingleJob):
     """
     A class representing a single computational job with `ORCA <https://orcaforum.cec.mpg.de>`_.
 
-    In addition to the arguments of |SingleJob|, |ORCAJob| takes a ``copy`` argument.
-    ``copy`` can be a list or string, containing paths to files to be copied to the jobs directory.
+    In addition to the arguments of |SingleJob|, |ORCAJob| takes a ``copy_files`` argument.
+    ``copy_files`` can be a list or string, containing paths to files to be copied to the jobs directory.
     This might e.g. be a molecule, restart files etc. By setting ``copy_symlink``, the files are
     not copied, but symlinked with relative links. The same things can be passed using the
-    ``settings`` instance of the job, i.e. ``self.settings.copy`` and ``self.settings.copy_symlink``.
+    ``settings`` instance of the job, i.e. ``self.settings.copy_files`` and ``self.settings.copy_symlink``.
     The former overwrites the latter.
     """
     _result_type = ORCAResults
 
-    def __init__(self, copy=None, copy_symlink=False, **kwargs):
+    def __init__(self, copy_files=None, copy_symlink=False, **kwargs):
         SingleJob.__init__(self, **kwargs)
-        if copy:
-            self.settings.copy = copy
+        if copy_files:
+            self.settings.copy_files = copy_files
         if copy_symlink:
             self.settings.copy_symlink = copy_symlink
 
     def _get_ready(self):
-        """Copy files to execution dir if self.copy is set."""
+        """Copy files to execution dir if self.copy_files is set."""
         SingleJob._get_ready(self)
-        if 'copy' in self.settings:
-            if not hasattr(self.settings.copy, '__iter__'):
-                copy = [self.settings.copy]
+        if 'copy_files' in self.settings:
+            if not hasattr(self.settings.copy_files, '__iter__'):
+                copy_files = [self.settings.copy_files]
             else:
-                copy = self.settings.copy
-            for f in copy:
+                copy_files = self.settings.copy_files
+            for f in copy_files:
                 if ('copy_symlink' in self.settings) and (self.settings.copy_symlink):
                     symlink(relpath(f, self.path), opj(self.path, basename(f)))
                 else:
