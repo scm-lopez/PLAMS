@@ -226,7 +226,8 @@ class ORCAJob(SingleJob):
             multi = mol.properties.multiplicity
         else:
             multi = 1
-        xyz = '\n'.join(at.str(symbol=True, space=11, decimal=5) for at in mol.atoms)
+        #very accurate but this is equal to the accuracy of the ORCA output
+        xyz = '\n'.join(at.str(symbol=True, space=21, decimal=14) for at in mol.atoms)
         return '* xyz {} {}\n{}\n*\n\n'.format(charge, multi, xyz)
 
     def get_runscript(self):
