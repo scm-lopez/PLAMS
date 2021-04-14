@@ -151,7 +151,7 @@ class ORCAJob(SingleJob):
         """Copy files to execution dir if self.copy_files is set."""
         SingleJob._get_ready(self)
         if 'copy_files' in self.settings:
-            if not hasattr(self.settings.copy_files, '__iter__'):
+            if not isinstance(self.settings.copy_files, list):
                 copy_files = [self.settings.copy_files]
             else:
                 copy_files = self.settings.copy_files
