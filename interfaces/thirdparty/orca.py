@@ -182,7 +182,7 @@ class ORCAJob(SingleJob):
                             inp += "%{} {}\n\n".format(k,pretty_print_orca(v))
                         else:
                             block = pretty_print_inner(v, indent2)
-                            inp += '%{}{}{}end\n\n'.format(k, block, indent2)
+                            inp += '%{}{}{}end\n\n'.format(k, block, indent)
             elif isinstance(s, list):
                 inp += "{}{}".format(indent, " ".join(s))
             else:
