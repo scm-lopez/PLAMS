@@ -12,7 +12,7 @@ __all__ = ['VibrationsResults' ,'VibrationsJob', 'IRJob']
 try:
     from ase.vibrations import Vibrations as aseVib
     from ase.vibrations import Infrared as aseIR
-    from ..tools.ase import *
+    from ..interfaces.molecule.ase import *
 except ImportError:
     __all__ = []
 
