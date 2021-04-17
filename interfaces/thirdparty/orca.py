@@ -127,7 +127,7 @@ class ORCAResults(Results):
         """
         lines = self.grep_output('Total Dipole Moment')
         conv = Units.conversion_ratio('a.u.', unit)
-        vectors = [ np.array(l.split()[-3], dtype=float)*conv for l in lines  ]
+        vectors = [ np.array(l.split()[-3:], dtype=float)*conv for l in lines  ]
         return vectors[index]
 
 
