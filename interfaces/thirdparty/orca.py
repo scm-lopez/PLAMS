@@ -115,7 +115,11 @@ class ORCAResults(Results):
             if not line: #ignore empty line
                 continue
             ret[-1].append(line[-3:])
-        return [ np.array(item, dtype=float)*conv for item in ret ]
+        ret = [ np.array(item, dtype=float)*conv for item in ret ]
+        if len(ret) == 1:
+            return ret[0]
+        else:
+            return ret
 
     def get_dipole_vector(self, index=-1, unit='a.u.'):
         """Get the Dipole Vector
