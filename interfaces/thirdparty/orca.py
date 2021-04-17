@@ -97,7 +97,7 @@ class ORCAResults(Results):
             ret = [ float(s.split()[-2]) for s in self.grep_output('N(Total)')][index]
         return ret
 
-    def get_gradients(self, match=0, engergy_unit='a.u.', dist_unit='bohr'):
+    def get_gradients(self, match=0, energy_unit='a.u.', dist_unit='bohr'):
         """Returns list of ndarrays with forces from the output (there the unit is a.u./bohr).
 
         ``match`` is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
