@@ -36,6 +36,7 @@ class VibrationsJob(MultiJob):
     Class for calculating numerical Frequencies in parallel using arbitrary interfaces.
     This is achieved using the Vibrations class from ASE.
 
+    *   ``name`` -- Name of the |MultiJob|
     *   ``molecule`` -- |Molecule| object (most propably in the chosen Methods optimized state)
     *   ``settings`` -- |Settings| instance for all Single-Point jobs to be run. Don't forget reference to a restart file if you want to save a lot of computer time!
     *   ``jobType`` -- |Job| Class you want to use.
@@ -50,8 +51,8 @@ class VibrationsJob(MultiJob):
     """
     _result_type = VibrationsResults
 
-    def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', reorder='inputOrder', aseVibOpt={}):
-        MultiJob.__init__(self)
+    def __init__(self, name='plams.vib', molecule, settings, jobType=ADFJob, get_gradients='get_gradients', reorder='inputOrder', aseVibOpt={}):
+        MultiJob.__init__(self, name=name)
         self.molecule = molecule
         self.settings = settings
         self.jobType = jobType
@@ -74,7 +75,7 @@ class VibrationsJob(MultiJob):
         if len(self.children) == 0:
             add = []
             path = self.path
-            self._vib = self.vibClass(toASE(self.molecule), name=osPJ(path,'plams.vib'), **self.aseVibOpt)
+            self._vib = self.vibClass(toASE(self.molecule), name=osPJ(path,self.name), **self.aseVibOpt)
             for name, atoms in self._vib.iterdisplace():
                 add.append(self.jobType(molecule=fromASE(atoms, properties=self.molecule.properties),
                             name=osPB(name), settings=self.settings))
@@ -94,7 +95,7 @@ class VibrationsJob(MultiJob):
             # don't rely on gradients beeing numpy arrays
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
             forces[name] = -1.0 * npa(self.reorder(res, f))
-        filename = osPJ(path, 'plams.vib.all.pckl')
+        filename = osPJ(path, self.name+'.all.pckl')
         with open(filename, 'wb') as f:
             pickleDump(forces, f, protocol=2)
 
@@ -131,7 +132,7 @@ class IRJob(VibrationsJob):
             force = -1.0 * npa(self.reorder(res, f))
             dipole = npa(self.get_dipole(res, unit='au'))
             save[name] = [force, dipole]
-        filename = osPJ(path, 'plams.vib.all.pckl')
+        filename = osPJ(path, self.name+'.all.pckl')
         with open(filename, 'wb') as f:
             pickleDump(save, f, protocol=2)
 
