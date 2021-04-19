@@ -87,15 +87,16 @@ class VibrationsJob(MultiJob):
     def postrun(self):
         #get gradients and save them to the pickle files for ASE
         path = self.path
+        forces = {}
         for child in self.children:
             res = child.results
             name = child.name
             # don't rely on gradients beeing numpy arrays
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
-            force = -1.0 * npa(self.reorder(res, f))
-            filename = osPJ(path, name+'.pckl')
-            with open(filename, 'wb') as f:
-                pickleDump(force, f, protocol=2)
+            forces[name] = -1.0 * npa(self.reorder(res, f))
+        filename = osPJ(path, 'plams.vib.all.pckl')
+        with open(filename, 'wb') as f:
+            pickleDump(forces, f, protocol=2)
 
         self.results._vib = self._vib
 
@@ -121,6 +122,7 @@ class IRJob(VibrationsJob):
     def postrun(self):
         #get gradients and dipole and save them to the pickle files for ASE
         path = self.path
+        save = {}
         for child in self.children:
             res = child.results
             name = child.name
@@ -128,8 +130,9 @@ class IRJob(VibrationsJob):
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
             force = -1.0 * npa(self.reorder(res, f))
             dipole = npa(self.get_dipole(res, unit='au'))
-            filename = osPJ(path, name+'.pckl')
-            with open(filename, 'wb') as f:
-                pickleDump(npa([force,dipole]), f, protocol=2)
+            save[name] = [force, dipole]
+        filename = osPJ(path, 'plams.vib.all.pckl')
+        with open(filename, 'wb') as f:
+            pickleDump(save, f, protocol=2)
 
         self.results._vib = self._vib
