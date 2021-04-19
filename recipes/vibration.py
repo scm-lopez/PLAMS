@@ -113,8 +113,8 @@ class IRJob(VibrationsJob):
 
     * ``__init__``: get_dipole_vector, must take argument ``unit='au'``
     """
-    def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', reorder='inputOrder', get_dipole_vector='get_dipole_vector', aseVibOpt={}):
-        VibrationsJob.__init__(self, molecule, settings, jobType=jobType, get_gradients=get_gradients, reorder=reorder, aseVibOpt=aseVibOpt)
+    def __init__(self, molecule, settings, get_dipole_vector='get_dipole_vector', **kwargs):
+        VibrationsJob.__init__(self, molecule, settings, **kwargs)
         self.get_dipole = getattr(self.jobType._result_type, get_dipole_vector)
         self.vibClass = aseIR
 
