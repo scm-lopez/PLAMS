@@ -97,7 +97,7 @@ class VibrationsJob(MultiJob):
             name = child.name
             # don't rely on gradients beeing numpy arrays
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
-            forces[name] = -1.0 * npa(self.reorder(res, f))
+            forces[name+'.pckl'] = -1.0 * npa(self.reorder(res, f))
         filename = osPJ(path, self.name+'.all.pckl')
         with open(filename, 'wb') as f:
             pickleDump(forces, f, protocol=2)
@@ -134,7 +134,7 @@ class IRJob(VibrationsJob):
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
             force = -1.0 * npa(self.reorder(res, f))
             dipole = npa(self.get_dipole(res, unit='au'))
-            save[name] = [force, dipole]
+            save[name+'.pckl'] = [force, dipole]
         filename = osPJ(path, self.name+'.all.pckl')
         with open(filename, 'wb') as f:
             pickleDump(save, f, protocol=2)
