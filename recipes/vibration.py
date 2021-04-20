@@ -52,6 +52,9 @@ class VibrationsJob(MultiJob):
     _result_type = VibrationsResults
 
     def __init__(self, molecule, settings, name='plams.vib', jobType=ADFJob, get_gradients='get_gradients', reorder='inputOrder', aseVibOpt={}):
+
+        def _dummy_reorder(ignore, data):
+            return data
         MultiJob.__init__(self, name=name)
         self.molecule = molecule
         self.settings = settings
@@ -64,7 +67,7 @@ class VibrationsJob(MultiJob):
         if reorder != None:
             self.reorder = getattr(self.jobType._result_type, reorder)
         else:
-            self.reorder = lambda x: x
+            self.reorder = _dummy_reorder
 
 
     def new_children(self):
