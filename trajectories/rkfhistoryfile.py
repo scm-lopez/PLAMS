@@ -274,6 +274,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 if elements != self.elements :
                         update_molecule = True
                 if isinstance(molecule,Molecule) :
+                        _, _, mol_elements, _, props = self._read_plamsmol(molecule)
+                        if mol_elements != self.elements or props != self.props : # This molecule has nothing to do with the previously read one
+                                update_molecule = True
                         prev_frames = [iframe for iframe in self.chemical_systems.keys() if iframe<=i]
                         ifr = 0
                         if len(prev_frames) > 0 :
@@ -293,6 +296,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         coords = self.coords.reshape((len(elements)*3))
                         # Rebuild the molecule (bonds will disappear for now)
                         if isinstance(molecule,Molecule) :
+                                self.props = props
                                 secname = 'ChemicalSystem(%i)'%(self.chemical_systems[ifr])
                                 section_dict = self.file_object.read_section(secname)
                                 new_mol = Molecule._mol_from_rkf_section(section_dict)
