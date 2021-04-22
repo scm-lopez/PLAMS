@@ -51,7 +51,7 @@ class VibrationsJob(MultiJob):
     _result_type = VibrationsResults
 
     def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', aseVibOpt={}, name='plams.vib'):
-        super().__init__(self, name=name)
+        MultiJob.__init__(self, name=name)
         self.molecule = molecule
         self.settings = settings
         self.jobType = jobType
@@ -108,7 +108,7 @@ class IRJob(VibrationsJob):
     *   ``get_dipole_vector`` -- Function name to retrieve dipole vector of the |Results| object. Must take argument ``unit='au'``.
     """
     def __init__(self, molecule, settings, get_dipole_vector='get_dipole_vector', **kwargs):
-        super().__init__(self, molecule, settings, **kwargs)
+        VibrationsJob.__init__(self, molecule, settings, **kwargs)
         self.get_dipole = getattr(self.jobType._result_type, get_dipole_vector)
         self.vibClass = aseIR
 
