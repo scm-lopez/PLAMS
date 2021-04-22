@@ -55,7 +55,7 @@ class VibrationsJob(MultiJob):
 
         def _dummy_reorder(ignore, data):
             return data
-        MultiJob.__init__(self, name=name)
+        super().__init__(self, name=name)
         self.molecule = molecule
         self.settings = settings
         self.jobType = jobType
