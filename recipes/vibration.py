@@ -41,7 +41,6 @@ class VibrationsJob(MultiJob):
     *   ``settings`` -- |Settings| instance for all Single-Point jobs to be run. Don't forget reference to a restart file if you want to save a lot of computer time!
     *   ``jobType`` -- |Job| Class you want to use.
     *   ``get_gradients`` -- Function name to retrieve gradients of the |Results| object of your chosen ``jobType.results``. Must take options ``energy_unit='eV'`` and ``dist_unit='Angstrom'``.
-    *   ``reorder`` -- Function name of ``jobType.results`` to reorder gradients to input order, set to ``None`` if not applicable.
     *   ``aseVibOpt`` -- Options for ``ase.vibrations.Vibrations.__init__``
 
     The ``self.__init__()`` method calls on ase.vibrations.Vibrations.run to create all displacements, then adds them as children.
@@ -51,23 +50,15 @@ class VibrationsJob(MultiJob):
     """
     _result_type = VibrationsResults
 
-    def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', reorder='inputOrder', aseVibOpt={}, name='plams.vib'):
-
-        def _dummy_reorder(ignore, data):
-            return data
+    def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', aseVibOpt={}, name='plams.vib'):
         super().__init__(self, name=name)
         self.molecule = molecule
         self.settings = settings
         self.jobType = jobType
-        self.reorder = reorder
         self.aseVibOpt = aseVibOpt
         self.vibClass = aseVib
 
         self.get_grad = getattr(self.jobType._result_type, get_gradients)
-        if reorder != None:
-            self.reorder = getattr(self.jobType._result_type, reorder)
-        else:
-            self.reorder = _dummy_reorder
 
 
     def new_children(self):
@@ -97,7 +88,7 @@ class VibrationsJob(MultiJob):
             name = child.name
             # don't rely on gradients beeing numpy arrays
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
-            forces[name+'.pckl'] = -1.0 * npa(self.reorder(res, f))
+            forces[name+'.pckl'] = -1.0 * npa(f)
         filename = osPJ(path, self.name+'.all.pckl')
         with open(filename, 'wb') as f:
             pickleDump(forces, f, protocol=2)
@@ -114,7 +105,7 @@ class IRJob(VibrationsJob):
 
     Additional arguments:
 
-    * ``__init__``: get_dipole_vector, must take argument ``unit='au'``
+    *   ``get_dipole_vector`` -- Function name to retrieve dipole vector of the |Results| object. Must take argument ``unit='au'``.
     """
     def __init__(self, molecule, settings, get_dipole_vector='get_dipole_vector', **kwargs):
         super().__init__(self, molecule, settings, **kwargs)
@@ -132,7 +123,7 @@ class IRJob(VibrationsJob):
             name = child.name
             # don't rely on gradients beeing numpy arrays
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
-            force = -1.0 * npa(self.reorder(res, f))
+            force = -1.0 * npa(f)
             dipole = npa(self.get_dipole(res, unit='au'))
             save[name+'.pckl'] = [force, dipole]
         filename = osPJ(path, self.name+'.all.pckl')
