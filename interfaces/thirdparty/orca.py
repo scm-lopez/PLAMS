@@ -199,6 +199,32 @@ class ORCAResults(Results):
             return ret
 
 
+    def get_orbital_energies(self, unit='a.u.', return_occupancy=False, match=0):
+        """Returns Orbital Energies.
+
+	- Set `return_occupancy` to *True* to recieve a tuple (Energy, Occupation) for each MO.
+        - `match`: Select occurence in the output to use. E.g. when running multiple structures at once.
+	Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+	"""
+        conv = Units.conversion_ratio('a.u.', unit)
+        block = self.get_output_chunk(begin="ORBITAL ENERGIES", end="-"*18, match=match)
+        ret = []
+        for line in block:
+            line = line.strip().split()
+            if len(line) == 1: #new set of energies
+                ret.append([])
+                continue
+            if (not line) or ('NO' in line):
+                continue
+            if return_occupancy:
+                ret[-1].append((float(line[-2])*conv, float(line[-3])))
+            else:
+                ret[-1].append(float(line[-2])*conv)
+        if len(ret) == 1:
+            return ret[0]
+        else:
+            return ret
+
 class ORCAJob(SingleJob):
     """
     A class representing a single computational job with `ORCA <https://orcaforum.cec.mpg.de>`_.
