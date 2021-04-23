@@ -130,6 +130,74 @@ class ORCAResults(Results):
         vectors = [ np.array(l.split()[-3:], dtype=float)*conv for l in lines  ]
         return vectors[index]
 
+    def get_dipole(self, **kwargs):
+        """Get Hirshfeld Analysis from Output
+
+        Uses :meth:`~ORCAResults.get_dipole_vector` to calculate the total dipole.
+	All options are passed on.
+        """
+        vec = self.get_dipole_vector(**kwargs)
+        if isinstance(vec, np.ndarray):
+            vec = [vec]
+        vec = np.linalg.norm(vec, axis=1)
+        if len(vec) == 1:
+            return vec[0]
+        else:
+            return vec
+
+
+    def get_atomic_charges(self, method='mulliken', match=0):
+        """Get Atomic Charges from Output
+
+        - `method`: Can be any one that is available in the output, e.g. mulliken or loewdin.
+        - `match`: Select occurence in the output to use. E.g. when running multiple structures at once.
+	Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+        """
+        block = self.get_output_chunk(begin="{} ATOMIC CHARGES".format(method.upper()),end="-"*25, match=match)
+        ret = []
+        for line in block:
+            line = line.strip().split()
+            if len(line) == 1: #new set of charges
+                ret.append([])
+                continue
+            if ('Sum' in line) or (not line): #empty and sum lines
+                continue
+            ret[-1].append(float(line[-1]))
+        if len(ret) == 1:
+            return ret[0]
+        else:
+            return ret
+
+    def get_hirshfeld(self, return_spin=False, match=0, skip=5):
+        """Get Hirshfeld Analysis from Output
+
+        - `return_spin`: Return a tuple of (charge, spin) instead of just charge.
+        - `match`: Select occurence in the output to use. E.g. when running multiple structures at once.
+	Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+        - `skip`: Number of lines after the keyword in the outputfile to be skipped.
+	Don't touch if you don't have trouble with your ORCA versions output.
+        """
+        block = self.get_output_chunk(begin="HIRSHFELD ANALYSIS",end="TOTAL", match=match)
+        ret = []
+        j = 0
+        for i in range(len(block)):
+            line = block[j].strip().split()
+            if len(line) == 1: #new set of charges
+                ret.append([])
+                j += skip
+            elif line:
+                if return_spin:
+                    ret[-1].append(tuple([float(x) for x in line[-2:]]))
+                else:
+                    ret[-1].append(float(line[-2]))
+            j += 1
+            if j >= len(block):
+                break
+        if len(ret) == 1:
+            return ret[0]
+        else:
+            return ret
+
 
 class ORCAJob(SingleJob):
     """
