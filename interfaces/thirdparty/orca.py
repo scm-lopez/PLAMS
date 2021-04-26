@@ -211,10 +211,10 @@ class ORCAResults(Results):
         ret = []
         for line in block:
             line = line.strip().split()
-            if len(line) == 1: #new set of energies
+            if ' OCC ' in line: #new set of energies
                 ret.append([])
                 continue
-            if (not line) or ('NO' in line):
+            if not len(line) == 4:
                 continue
             if return_occupancy:
                 ret[-1].append((float(line[-2])*conv, float(line[-3])))
