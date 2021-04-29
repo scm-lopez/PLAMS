@@ -60,7 +60,6 @@ class Trajectory :
                 for irkf,rkf in enumerate(self.files) :
                         mol = self.molecules[irkf]
                         for i in range(self.lengths[irkf]) :
-                                print (i) 
                                 crd,cell = rkf.read_frame(i,molecule=mol)
                                 yield mol.copy()
 
