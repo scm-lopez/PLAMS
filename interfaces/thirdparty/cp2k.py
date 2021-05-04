@@ -499,20 +499,20 @@ class Cp2kJob(SingleJob):
         # make lines shorter
         inp = self.settings.input.force_eval.subsys
         # add cell information
-        nDim = len(self.molecule.lattice)
+        dim = len(self.molecule.lattice)
         keys = ['A', 'B', 'C']
         periodic = ['X', 'XY', 'XYZ']
-        for iDim in range(0, nDim):
-            inp.cell[keys[iDim]] = "{:} {:} {:}".format(
-                *self.molecule.lattice[iDim])
-        if nDim > 0:
-            inp.cell.periodic = periodic[nDim-1]
+        for i in range(dim):
+            inp.cell[keys[i]] = "{:.6f} {:.6f} {:.6f}".format(
+                *self.molecule.lattice[i])
+        if dim > 0:
+            inp.cell.periodic = f"{periodic[dim - 1]:.6f}"
 
         # get block of: symbol coords
         coord_sec = ""
         for atom in self.molecule:
             coord_sec += "\n"
-            coord_sec += (" {:}"*4).format(atom.symbol, *atom.coords)
+            coord_sec += (" {:}" * 4).format(atom.symbol, *atom.coords)
         inp.coord._h = coord_sec
 
     def get_runscript(self):
