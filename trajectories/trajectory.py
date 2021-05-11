@@ -80,6 +80,7 @@ class Trajectory :
                 mols = []
                 for i in indices :
                         irkf, istep = self._get_filenum_and_stepnum(i)
+                        # This is always the first molecule
                         mol = self.molecules[irkf].copy()
                         crd,cell = self.files[irkf].read_frame(istep,molecule=mol)
                         mols.append(mol)

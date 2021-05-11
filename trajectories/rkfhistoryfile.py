@@ -263,6 +263,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         # Start setting up the MDHistory section as well
                         self.file_object.write('MDHistory','blockSize',100)
 
+                self.added_atoms = {}
+                self.removed_atoms = {}
+
         def _read_coordinates (self, i, molecule, cell, bonds) :
                 """
                 Read the coordinates at step i
@@ -274,6 +277,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 if elements != self.elements :
                         update_molecule = True
                 if isinstance(molecule,Molecule) :
+                        _, _, mol_elements, _, props = self._read_plamsmol(molecule)
+                        if mol_elements != self.elements or props != self.props : # This molecule has nothing to do with the previously read one
+                                update_molecule = True
                         prev_frames = [iframe for iframe in self.chemical_systems.keys() if iframe<=i]
                         ifr = 0
                         if len(prev_frames) > 0 :
@@ -293,6 +299,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         coords = self.coords.reshape((len(elements)*3))
                         # Rebuild the molecule (bonds will disappear for now)
                         if isinstance(molecule,Molecule) :
+                                self.props = props
                                 secname = 'ChemicalSystem(%i)'%(self.chemical_systems[ifr])
                                 section_dict = self.file_object.read_section(secname)
                                 new_mol = Molecule._mol_from_rkf_section(section_dict)
@@ -431,7 +438,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         chemsysversion = len(self.system_version_elements)
 
                 # Now add an entry to SystemVersionHistory
-                added_atoms, removed_atoms = self._find_system_change(elements)
+                added_atoms, removed_atoms = self._find_system_change(elements, props)
                 self.file_object.write('SystemVersionHistory','nEntries',version)
                 self.file_object.write('SystemVersionHistory','currentEntryOpen',False)
                 if 'SectionNum' not in self.version_history_items :
@@ -461,7 +468,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 counter += 1
                 return counter
 
-        def _find_system_change (self, elements) :
+        def _find_system_change (self, elements, props) :
                 """
                 Find out which atoms were added and/or deleted
                 """
@@ -472,7 +479,17 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         if position == len(elements) : 
                                 removed_atoms += [j for j in range(i,len(self.elements))]
                                 break
-                        if el == elements[position] :
+                        # Get the props, if relevant
+                        if self.props is None : 
+                                op = None
+                        else :
+                                op = self.props[i]
+                        if props is None : 
+                                p = None
+                        else :
+                                p = props[position]
+                        # Find the changes
+                        if el == elements[position] and op==p :
                                 position += 1
                         else :
                                 removed_atoms.append(i)
@@ -481,10 +498,14 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 added_atoms = [i for i in range(position,len(elements))]
                 
                 # Now store them (this is actually not really necessary)
-                #for iat in removed_atoms :
-                #        self.removed_atoms[self.position][iat] = self.elements[iat]
-                #for iat in added_atoms :
-                #        self.added_atoms[self.position][iat] = elements[iat]
+                if len(removed_atoms) > 0 :
+                        self.removed_atoms[self.position] = {}
+                if len(added_atoms) > 0 :
+                        self.added_atoms[self.position] = {}
+                for iat in removed_atoms :
+                        self.removed_atoms[self.position][iat+1] = self.elements[iat]
+                for iat in added_atoms :
+                        self.added_atoms[self.position][iat+1] = elements[iat]
                 return added_atoms, removed_atoms
 
         def _check_for_chemical_system (self, elements, compare_elements=True, props=None) :
