@@ -479,7 +479,7 @@ class AMSWorker:
             return worker_procs
 
 
-    def stop(self):
+    def stop(self, keep_workerdir=False):
         """Stops the worker process and removes its working directory.
 
         This method should be called when the |AMSWorker| instance is not used as a context manager and the instance is no longer needed. Otherwise proper cleanup is not guaranteed to happen, the worker process might be left running and files might be left on disk.
@@ -487,7 +487,6 @@ class AMSWorker:
 
         stdout  = None
         stderr  = None
-        keep_wd = False
 
         # Tell the worker process to stop.
         if self.proc is not None:
@@ -496,8 +495,8 @@ class AMSWorker:
                     self._call("Exit")
                 except AMSWorkerError:
                     # The process is likely exiting already.
-                    keep_wd = self.keep_wd
-                    if keep_wd:
+                    if self.keep_wd:
+                        keep_workerdir = True
                         print(f'AMSWorkerError encountered, will keep the workerdir in {self.workerdir}')
 
         # Tear down the pipes. Ignore OSError telling us the pipes are already broken.
@@ -555,7 +554,7 @@ class AMSWorker:
         self.restart_cache.clear()
         self.restart_cache_deleted.clear()
 
-        if keep_wd:
+        if keep_workerdir:
             # Keep the current workerdir and move to a new one
             self._finalize.detach()
             self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
