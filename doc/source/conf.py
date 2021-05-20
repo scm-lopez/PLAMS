@@ -302,6 +302,9 @@ rst_epilog = """
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`
 
+.. |VASPJob| replace:: :class:`VASPJob<scm.plams.interfaces.thirdparty.vasp.VASPJob>`
+.. |VASPResults| replace:: :class:`VASPResults<scm.plams.interfaces.thirdparty.vasp.VASPResults>`
+
 .. |CRSJob| replace:: :class:`CRSJob<scm.plams.interfaces.adfsuite.crs.CRSJob>`
 .. |CRSResults| replace:: :class:`CRSResults<scm.plams.interfaces.adfsuite.crs.CRSResults>`
 
