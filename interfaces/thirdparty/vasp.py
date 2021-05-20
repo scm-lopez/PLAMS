@@ -8,12 +8,18 @@ from ...mol.molecule  import Molecule
 from ...core.results import Results
 from ...tools.units import Units
 
-__all__ = ['VASPResults', 'VASPJob']
+__all__ = ['VASPJob', 'VASPResults']
 
 
 class VASPResults(Results):
     """A class for VASP results."""
-    pass
+    def get_energy(self, index=-1, unit='a.u.'):
+        s = self.grep_output("energy  without entropy=")[index]
+        if not isinstance(index, slice):
+            return Units.convert(float(s.split()[3]), 'eV', unit)
+        else:
+            return [ Units.convert(float(x.split()[3]), 'eV', unit) for x in s ]
+
 
 
 class VASPJob(SingleJob):
@@ -24,7 +30,9 @@ class VASPJob(SingleJob):
     * Set 'ignore_potcar' in ``self.settings`` to disable automatic `POTCAR` creation.
     * Set the path to the `POTCAR` files in  ``self.settings.input.potcar`` for automatic `POTCAR` creation.
     * If `POTCAR` files not matching the element symbol should be used, give a translation dict in ``self.settings.input.potcardict``.
+        E.g. `{'Fe': 'Fe_pv'}`.
     * Settings branch ``input.incar`` is parsed into the `INCAR` file, ``input.xxx`` into the corresponding `XXX` file.
+    * Use the PLAMS notation `_h`, `_1`, `_2`, ... to obtain keywords in specific order (e.g. for the KPOINTS file).
     """
     _command = 'vasp_std'
     _filenames = {'inp':'INCAR', 'run':'$JN.run', 'out':'OUTCAR', 'err': '$JN.err', 'log': '$JN.log'}
@@ -35,27 +43,38 @@ class VASPJob(SingleJob):
         Transform all contents of ``input`` branch of ``settings`` into string.
         """
 
-        def _vaspstr(inp):
+        def vaspstr(inp):
             #convert to VASP type string
+            if isinstance(inp, Settings):
+                raise PlamsError("Nested Settings Object not supported in VASP parser.")
             if isinstance(inp, bool):
                 if inp:
                     return ".TRUE."
                 else:
                     return ".FALSE."
+            elif isinstance(inp, list):
+                return " ".join([str(x) for x in inp])
             else:
-                return str(inp)
+                return str(inp).upper()
 
-        def parse(head, sett):
+        def parse(key, value):
             ret = ''
 
-            for key in sett:
-                if isinstance(sett[key], Settings):
-                    raise PlamsError("Nested Settings instance found under input.{}.{}, not supported!".format(head, key))
-                elif isinstance(value, list):
-                    raise PlamsError("List instance found under input.{}.{}, not supported!".format(head, key))
-                else:
-                    ret += "{} = {}".format(key,_vaspstr(sett[key]))
+            if isinstance(value, Settings):
+                if '_h' in value:
+                    ret += "{}\n".format(vaspstr(value['_h']))
+                i = 1
+                while ('_'+str(i)) in value:
+                    ret += "{}\n".format(vaspstr(value['_'+str(i)]))
+                    i += 1
+                for el in value:
+                    if not el.startswith('_'):
+                        ret += parse(el, value[el])
 
+            elif isinstance(value, list):
+                ret += "{}\n".format(vaspstr(value))
+            else:
+                ret += "{} = {}\n".format(key.upper(), vaspstr(value).upper())
             return ret
 
         use_molecule = ('ignore_molecule' not in self.settings) or (self.settings.ignore_molecule == False)
@@ -75,12 +94,11 @@ class VASPJob(SingleJob):
             if 'POTCAR' in item:
                 continue
             #INCAR
-            if item == 'INCAR':
+            elif item == 'INCAR':
                 inp = parse(item, tmp[item])
             else:
                 with open(opj(self.path,item),'w') as f:
                     f.write(parse(item, tmp[item]))
-
         return inp
 
     def _parsemol(self):
@@ -92,24 +110,25 @@ class VASPJob(SingleJob):
             raise PlamsError('VASP Interface has no builtin Molecule support, install ASE. See Doc for details.')
 
     def _parsepotcar(self):
-        if 'potcar' in self.input:
+        tree = self.settings.input
+        if 'potcar' in tree:
             elements = [ self.molecule.atoms[0].symbol ]
             for atom in self.molecule.atoms[1:]:
                 if not atom.symbol == elements[-1]:
                     elements.append(atom.symbol)
-            if 'potcardict' in self.input:
-                translate = self.input.potcardict
+            if 'potcardict' in tree:
+                translate = dict(tree.potcardict)
             else:
                 translate = { el: el for el in set(elements)  }
             #open files
-            files = [ open(opj(self.input.potcar,translate[el],"POTCAR"),'r') for el in elements ]
+            files = [ open(opj(tree.potcar,translate[el],"POTCAR"),'r') for el in elements ]
 
             with open(opj(self.path,'POTCAR'), 'w') as f:
                 for potcar in files:
                     f.write(potcar.read())
                     potcar.close()
         else:
-            raise PlamsError('VASP Interface needs the POTCAR path in self.input.potcar.')
+            raise PlamsError('VASP Interface needs the POTCAR path in self.settings.input.potcar.')
 
 
     def get_runscript(self):
