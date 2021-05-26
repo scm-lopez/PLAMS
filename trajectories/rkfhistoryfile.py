@@ -325,7 +325,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
 
                 # Assign the data to the molecule object
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds)
+                        cell_reduced = None
+                        if cell is not None :
+                                cell_reduced = cell[:self.nvecs]
+                        self._set_plamsmol(self.coords,cell_reduced,molecule,bonds)
 
         def _read_elements_for_frame (self, frame) :
                 """

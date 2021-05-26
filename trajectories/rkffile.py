@@ -370,7 +370,10 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Create the molecule
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell[:self.nvecs],molecule,bonds)
+                        cell_reduced = None
+                        if cell is not None :
+                                cell_reduced = cell[:self.nvecs]
+                        self._set_plamsmol(self.coords,cell_reduced,molecule,bonds)
 
         def _read_cell_data (self, i) :
                 """

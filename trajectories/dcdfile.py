@@ -237,7 +237,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.stepsize += 3 * self.ntap * self.floatsize
                 self.stepsize += 5 * self.intsize
 
-                self.elements = ['H']*self.ntap
+                if len(self.elements) != self.ntap :
+                        self.elements = ['H']*self.ntap
 
         def read_next (self,molecule=None,read=True) :
                 """
