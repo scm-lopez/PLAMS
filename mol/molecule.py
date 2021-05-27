@@ -770,17 +770,11 @@ class Molecule:
         return ret
 
 
-
-
-
-
     def unit_cell_volume(self, unit='angstrom'):
         """Return the volume of the unit cell of a 3D system.
 
         *unit* is the unit of length, the cube of which will be used as the unit of volume.
         """
-        #if len(self.lattice) != 3:
-        #    raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
         if len(self.lattice) == 3:
             return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
         elif len(self.lattice) == 2:
