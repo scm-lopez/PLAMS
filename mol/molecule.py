@@ -779,9 +779,14 @@ class Molecule:
 
         *unit* is the unit of length, the cube of which will be used as the unit of volume.
         """
-        if len(self.lattice) != 3:
-            raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
-        return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
+        #if len(self.lattice) != 3:
+        #    raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
+        if len(self.lattice) == 3:
+            return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
+        elif len(self.lattice) == 2:
+            return float(np.linalg.norm(np.cross(self.lattice[0],self.lattice[1]))) * Units.conversion_ratio('angstrom', unit)**2
+        elif len(self.lattice) == 1:
+            return float(np.linalg.norm(self.lattice[0])) * Units.conversion_ratio('angstrom', unit)
 
 
     def set_integer_bonds(self, action = 'warn', tolerance = 10**-4):
