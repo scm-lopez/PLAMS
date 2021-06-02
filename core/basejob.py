@@ -454,7 +454,14 @@ class SingleJob(Job):
         """
 
         if not os.path.isdir(path):
-            raise FileError('Path {} does not exist, cannot load from it.'.format(path))
+            if os.path.exists(path):
+                path = os.path.dirname(path)
+            elif os.path.isdir(path+'.results'):
+                path=path+'.results'
+            elif os.path.isdir(path+'results'):
+                path=path+'results'
+            else:
+                raise FileError('Path {} does not exist, cannot load from it.'.format(path))
 
         path = os.path.abspath(path)
         jobname = os.path.basename(path)

@@ -92,10 +92,15 @@ def balance_equation(reactants, products, normalization='r0'):
 
         return normalization_index
 
+    if len(reactants) == 0:
+        raise ValueError('The reactants list is empty.')
+    if len(products) == 0:
+        raise ValueError('The products list is empty.')
+
     stoich_r, elements_r = get_stoichiometries_and_elements(reactants)
     stoich_p, elements_p = get_stoichiometries_and_elements(products)
     elements = elements_r
-    elements.update(elements_p)
+    elements.update(elements_p) #hopefully not necessary
     elements = list(elements)
     num_reactants = len(stoich_r)
     num_products = len(stoich_p)
@@ -107,6 +112,10 @@ def balance_equation(reactants, products, normalization='r0'):
     #  [-4 0    0 2], #H
     #  [0 -2    2 1]] #O
     #  CH4 O2 CO2 H2O
+    #
+    # Al2(SO4)3 + Ca(OH)2 → Al(OH)3 + CaSO4 
+    # mat = np.array([[-2,-3,-12,0,0,0],[0,0,0,-1,-2,-2],[1,0,0,0,3,3],[0,1,4,1,0,0]]).T
+
     mat = []
     for e in elements:
         row = []
@@ -118,10 +127,9 @@ def balance_equation(reactants, products, normalization='r0'):
     mat = np.array(mat)
 
     coeffs = []
-    if mat.shape[0] == mat.shape[1]:
-        # square matrix, so find a solution from the null space of mat
+    if mat.shape[0] >= mat.shape[1]:
         u, s, vh = np.linalg.svd(mat)
-        coeffs = np.compress(s <= 1e-15, vh, axis=0)
+        coeffs = np.compress(s <= 1e-12, vh, axis=0)
     elif mat.shape[0] == mat.shape[1]-1:
         # e.g. 3x4 matrix, so add a [1,1,1,1] row to find a particular solution
         newmat = np.concatenate((mat, np.array([[1]*mat.shape[1]])), axis=0)
@@ -132,7 +140,7 @@ def balance_equation(reactants, products, normalization='r0'):
 
     coeffs = coeffs.ravel()
     if len(coeffs) != num_reactants+num_products:
-        raise ValueError("Something went wrong when solving the system of linear equations. Verify that the chemical equation can be balanced at all.")
+        raise ValueError("Something went wrong when solving the system of linear equations. Verify that the chemical equation can be balanced at all, and that it can be balanced uniquely except for multiplication by a constant.")
 
     normalization_index = get_normalization_index(normalization)
     coeffs /= coeffs[normalization_index]
@@ -146,7 +154,7 @@ def balance_equation(reactants, products, normalization='r0'):
 def reaction_energy(reactants, products, normalization='r0', unit='hartree'):
     """ 
 
-    Calculates a reaction energy from an unbalanced chemical equation
+    Calculates a reaction energy from an unbalanced chemical equation (the equation is first balanced)
 
     reactants: a list of amsjobs or paths to ams results folders,
     products: a list of amsjobs or paths to ams results folders
@@ -165,12 +173,10 @@ def reaction_energy(reactants, products, normalization='r0', unit='hartree'):
     my_products = [AMSJob.load_external(x) for x in products]
     coeffs_r, coeffs_p = balance_equation(my_reactants, my_products, normalization)
     reaction_energy = None
-    energies = []
 
-    for job in my_reactants+my_products:
-        energies.append(job.results.get_energy(unit=unit))
-
+    energies = [job.results.get_energy(unit=unit) for job in my_reactants+my_products]
     energies = np.array(energies)
+
     coeffs = np.concatenate(([-x for x in coeffs_r],coeffs_p))
     reaction_energy = np.dot(coeffs, energies)
 
