@@ -12,6 +12,7 @@ This chapter gathers information about public functions that can be used in PLAM
 .. autofunction:: load
 .. autofunction:: load_all
 .. autofunction:: read_molecules
+.. autofunction:: read_all_molecules_in_xyz_file
 
 .. _logging:
 

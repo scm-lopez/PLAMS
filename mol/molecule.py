@@ -4,6 +4,8 @@ import itertools
 import math
 import numpy as np
 import os
+import io
+
 from collections import OrderedDict
 
 from .atom import Atom
@@ -1850,9 +1852,18 @@ class Molecule:
             lst = line.split()
             self.lattice.append((float(lst[1]),float(lst[2]),float(lst[3])))
 
+        if isinstance(f, list):
+            f = io.StringIO('\n'.join(f))
+            log("WARNING: DEPRECATED A list was passed as 'f' argument to the Molecule.readxyz method. 'f' should be a file, and not a list. Tip: consider using io.StringIO if you want to pass a string as input to this function", 1)
+
         fr = geometry
         begin, first, nohead = True, True, False
-        for line in f:
+
+        while True:
+            last_pos = f.tell()
+            line = f.readline()
+            if line == '': break
+
             if first:
                 if line.strip() == '' : continue
                 first = False
@@ -1887,9 +1898,13 @@ class Molecule:
                     elif 'VEC' in line.upper():
                        newlatticevec(line)
                     else:
+                        # If we get here, it means that we just processed a line behond the last atom or VEC line 
+                        # If this xyz file contains more than one molecule, this line might be the header of the next molecule.
+                        # Let's move back one step, so that if we call this function again the file pointer will be at the right position
+                        f.seek(last_pos)
                         break
         if not nohead and fr > 0:
-            raise FileError('readxyz: There are only %i geometries in %s' % (geometry - fr, f.name))
+            raise FileError(f'readxyz: cannot read frame from {f.name}')
 
 
     def writexyz(self, f, **other):
@@ -2199,19 +2214,24 @@ class Molecule:
             raise MoleculeError(f"read: Unsupported file format '{inputformat}'")
 
 
-    def write(self, filename, outputformat=None, **other):
+    def write(self, filename, outputformat=None, mode='w', **other):
         """Write molecular coordinates to a file.
 
         *filename* should be a string with a path to a file. If *outputformat* is not ``None``, it should be one of supported formats or engines (keys occurring in the class attribute ``_writeformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
+    
+        *mode* can be either 'w' (overwrites the file if the file exists) or 'a' (appends to the file if the file exists).
 
         All *other* options are passed to the chosen format writer.
         """
+
+        if not mode in ['w', 'a']:
+            raise ValueError(f"invalid mode {mode}")
 
         if outputformat is None:
             _, extension = os.path.splitext(filename)
             outputformat = extension.strip('.') if extension else 'xyz'
         if outputformat in self.__class__._writeformat:
-            with open(filename, 'w') as f:
+            with open(filename, mode) as f:
                 self._writeformat[outputformat](self, f, **other)
         else:
             raise MoleculeError(f"write: Unsupported file format '{outputformat}'")

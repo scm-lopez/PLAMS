@@ -3,7 +3,7 @@ from pathlib import Path
 from scm.plams import Molecule
 from scm.plams.mol.identify import label
 
-PATH = Path('unit_tests') / 'xyz'
+PATH = Path('.') / 'xyz'
 
 m1 = Molecule(PATH / 'CO_flat4_1.xyz')
 m2 = Molecule(PATH / 'CO_flat4_2.xyz')

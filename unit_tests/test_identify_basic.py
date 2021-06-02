@@ -2,7 +2,7 @@ from pathlib import Path
 
 from scm.plams import Molecule, PT
 
-PATH = Path('unit_tests') / 'xyz'
+PATH = Path('.') / 'xyz'
 
 PT.set_connectors('Mg', 4)
 m1 = Molecule(PATH / 'chlorophyl1.xyz')

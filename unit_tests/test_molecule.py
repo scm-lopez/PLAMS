@@ -8,9 +8,11 @@ except ImportError:
     import pickle
 
 from scm.plams import Molecule, Atom, MoleculeError
+from scm.plams import read_all_molecules_in_xyz_file
 
 
-PATH = Path('unit_tests') / 'xyz'
+PATH = Path('.') / 'xyz'
+
 BENZENE = Molecule(PATH / 'benzene.xyz')
 BENZENE.guess_bonds()
 
@@ -87,7 +89,7 @@ def test_round_coords():
 
 
 IMMUTABLE_TYPE = (int, float, tuple)
-ATTR_EXCLUDE = frozenset({'mol', 'bonds', 'atoms', 'atom1', 'atom2'})
+ATTR_EXCLUDE = frozenset({'mol', 'bonds', 'atoms', 'atom1', 'atom2', '_dummysymbol'})
 
 
 def _compare_attrs(obj1, obj2, eval_eq=True):
@@ -128,18 +130,54 @@ def test_set_get_state():
     mol = BENZENE.copy()
     dill_new = PATH / 'benzene_new.dill'
 
-    # An old pickle file created before the introduction of Molecule.__getstate__
-    dill_old = PATH / 'benzene_old.dill'
-
     try:
         with open(dill_new, 'wb') as f:
             pickle.dump(mol, f)
         with open(dill_new, 'rb') as f:
             mol_new = pickle.load(f)
 
-        with open(dill_old, 'rb') as f:
-            mol_old = pickle.load(f)
-
-        test_copy(mol_list=[mol_new, mol_old])
+        test_copy(mol_list=[mol_new, mol])
     finally:
         os.remove(dill_new) if os.path.isfile(dill_new) else None
+
+
+def test_read_multiple_molecules_from_xyz():
+    """Test for read_all_molecules_in_xyz_file"""
+    
+    filename = os.path.join(PATH,'multiple_mols_in_xyz.xyz')
+
+    mols = read_all_molecules_in_xyz_file(filename)
+    
+    assert len(mols) == 12
+
+    for mol, n_atoms in zip(mols, [3,5,6,3,5,6,3,5,6]):
+        assert len(mol.atoms) == n_atoms
+
+    for mol, n_lattice_vec in zip(mols, [0,0,0,0,0,0,1,2,3,1,2,3]):
+        assert len(mol.lattice) == n_lattice_vec
+
+
+def test_write_multiple_molecules_to_xyz():
+    """Test for append mode of Molecule.write and read_all_molecules_in_xyz_file"""
+
+    new_xyz_file = PATH / 'test_write_multiple_molecules.xyz'
+
+    try:
+        mols_ref = read_all_molecules_in_xyz_file(PATH / 'multiple_mols_in_xyz.xyz')
+
+        assert len(mols_ref) > 1
+
+        for mol in mols_ref:
+            mol.write(new_xyz_file, mode='a')
+
+        mols = read_all_molecules_in_xyz_file(new_xyz_file)
+        assert len(mols_ref) == len(mols)
+
+        for mol, mol_ref in zip(mols, mols_ref):
+            for at, at_ref in zip(mol.atoms, mol_ref.atoms):
+                assert at.symbol == at_ref.symbol
+                np.testing.assert_allclose(at.coords, at_ref.coords, atol=1e-06)
+
+    finally:
+        if os.path.isfile(new_xyz_file):
+            os.remove(new_xyz_file)
