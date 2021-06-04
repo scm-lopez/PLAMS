@@ -134,13 +134,16 @@ def balance_equation(reactants, products, normalization='r0'):
         # e.g. 3x4 matrix, so add a [1,1,1,1] row to find a particular solution
         newmat = np.concatenate((mat, np.array([[1]*mat.shape[1]])), axis=0)
         b = np.array([0]*(newmat.shape[0]-1)+[1.])
-        coeffs = np.linalg.solve(newmat, b)
+        try:
+            coeffs = np.linalg.solve(newmat, b)
+        except Exception as e:
+            raise RuntimeError("Something went wrong when solving the system of linear equations. Verify that the chemical equation can be balanced at all, and that it can be balanced uniquely except for multiplication by a constant. {}\nA={}\nb={}".format(e, newmat,b))
     else:
         raise ValueError("The number of chemical elements must equal the number of molecules, or (the number of molecules-1). You have {} chemical elements: {}, and {} molecules".format(len(elements), elements, num_reactants+num_products))
 
     coeffs = coeffs.ravel()
     if len(coeffs) != num_reactants+num_products:
-        raise ValueError("Something went wrong when solving the system of linear equations. Verify that the chemical equation can be balanced at all, and that it can be balanced uniquely except for multiplication by a constant.")
+        raise RuntimeError("Something went wrong when solving the system of linear equations. Verify that the chemical equation can be balanced at all, and that it can be balanced uniquely except for multiplication by a constant.")
 
     normalization_index = get_normalization_index(normalization)
     coeffs /= coeffs[normalization_index]
