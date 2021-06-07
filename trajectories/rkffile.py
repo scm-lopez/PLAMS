@@ -485,13 +485,16 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.position += 1
                 return crd, vecs 
 
-        def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], conect=None, mddata=None) :
+        def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], conect=None, gradients=None, stresstensor=None, mddata=None) :
                 """
                 Write frame to next position in trajectory file
 
-                * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates
+                * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates in angstrom
                 * ``molecule`` -- A molecule object to read the molecular data from
-                * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system)
+                * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system) in angstrom
+                * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
+                * ``gradients`` -- A list or numpy array of (``ntap,3) containing the gradients in hartree/bohr
+                * ``stresstensor`` -- A list or numpy array of (3,3) containing the stress tensor in atomic units
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
 
@@ -536,7 +539,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Write the history section
                 counter = 1
-                counter = self._write_history_entry(step, coords, cell, conect, energy, counter)
+                counter = self._write_history_entry(step, coords, cell, conect, energy, counter, gradients, stresstensor)
 
                 if self.include_mddata and mddata is not None :
                         self._write_mdhistory_entry(mddata)
@@ -546,7 +549,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.saving_freq is not None :
                         if self.position%self.saving_freq == 0 : self.file_object.save()
 
-        def _write_history_entry (self, step, coords, cell, conect, energy, counter=1) :
+        def _write_history_entry (self, step, coords, cell, conect, energy, counter=1, gradients=None, stresstensor=None) :
                 """
                 Write the full entry into the History section
                 """
@@ -566,6 +569,14 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         # I should probably rethink the dimension of the lattice vectors (generalize it)
                         self._write_keydata_in_history('LatticeVectors', counter, False, [3,3], self.position+1, vecs)
                         counter += 1
+
+                if gradients is not None :
+                        grd = [float(g) for grad in gradients for g in grad]
+                        self._write_keydata_in_history('Gradients', counter, True, 3, self.position+1, grd)
+
+                if stresstensor is not None :
+                        stre = [float(s) for stress in stresstensor for s in stress]
+                        self._write_keydata_in_history('StressTensor', counter, False, [3,3], self.position+1, stre)
 
                 # Write the bond info
                 if conect is not None :
