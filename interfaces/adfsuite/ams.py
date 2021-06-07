@@ -13,6 +13,7 @@ from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...tools.kftools import KFFile
 from ...tools.units import Units
+import subprocess
 
 
 __all__ = ['AMSJob', 'AMSResults']
@@ -859,6 +860,42 @@ class AMSJob(SingleJob):
                 return arg[0].rkfpath(arg[1])
         return str(arg)
 
+
+    @classmethod
+    def load_external(cls, path, settings=None, molecule=None, finalize=False):
+        """Load an external job from *path*.
+
+        In this context an "external job" is an execution of some external binary that was not managed by PLAMS, and hence does not have a ``.dill`` file. It can also be used in situations where the execution was started with PLAMS, but the Python process was terminated before the execution finished, resulting in steps 9-12 of :ref:`job-life-cycle` not happening.
+
+        All the files produced by your computation should be placed in one folder and *path* should be the path to this folder or a file in this folder. The name of the folder is used as a job name. Input, output, error and runscript files, if present, should have names defined in ``_filenames`` class attribute (usually ``[jobname].in``, ``[jobname].out``, ``[jobname].err`` and ``[jobname].run``). It is not required to supply all these files, but in most cases one would like to use at least the output file, in order to use methods like :meth:`~scm.plams.core.results.Results.grep_output` or :meth:`~scm.plams.core.results.Results.get_output_chunk`. If *path* is an instance of a SingleJob, that instance is returned.
+
+        This method is a class method, so it is called via class object and it returns an instance of that class::
+
+            >>> j = SingleJob.load_external(path='some/path/jobname')
+            >>> type(j)
+            scm.plams.core.basejob.SingleJob
+            >>> a = AMSJob.load_external(path='some/path/jobname')
+            >>> type(a)
+            scm.plams.interfaces.adfsuite.ams.AMSJob
+
+        You can supply |Settings| and |Molecule| instances as *settings* and *molecule* parameters, they will end up attached to the returned job instance. If you don't do this, PLAMS will try to recreate them automatically using methods :meth:`~scm.plams.core.results.Results.recreate_settings` and :meth:`~scm.plams.core.results.Results.recreate_molecule` of the corresponding |Results| subclass. If no |Settings| instance is obtained in either way, the defaults from ``config.job`` are copied.
+
+        You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (|cleaning|), |postrun| and pickling (|pickling|). If *finalize* is ``False``, the status of the returned job is *copied*.
+        """
+        if isinstance(path, cls):
+            return path
+
+        if not os.path.isdir(path):
+            if os.path.exists(path):
+                path = os.path.dirname(path)
+            elif os.path.isdir(path+'.results'):
+                path=path+'.results'
+            elif os.path.isdir(path+'results'):
+                path=path+'results'
+            else:
+                raise FileError('Path {} does not exist, cannot load from it.'.format(path))
+
+        return super(AMSJob, cls).load_external( path, settings, molecule, finalize)
 
     @classmethod
     def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
