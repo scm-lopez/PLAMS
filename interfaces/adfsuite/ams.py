@@ -13,6 +13,7 @@ from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...tools.kftools import KFFile
 from ...tools.units import Units
+from ...trajectories.rkffile import RKFTrajectoryFile
 import subprocess
 
 
@@ -867,13 +868,10 @@ class AMSJob(SingleJob):
 
         In this context an "external job" is an execution of some external binary that was not managed by PLAMS, and hence does not have a ``.dill`` file. It can also be used in situations where the execution was started with PLAMS, but the Python process was terminated before the execution finished, resulting in steps 9-12 of :ref:`job-life-cycle` not happening.
 
-        All the files produced by your computation should be placed in one folder and *path* should be the path to this folder or a file in this folder. The name of the folder is used as a job name. Input, output, error and runscript files, if present, should have names defined in ``_filenames`` class attribute (usually ``[jobname].in``, ``[jobname].out``, ``[jobname].err`` and ``[jobname].run``). It is not required to supply all these files, but in most cases one would like to use at least the output file, in order to use methods like :meth:`~scm.plams.core.results.Results.grep_output` or :meth:`~scm.plams.core.results.Results.get_output_chunk`. If *path* is an instance of a SingleJob, that instance is returned.
+        All the files produced by your computation should be placed in one folder and *path* should be the path to this folder or a file in this folder. The name of the folder is used as a job name. Input, output, error and runscript files, if present, should have names defined in ``_filenames`` class attribute (usually ``[jobname].in``, ``[jobname].out``, ``[jobname].err`` and ``[jobname].run``). It is not required to supply all these files, but in most cases one would like to use at least the output file, in order to use methods like :meth:`~scm.plams.core.results.Results.grep_output` or :meth:`~scm.plams.core.results.Results.get_output_chunk`. If *path* is an instance of an AMSJob, that instance is returned.
 
         This method is a class method, so it is called via class object and it returns an instance of that class::
 
-            >>> j = SingleJob.load_external(path='some/path/jobname')
-            >>> type(j)
-            scm.plams.core.basejob.SingleJob
             >>> a = AMSJob.load_external(path='some/path/jobname')
             >>> type(a)
             scm.plams.interfaces.adfsuite.ams.AMSJob
@@ -881,9 +879,23 @@ class AMSJob(SingleJob):
         You can supply |Settings| and |Molecule| instances as *settings* and *molecule* parameters, they will end up attached to the returned job instance. If you don't do this, PLAMS will try to recreate them automatically using methods :meth:`~scm.plams.core.results.Results.recreate_settings` and :meth:`~scm.plams.core.results.Results.recreate_molecule` of the corresponding |Results| subclass. If no |Settings| instance is obtained in either way, the defaults from ``config.job`` are copied.
 
         You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (|cleaning|), |postrun| and pickling (|pickling|). If *finalize* is ``False``, the status of the returned job is *copied*.
+
+        This method can also be used to convert a finished VASP job to an AMSJob. If you supply the path to a folder containing OUTCAR, then a subdirectory will be created in this folder called AMSJob. In the AMSJob subdirectory, two files will be created: ams.rkf and vasp.rkf, that contain some of the results from the VASP calculation. If the AMSJob subdirectory already exists, the existing ams.rkf and vasp.rkf files will be reused. NOTE: the purpose of loading VASP data this way is to let you call for example job.results.get_energy() etc., not to run new VASP calculations!
         """
         if isinstance(path, cls):
             return path
+
+        preferred_name = None
+        # first check if path is a VASP output
+        # in which case call cls._vasp_to_ams, which will return a NEW path 
+        # containing ams.rkf and vasp.rkf (the .rkf files will be created if they do not exist)
+        if os.path.isdir(path):
+            preferred_name = os.path.basename(path)
+            if not os.path.exists(os.path.join(path,'ams.rkf')) and os.path.exists(os.path.join(path,'OUTCAR')):
+                path = cls._vasp_to_ams(path, force=False)
+        elif os.path.exists(path) and os.path.basename(path) == 'OUTCAR':
+            preferred_name = os.path.basename(os.path.dirname(path))
+            path = cls._vasp_to_ams(os.path.dirname(path), force=True)
 
         if not os.path.isdir(path):
             if os.path.exists(path):
@@ -895,7 +907,162 @@ class AMSJob(SingleJob):
             else:
                 raise FileError('Path {} does not exist, cannot load from it.'.format(path))
 
-        return super(AMSJob, cls).load_external( path, settings, molecule, finalize)
+        job = super(AMSJob, cls).load_external( path, settings, molecule, finalize)
+        if preferred_name is not None:
+            job.name = preferred_name
+        return job
+
+    @classmethod
+    def _vasp_to_ams(cls, folder, wdir=None, force=False):
+        """ 
+            folder : str
+                path to a directory with an OUTCAR, INCAR, POTCAR etc. files
+            wdir : str
+                directory in which to write the ams.rkf and vasp.rkf files
+                If None, a subdirectory "AMSJob" of folder will be created
+            force : bool
+                if False, first check if wdir already contains ams.rkf and vasp.rkf, in which case do nothing
+                if True, overwrite if exists
+        """
+        print(folder)
+        if not os.path.isdir(folder):
+            raise ValueError('Directory {} does not exist'.format(folder))
+
+        outcar = os.path.join(folder, 'OUTCAR')
+        if not os.path.exists(outcar):
+            raise ValueError('File {} does not exist, should be an OUTCAR file.'.format(outcar))
+
+        if wdir is None:
+            wdir = os.path.join(os.path.dirname(outcar),'AMSJob')
+            os.makedirs(wdir, exist_ok=True)
+
+        # exit early if ams.rkf already exists
+        if os.path.exists(os.path.join(wdir, 'ams.rkf')) and not force:
+            return wdir
+
+        # convert OUTCAR to a .traj file inside wdir
+        trajfile = os.path.join(wdir,'outcar.traj')
+        print(trajfile)
+        if os.path.exists(trajfile):
+            os.remove(trajfile)
+        cmd = [os.path.join(os.environ.get('AMSBIN'),'amspython'),'-m','ase','convert',outcar,trajfile]
+        subprocess.run(cmd)
+        if not os.path.exists(os.path.join(wdir,'outcar.traj')):
+            raise RuntimeError("Couldn't write outcar.traj in {}".format(wdir))
+
+        # convert the .traj file to ams.rkf
+        kffile = os.path.join(wdir, 'ams.rkf')
+        enginefile = os.path.join(wdir, 'vasp.rkf')
+        if os.path.exists(kffile): 
+            if force:
+                os.remove(kffile)
+            else:
+                raise RuntimeError("{} already exists, specify force=True to overwrite".format(kffile))
+        if os.path.exists(enginefile): 
+            if force:
+                os.remove(enginefile)
+            else:
+                raise RuntimeError("{} already exists, specify force=True to overwrite".format(enginefile))
+
+        coords, cell = cls._traj_to_kf(trajfile, kffile)
+
+        # add extra info to the kffile
+        kf = KFFile(kffile, autosave=False)
+        enginerkf = KFFile(enginefile, autosave=False)
+        try:
+            kf['EngineResults%nEntries'] = 1
+            kf['EngineResults%Title(1)'] = 'vasp'
+            kf['EngineResults%Description(1)'] = 'Data from {}'.format(outcar)
+            kf['EngineResults%Files(1)'] = 'vasp.rkf'
+            kf['General%user input'] = '!VASP'
+
+            # RKFTrajectoryFile does not write the correct Molecule
+            # so work around that here
+            if coords is not None:
+                length_converter = Units.convert(1.0, 'angstrom', 'bohr')
+                coords *= length_converter
+                kf['Molecule%Coords'] = coords.ravel().tolist()
+                if cell is not None:
+                    cell *= length_converter
+                    kf['Molecule%LatticeVectors'] = cell.ravel().tolist()
+                    kf['Molecule%nLatticeVectors'] = kf['InputMolecule%nLatticeVectors']
+
+
+            # read the INCAR
+            incarfile = os.path.join(folder, 'INCAR')
+            userinput = ['!VASP','Engine External', '  Free', '  !INCAR']
+            if os.path.exists(incarfile):
+                incar = open(incarfile)
+                for line in incar:
+                    line = line.split('!')[0]
+                    line = line.split('#')[0]
+                    line = line.strip()
+                    if line.lower().startswith('end'):
+                        line = '!'+line
+                    if len(line) > 0:
+                        userinput.append('    '+line)
+                userinput.append('  !EndINCAR')
+            userinput.append('  End') #end of the Free block
+            userinput.append('EndEngine')
+            kf['General%user input'] = '\xFF'.join(userinput)
+
+            # write engine.rkf
+            # copy General, Molecule, InputMolecule from ams.rkf
+            for sec in ['General','Molecule','InputMolecule']:
+                secdict = kf.read_section(sec)
+                for k, v in secdict.items():
+                    enginerkf[sec+'%'+k] = v
+            nEntries = kf['History%nEntries']
+            suffix='({})'.format(nEntries)
+            if ('History', 'Energy'+suffix) in kf: enginerkf['AMSResults%Energy'] = kf['History%Energy'+suffix]
+            if ('History', 'Gradients'+suffix) in kf: enginerkf['AMSResults%Gradients'] = kf['History%Gradients'+suffix]
+            if ('History', 'StressTensor'+suffix) in kf: enginerkf['AMSResults%StressTensor'] = kf['History%StressTensor'+suffix]
+
+        finally:
+            kf.save()
+            enginerkf.save()
+
+        return wdir
+
+
+
+    @classmethod
+    def _traj_to_kf(cls, trajfile,  rkftrajectoryfile):
+        """
+            trajfile : str
+                path to a .traj file
+            rkftrajectoryfile : str 
+                path to the output .rkf file (will be created)
+            convert ase .traj file to .rkf file
+
+            return the final coordinates and cell
+        """
+        from ase.io import read, Trajectory
+        traj = Trajectory(trajfile)
+        rkfout = RKFTrajectoryFile(rkftrajectoryfile, mode='wb')
+
+        energy_converter = Units.convert(1.0, 'eV', 'hartree')
+        gradients_converter = Units.convert(1.0, 'eV/angstrom', 'hartree/bohr')
+        stress_converter = Units.convert(1.0, 'eV/angstrom^3', 'hartree/bohr^3')
+
+        coords, cell = None, None
+        try:
+            for i,atoms in enumerate(traj):
+                if i == 0:
+                    rkfout.set_elements(atoms.get_chemical_symbols())
+                coords = atoms.get_positions() # angstrom
+                cell = atoms.get_cell()
+                gradients = -atoms.get_forces()*gradients_converter
+                stresstensor = atoms.get_stress(voigt=False)*stress_converter
+                energy = atoms.get_potential_energy()*energy_converter
+                rkfout.write_next(coords=coords, cell=cell, gradients=gradients, stresstensor=stresstensor, mddata={'PotentialEnergy': energy})
+
+        finally:
+            rkfout.close()
+
+        return coords, cell
+
+
 
     @classmethod
     def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
