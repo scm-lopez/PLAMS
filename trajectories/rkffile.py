@@ -6,7 +6,7 @@ from ..mol.molecule import Molecule, Bond
 from ..tools.periodic_table import PeriodicTable
 from ..tools.kftools import KFFile
 from ..tools.units import Units
-from ..interfaces.adfsuite.ams import AMSResults
+#from ..interfaces.adfsuite.ams import AMSResults
 from ..core.errors import PlamsError
 from .trajectoryfile import TrajectoryFile
 
@@ -247,8 +247,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 # Then write the input molecule
                 self._update_celldata(cell)
                 self._write_molecule_section(coords, cell, molecule=molecule)
+                self._write_molecule_section(coords, cell, section='InputMolecule', molecule=molecule)
                 if self.include_mddata :
-                        self._write_molecule_section(coords, cell, section='InputMolecule', molecule=molecule)
                         # Start setting up the MDHistory section as well
                         self.file_object.write('MDHistory','blockSize',100)
 
