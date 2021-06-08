@@ -895,7 +895,7 @@ class AMSJob(SingleJob):
                 path = cls._vasp_to_ams(path, force=False)
         elif os.path.exists(path) and os.path.basename(path) == 'OUTCAR':
             preferred_name = os.path.basename(os.path.dirname(path))
-            path = cls._vasp_to_ams(os.path.dirname(path), force=True)
+            path = cls._vasp_to_ams(os.path.dirname(path), force=False)
 
         if not os.path.isdir(path):
             if os.path.exists(path):
@@ -970,7 +970,7 @@ class AMSJob(SingleJob):
         try:
             kf['EngineResults%nEntries'] = 1
             kf['EngineResults%Title(1)'] = 'vasp'
-            kf['EngineResults%Description(1)'] = 'Data from {}'.format(outcar)
+            kf['EngineResults%Description(1)'] = 'Data from {}'.format(os.path.abspath(outcar))
             kf['EngineResults%Files(1)'] = 'vasp.rkf'
             kf['General%user input'] = '!VASP'
 
@@ -1050,10 +1050,22 @@ class AMSJob(SingleJob):
                     rkfout.set_elements(atoms.get_chemical_symbols())
                 coords = atoms.get_positions() # angstrom
                 cell = atoms.get_cell()
-                gradients = -atoms.get_forces()*gradients_converter
-                stresstensor = atoms.get_stress(voigt=False)*stress_converter
-                energy = atoms.get_potential_energy()*energy_converter
-                rkfout.write_next(coords=coords, cell=cell, gradients=gradients, stresstensor=stresstensor, mddata={'PotentialEnergy': energy})
+                try:
+                    gradients = -atoms.get_forces()*gradients_converter
+                except:
+                    gradients = None
+                try:
+                    stresstensor = atoms.get_stress(voigt=False)*stress_converter
+                except:
+                    stresstensor = None
+                try:
+                    energy = atoms.get_potential_energy()*energy_converter
+                    mddata = {'PotentialEnergy': energy}
+                except:
+                    energy = None
+                    mddata= None
+                
+                rkfout.write_next(coords=coords, cell=cell, gradients=gradients, stresstensor=stresstensor, mddata=mddata)
 
         finally:
             rkfout.close()
