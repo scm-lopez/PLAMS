@@ -338,7 +338,7 @@ class KFFile:
             self.tmpdata = OrderedDict()
 
             tmpfile = self.path+'.tmp' if self.reader else self.path
-            saferun(['udmpkf', tmpfile], input=txt.encode(), stdout=DEVNULL, stderr=DEVNULL)
+            saferun(['udmpkf', tmpfile], input=txt.encode('iso8859'), stdout=DEVNULL, stderr=DEVNULL)
             if self.reader:
                 saferun(['cpkf', tmpfile, self.path] + newvars, stdout=DEVNULL, stderr=DEVNULL)
                 os.remove(tmpfile)
