@@ -924,7 +924,6 @@ class AMSJob(SingleJob):
                 if False, first check if wdir already contains ams.rkf and vasp.rkf, in which case do nothing
                 if True, overwrite if exists
         """
-        print(folder)
         if not os.path.isdir(folder):
             raise ValueError('Directory {} does not exist'.format(folder))
 
@@ -942,7 +941,6 @@ class AMSJob(SingleJob):
 
         # convert OUTCAR to a .traj file inside wdir
         trajfile = os.path.join(wdir,'outcar.traj')
-        print(trajfile)
         if os.path.exists(trajfile):
             os.remove(trajfile)
         cmd = [os.path.join(os.environ.get('AMSBIN'),'amspython'),'-m','ase','convert',outcar,trajfile]

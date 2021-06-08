@@ -245,8 +245,8 @@ class TrajectoryFile (object) :
                         cell = numpy.diag(cell)
                 else :
                         cell = numpy.array(cell)
-                if cell[0,0] == 0. :
-                        cell = None
+                #if cell[0,0] == 0. :
+                #        cell = None
                 return cell
 
         def _read_plamsmol (self, plamsmol) :
