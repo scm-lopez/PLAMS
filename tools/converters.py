@@ -6,7 +6,7 @@ import os
 
 __all__ = ['traj_to_rkf', 'vasp_output_to_ams']
 
-def traj_to_rkf(cls, trajfile,  rkftrajectoryfile):
+def traj_to_rkf(trajfile,  rkftrajectoryfile):
     """
         Convert ase .traj file to .rkf file
 
