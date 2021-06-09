@@ -70,7 +70,7 @@ class VibrationsJob(MultiJob):
         #Create displaced molecules with ASE
         #Include our workingdir in the name, this results in the ASE .pckl files to be saved there
         #kinda hacky but works
-        if not self._vib_store:
+        if not hasattr(self, '_vib_store'):
             self._vib_store = self.vibClass(toASE(self.molecule), name=osPJ(path,self.name), **self.aseVibOpt)
         return self._vib_store
 
