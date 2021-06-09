@@ -1,7 +1,7 @@
 from ..core.results import Results
 from ..core.basejob import MultiJob
 from ..core.errors import PlamsError
-from ..core.functions import log
+from ..core.functions import config, log
 from ..interfaces.adfsuite.adf import ADFJob
 from numpy import array as npa
 from pickle import dump as pickleDump
@@ -64,6 +64,7 @@ class VibrationsJob(MultiJob):
 
         self.get_grad = getattr(self.jobType._result_type, get_gradients)
 
+
     @property
     def _vib(self):
         #Create displaced molecules with ASE
@@ -72,6 +73,7 @@ class VibrationsJob(MultiJob):
         if not self._vib_store:
             self._vib_store = self.vibClass(toASE(self.molecule), name=osPJ(path,self.name), **self.aseVibOpt)
         return self._vib_store
+
 
     def load(self, path=None):
         #Recursively load jobs with and without dill files.
