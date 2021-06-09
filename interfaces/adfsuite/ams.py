@@ -890,11 +890,11 @@ class AMSJob(SingleJob):
         # in which case call cls._vasp_to_ams, which will return a NEW path 
         # containing ams.rkf and vasp.rkf (the .rkf files will be created if they do not exist)
         if os.path.isdir(path):
-            preferred_name = os.path.basename(path)
+            preferred_name = os.path.basename(os.path.abspath(path))
             if not os.path.exists(os.path.join(path,'ams.rkf')) and os.path.exists(os.path.join(path,'OUTCAR')):
                 path = cls._vasp_to_ams(path, force=False)
         elif os.path.exists(path) and os.path.basename(path) == 'OUTCAR':
-            preferred_name = os.path.basename(os.path.dirname(path))
+            preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = cls._vasp_to_ams(os.path.dirname(path), force=False)
 
         if not os.path.isdir(path):
