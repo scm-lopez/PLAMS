@@ -8,6 +8,7 @@ from pickle import dump as pickleDump
 from os.path import join as osPJ
 from os.path import basename as osPB
 from os.path import isdir as osID
+from os.path import isfile as osIF
 from os import listdir as osLD
 
 __all__ = ['VibrationsResults' ,'VibrationsJob', 'IRJob']
@@ -70,7 +71,7 @@ class VibrationsJob(MultiJob):
         for foldername in filter(lambda x: osID(osPJ(path,x)), osLD(path)):
             maybedill = osPJ(path,foldername,foldername+'.dill')
             job = None
-            if isfile(maybedill): # dill file exists, load the job
+            if osIF(maybedill): # dill file exists, load the job
                 job = jm.load_job(maybedill)
             else: # no dill file, PLAMS might have excited before the job
                 job = self.jobType.load_external(osPJ(path,foldername))
