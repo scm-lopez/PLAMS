@@ -71,7 +71,7 @@ class VibrationsJob(MultiJob):
         #Include our workingdir in the name, this results in the ASE .pckl files to be saved there
         #kinda hacky but works
         if not hasattr(self, '_vib_store'):
-            self._vib_store = self.vibClass(toASE(self.molecule), name=osPJ(path,self.name), **self.aseVibOpt)
+            self._vib_store = self.vibClass(toASE(self.molecule), name=osPJ(self.path,self.name), **self.aseVibOpt)
         return self._vib_store
 
 
@@ -100,7 +100,6 @@ class VibrationsJob(MultiJob):
 
     def new_children(self):
         add = {}
-        path = self.path
         self._set_vib()
         for name, atoms in self._vib.iterdisplace():
             if name not in self.children:
@@ -111,14 +110,13 @@ class VibrationsJob(MultiJob):
 
     def postrun(self):
         #get gradients and save them to the pickle files for ASE
-        path = self.path
         forces = {}
         for name, child in self.children.items():
             res = child.results
             # don't rely on gradients beeing numpy arrays
             f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
             forces[name+'.pckl'] = -1.0 * npa(f)
-        filename = osPJ(path, self.name+'.all.pckl')
+        filename = osPJ(self.path, self.name+'.all.pckl')
         with open(filename, 'wb') as f:
             pickleDump(forces, f, protocol=2)
 
@@ -145,7 +143,6 @@ class IRJob(VibrationsJob):
 
     def postrun(self):
         #get gradients and dipole and save them to the pickle files for ASE
-        path = self.path
         save = {}
         for name, child in self.children.items():
             res = child.results
@@ -154,7 +151,7 @@ class IRJob(VibrationsJob):
             force = -1.0 * npa(f)
             dipole = npa(self.get_dipole(res, unit='au'))
             save[name+'.pckl'] = [force, dipole]
-        filename = osPJ(path, self.name+'.all.pckl')
+        filename = osPJ(self.path, self.name+'.all.pckl')
         with open(filename, 'wb') as f:
             pickleDump(save, f, protocol=2)
 
