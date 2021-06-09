@@ -493,7 +493,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 * ``molecule`` -- A molecule object to read the molecular data from
                 * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system) in angstrom
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
-                * ``gradients`` -- A list or numpy array of (``ntap,3) containing the gradients in hartree/bohr
+                * ``gradients`` -- A list or numpy array of (``ntap``,3) containing the gradients in hartree/bohr
                 * ``stresstensor`` -- A list or numpy array of (3,3) containing the stress tensor in atomic units
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
