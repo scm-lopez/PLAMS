@@ -123,7 +123,6 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
     if os.path.exists(trajfile):
         os.remove(trajfile)
     cmd = [os.path.join(os.environ.get('AMSBIN'),'amspython'),'-m','ase','convert',outcar,trajfile]
-    #subprocess.run(cmd)
     saferun(cmd)
     if not os.path.exists(os.path.join(wdir,'outcar.traj')):
         raise RuntimeError("Couldn't write outcar.traj in {}".format(wdir))
@@ -191,6 +190,9 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
         kf.save()
         if write_engine_rkf:
             enginerkf.save()
+
+    if os.path.exists(trajfile):
+        os.remove(trajfile)
 
     return wdir
 
