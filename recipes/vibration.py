@@ -90,7 +90,7 @@ class VibrationsJob(MultiJob):
             if osIF(maybedill): # dill file exists, load the job
                 job = jm.load_job(maybedill)
             else: # no dill file, PLAMS might have excited before the job
-                job = self.jobType.load_external(osPJ(path,foldername))
+                job = self.jobType.load_external(osPJ(path,foldername), finalize=True)
 
             if job: # add the job if it exists
                 loaded_jobs[foldername] = job
