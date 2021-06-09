@@ -55,7 +55,7 @@ class VibrationsJob(MultiJob):
     _result_type = VibrationsResults
 
     def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', aseVibOpt={}, name='plams.vib'):
-        super().__init__(name=name)
+        super().__init__(name=name, children={})
         self.molecule = molecule
         self.settings = settings
         self.jobType = jobType
@@ -64,9 +64,23 @@ class VibrationsJob(MultiJob):
 
         self.get_grad = getattr(self.jobType._result_type, get_gradients)
 
-    def load(self, path):
+    @property
+    def _vib(self):
+        #Create displaced molecules with ASE
+        #Include our workingdir in the name, this results in the ASE .pckl files to be saved there
+        #kinda hacky but works
+        if not self._vib_store:
+            self._vib_store = self.vibClass(toASE(self.molecule), name=osPJ(path,self.name), **self.aseVibOpt)
+        return self._vib_store
+
+    def load(self, path=None):
         #Recursively load jobs with and without dill files.
-        jm = self.jobmanager
+        if self.jobmanager:
+            jm = self.jobmanager
+        else:
+            jm = config.default_jobmanager
+        if path is None:
+            path = self.path
         loaded_jobs = {}
         for foldername in filter(lambda x: osID(osPJ(path,x)), osLD(path)):
             maybedill = osPJ(path,foldername,foldername+'.dill')
@@ -82,17 +96,10 @@ class VibrationsJob(MultiJob):
         self.children.update(loaded_jobs)
 
 
-
-
-
     def new_children(self):
-        #Create displaced molecules with ASE
-        #Include our workingdir in the name, this results in the ASE .pckl files to be saved there
-        #kinda hacky but works
-
         add = {}
         path = self.path
-        self._vib = self.vibClass(toASE(self.molecule), name=osPJ(path,self.name), **self.aseVibOpt)
+        self._set_vib()
         for name, atoms in self._vib.iterdisplace():
             if name not in self.children:
                 add[osPB(name)] = self.jobType(molecule=fromASE(atoms, properties=self.molecule.properties),
