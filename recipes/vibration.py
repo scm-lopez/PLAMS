@@ -7,6 +7,7 @@ from numpy import array as npa
 from pickle import dump as pickleDump
 from os.path import join as osPJ
 from os.path import basename as osPB
+from os import listdir as osLD
 
 __all__ = ['VibrationsResults' ,'VibrationsJob', 'IRJob']
 
@@ -65,7 +66,7 @@ class VibrationsJob(MultiJob):
         #Recursively load jobs with and without dill files.
         jm = self.jobmanager
         loaded_jobs = {}
-        for foldername in filter(lambda x: isdir(opj(path,x)), os.listdir(path)):
+        for foldername in filter(lambda x: isdir(opj(path,x)), osLD(path)):
             maybedill = opj(path,foldername,foldername+'.dill')
             job = None
             if isfile(maybedill): # dill file exists, load the job
