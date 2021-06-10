@@ -241,17 +241,21 @@ class TrajectoryFile (object) :
                 """
                 if cell is None :
                         return cell
+                # The cell can be passed as a list of three values (assumed orthorhombic)
                 if len(cell)==3 and isinstance(cell[0],float) or isinstance(cell[0],numpy.float64) :
                         cell = numpy.diag(cell)
                 else :
                         cell = numpy.array(cell)
-                #if cell[0,0] == 0. :
-                #        cell = None
+                # For non-periodic systems there will be three cell vectors of length 0.
+                if cell[0][0]**2 + cell[0][1]**2 + cell[0][2]**2 == 0. :
+                        cell = None
                 return cell
 
         def _read_plamsmol (self, plamsmol) :
                 """
                 Read the coordinates and cell vectors from the molecule objects, if provided
+
+                Note: For non-periodic systems the cell will be read as [0.,0.,0.]
                 """
                 coords = plamsmol.as_array()
                 cell = [0.,0.,0.]
