@@ -36,6 +36,7 @@ if tags.has('scm_theme'):
 
     from global_conf import *
     project, htmlhelp_basename, latex_documents = set_project_specific_var ('PLAMS')
+    html_logo = '_static/plams_logo.png'
 
 else:
 
