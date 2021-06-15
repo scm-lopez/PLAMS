@@ -2146,7 +2146,10 @@ class Molecule:
 
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
-        symbols = sectiondict['AtomSymbols'].split()
+        symbols = sectiondict['AtomSymbols']
+        # If the dictionary was read from memory and not from file, this is already a list
+        if isinstance(symbols,str) :
+                symbols = symbols.split()
         for crd, sym in zip(coords, symbols):
             if sym.startswith('Gh.'):
                 isghost = True

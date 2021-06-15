@@ -6,6 +6,7 @@ from ..mol.molecule import Molecule
 from ..mol.atom import Atom
 from ..core.settings import Settings
 from .xyzfile import XYZTrajectoryFile
+from .xyzfile import data_from_xyzcomment
 
 __all__ = ['XYZHistoryFile']
 
@@ -119,9 +120,18 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 # Find the number of atoms
                 line = self.file_object.readline()
                 if len(line) == 0 :
-                        return None           # End of file is reached
+                        return None, None     # End of file is reached
                 nats = int(line.split()[0])
                 line = self.file_object.readline()
+
+                # Handle the comment line
+                cell = None
+                historydata = data_from_xyzcomment(line)
+                if 'Lattice' in historydata :
+                        cell = historydata['Lattice']
+                        del historydata['Lattice']
+                if self.include_historydata :
+                        self.historydata = historydata
 
                 # Read coordinates and elements
                 coords = []
@@ -149,11 +159,11 @@ class XYZHistoryFile (XYZTrajectoryFile) :
 
                 # Assign the data to the molecule object
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,None,molecule,bonds=None)
+                        self._set_plamsmol(self.coords,cell,molecule,bonds=None)
 
-                return coords
+                return coords, cell
 
-        def write_next (self,coords=None,molecule=None,elements=None,cell=[0.,0.,0.],energy=None,step=None,conect=None) :
+        def write_next (self,coords=None,molecule=None,elements=None,cell=[0.,0.,0.],conect=None,historydata=None) :
                 """ 
                 Write frame to next position in trajectory file
 
@@ -163,6 +173,10 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 * ``cell``     -- A set of lattice vectors or cell diameters
                 * ``energy``   -- An energy value to be written to the remark line
                 * ``conect``   -- A dictionary containing connectivity info (not used)
+                * ``historydata`` -- A dictionary containing additional variables to be written to the comment line
+
+                The ``historydata`` dictionary can contain for example:
+                ('Step','Energy'), the frame number and the energy respectively
 
                 .. note::
 
@@ -173,6 +187,6 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 self.elements = elements
                 cell = self._convert_cell(cell)
                         
-                self._write_moldata(coords, cell, energy, step)
+                self._write_moldata(coords, cell, historydata)
                 
                 self.position += 1

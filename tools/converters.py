@@ -21,6 +21,15 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
     from ase.io import read, Trajectory
     traj = Trajectory(trajfile)
     rkfout = RKFTrajectoryFile(rkftrajectoryfile, mode='wb')
+    rkfout.store_historydata()
+    rkfout.store_mddata()
+
+    # Store the units properly
+    mdunits = {}
+    mdunits['PotentialEnergy'] = 'hartree'
+    mdunits['KineticEnergy'] = 'hartree'
+    mdunits['TotalEnergy'] = 'hartree'
+    rkfout._set_mdunits(mdunits)
 
     energy_converter = Units.convert(1.0, 'eV', 'hartree')
     gradients_converter = Units.convert(1.0, 'eV/angstrom', 'hartree/bohr')
@@ -60,7 +69,16 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
             if len(mddata) == 0:
                 mddata = None
 
-            rkfout.write_next(coords=coords, cell=cell, gradients=gradients, stresstensor=stresstensor, mddata=mddata)
+            # Create a historydata dictionary, to go into the History section
+            historydata = {}
+            if gradients is not None :
+                historydata['Gradients'] = gradients
+            if stresstensor is not None :
+                historydata['StressTensor'] = stresstensor
+            if len(historydata) == 0 :
+                historydata = None
+
+            rkfout.write_next(coords=coords, cell=cell, historydata=historydata, mddata=mddata)
 
     finally:
         rkfout.close()

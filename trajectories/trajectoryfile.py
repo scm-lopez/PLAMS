@@ -217,8 +217,10 @@ class TrajectoryFile (object) :
                 """
                 plamsmol.from_array(coords)
                 if cell is not None :
-                        if cell[0,0] > 0. :
-                                plamsmol.lattice = cell.tolist()
+                        if cell[0][0]**2 + cell[0][1]**2 + cell[0][2]**2 > 0. :
+                                plamsmol.lattice = cell
+                                if isinstance(cell,numpy.ndarray) :
+                                        plamsmol.lattice = cell.tolist()
                 if bonds is not None :
                         plamsmol.delete_all_bonds()
                         for bond in bonds :

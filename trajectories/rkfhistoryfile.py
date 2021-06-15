@@ -150,6 +150,14 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 plamsmol = Molecule._mol_from_rkf_section(section_dict)
                 return plamsmol
 
+        def _rewrite_molecule (self) :
+                """
+                Overwrite the molecule section with the latest frame (called in close())
+                """
+                mol = self.get_plamsmol()
+                crd,cell = self.read_last_frame(molecule=mol)
+                self._write_molecule_section(crd,cell,molecule=mol)
+
         def _read_header (self) :
                 """
                 Read the start molecule data from the InputMolecule section (not the Molecule section)
@@ -344,7 +352,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                         elements.insert(iat-1,el)
                 return elements
 
-        def write_next (self, coords=None, molecule=None, elements=None, cell=[0.,0.,0.], conect=None, mddata=None) :
+        def write_next (self, coords=None, molecule=None, elements=None, cell=[0.,0.,0.], conect=None, historydata=None, mddata=None) :
                 """
                 Write frame to next position in trajectory file
 
@@ -353,11 +361,17 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 * ``elements`` -- The element symbols of the atoms in the system
                 * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system)
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
+                * ``historydata`` -- A dictionary containing additional variables to be written to the History section
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
 
                 The ``mddata`` dictionary can contain the following keys:
                 ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
                 'Charges', 'ConservedEnergy', 'Time', 'Temperature')
+
+                The ``historydata`' dictionary can contain for example:
+                ('Energy','Gradients','StressTensor')
+                All values must be in atomic units
+                Numpy arrays or lists of lists will be flattened before they are written to the file
 
                 .. note::
 
@@ -388,15 +402,17 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 # Define some local variables
                 counter = 1
                 step = self.position
-                energy = 0.
                 if mddata is not None :
                         if 'Step' in mddata :
                                 step = mddata['Step']
-                        if 'PotentialEnergy' in mddata :
-                                energy = mddata['PotentialEnergy']
+                # Energy should be read from mddata first, otherwise from historydata, otherwise set to zero
+                energy = self._set_energy(mddata, historydata)
+                if not self.include_historydata :
+                        historydata = {}
+                historydata['Energy'] = energy
 
                 # Write the history section
-                counter = self._write_history_entry(step, coords, cell, conect, energy)
+                counter = self._write_history_entry(step, coords, cell, conect, historydata)
 
                 if self.include_mddata and mddata is not None :
                         self._write_mdhistory_entry(mddata)

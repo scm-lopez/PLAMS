@@ -7,7 +7,7 @@ except ImportError:
 
 from .units import Units
 
-__all__ = ['rotation_matrix', 'axis_rotation_matrix', 'distance_array', 'angle','dihedral','cell_shape']
+__all__ = ['rotation_matrix', 'axis_rotation_matrix', 'distance_array', 'angle','dihedral','cell_shape','cellvectors_from_shape']
 
 def rotation_matrix(vec1, vec2):
     """
@@ -93,7 +93,7 @@ def dihedral(p1, p2, p3, p4, unit='radian'):
 
 def cell_shape (lattice) :
     """
-    Converts lattice vectors to lengths and angles
+    Converts lattice vectors to lengths and angles (in radians)
     Sets internal cell size data, based on set of cell vectors.
 
     *cellvectors* is list containing three cell vectors (a 3x3 matrix)
@@ -113,3 +113,31 @@ def cell_shape (lattice) :
             gamma = angle (lattice[0],lattice[1])
 
     return [a,b,c,alpha,beta,gamma]
+
+def cellvectors_from_shape (box) :
+    """
+    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors 
+    """
+    a = box[0]
+    b = box[1]
+    c = box[2]
+    alpha, beta, gamma = 90., 90., 90
+    if len(box) == 6 :
+        alpha = box[3]#*np.pi/180.
+        beta = box[4]#*np.pi/180.
+        gamma = box[5]#*np.pi/180.
+
+    va = [a,0.,0.]
+    vb = [b*np.cos(gamma),b*np.sin(gamma),0.]
+
+    cx = c*np.cos(beta)
+    cy = (np.cos(alpha) - np.cos(beta)*np.cos(gamma)) * c / np.sin(gamma)
+    volume = 1 - np.cos(alpha)**2 - np.cos(beta)**2 - np.cos(gamma)**2
+    volume += 2 * np.cos(alpha) * np.cos(beta) * np.cos(gamma)
+    volume = np.sqrt(volume)
+    cz = c * volume / np.sin(gamma)
+    vc = [cx,cy,cz]
+
+    lattice = [va,vb,vc]
+
+    return lattice
