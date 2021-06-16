@@ -549,7 +549,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
                 'Charges', 'ConservedEnergy', 'Time', 'Temperature')
 
-                The ``historydata`' dictionary can contain for example:
+                The ``historydata`` dictionary can contain for example:
                 ('Energy','Gradients','StressTensor')
                 All values must be in atomic units
                 Numpy arrays or lists of lists will be flattened before they are written to the file
