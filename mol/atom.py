@@ -112,7 +112,7 @@ class Atom:
             return ('{0} {1} {2} '+suffix).format(*map(f,self.coords), **suffix_dict)
         if symbol is True:
             symbol = self.symbol
-        return ('{0:>10s}{1} {2} {3} '+suffix).format(symbol, *map(f,self.coords), **suffix_dict)
+        return ('{0:>10s} {1} {2} {3} '+suffix).format(symbol, *map(f,self.coords), **suffix_dict)
 
 
     def __str__(self):

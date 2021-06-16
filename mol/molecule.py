@@ -1580,7 +1580,11 @@ class Molecule:
         """The length of the molecule is the number of atoms."""
         return len(self.atoms)
 
+
     def __str__(self):
+        return self.str()
+
+    def str(self, decimal=6):
         """Return a string representation of the molecule.
 
         Information about atoms is printed in ``xyz`` format fashion -- each atom in a separate, enumerated line. Then, if the molecule contains any bonds, they are printed. Each bond is printed in a separate line, with information about both atoms and bond order. Example:
@@ -1599,7 +1603,7 @@ class Molecule:
         """
         s = '  Atoms: \n'
         for i,atom in enumerate(self.atoms, 1):
-            s += ('%5i'%(i)) + str(atom) + '\n'
+            s += ('%5i'%(i)) + atom.str(decimal=decimal) + '\n'
         if len(self.bonds) > 0:
             for j,atom in enumerate(self.atoms, 1):
                 atom._tmpid = j
