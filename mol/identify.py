@@ -265,6 +265,21 @@ def label(self, level=1, keep_labels=False, flags=None):
         clear(self)
     return ret
 
+@add_to_class(Molecule)
+def set_local_labels(self, niter=2, flags=None) :
+    """
+    Set atomic labels (IDnames) that are unique for local structures of a molecule
+
+    * ``niter`` -- The number of iterations in the atom labeling scheme
+
+    The idea of this method is that the number of iterations can be specified.
+    If kept low (default niter), local structures over different molecules will have the same label.
+    """
+    if flags is None :
+        flags = {i:False for i in possible_flags}
+    initialize(self)
+    for i in range(niter) :
+        iterate(self,flags)
 
 def find_permutation(molecule1, molecule2):
     """
