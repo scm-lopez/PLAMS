@@ -392,6 +392,101 @@ class AMSResults(Results):
         return ret
 
 
+    def get_pesscan_results(self, molecules=True):
+        """
+            For PESScan jobs, this functions extracts information about the scan coordinates and energies.
+
+            molecules : bool
+                Whether to return a Molecule at each PES point.
+
+            Returns a dictionary, with the following keys:
+            
+            'UnraveledScanCoords': a list of str with the names of the scan coordinates: ['sc_1_1','sc_1_2','sc_2_1','sc_2_2',...]
+
+            'nUnraveledScanCoords': the length of the previous list
+
+            'UnraveledUnits': a list of str with the units: ['bohr', 'bohr', 'radian', 'bohr', ...]
+
+            'UnraveledPESCoords': a nested list with the values of the scan coordinates: [[val_1_1_1,val_1_1_2,...],[val_1_2_1,val_1_2_2,...],[val_2_1_1,val_2_1_2,...],[val_2_2_1,val_2_2_2]]
+
+            'ScanCoords': a nested list: [['sc_1_1','sc_1_2'],['sc_2_1','sc_2_2'],...]
+
+            'nScanCoords': length of the previous list
+
+            'Units': a nested list with the units: [['bohr', 'bohr'],['radian', 'bohr'], ...]
+
+            'OrigScanCoords': a list of str in the newline-separated format stored on the .rkf file: ['sc_1_1\\nsc_1_2','sc_2_1\\nsc_2_2',...]
+
+            'nPESPoints': int, number of PES points
+
+            'PES': list of float, the energies at each PES point
+
+            'Converged': list of bool, whether the geometry optimization at each PES point converged
+
+            'Molecules': list of Molecule, the structure at each PES point. Only if the property molecules == True
+
+            'HistoryInidices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
+
+        """
+        def tolist(x):
+            if isinstance(x, list):
+                return x
+            else:
+                return [x]
+
+        nScanCoord = self.readrkf('PESScan', 'nScanCoord')
+        nPoints = tolist(self.get_history_property('nPoints', 'PESScan'))
+
+        pes = tolist(self.readrkf('PESScan', 'PES'))
+
+        origscancoords = tolist(self.get_history_property('ScanCoord', history_section='PESScan'))
+        # one scan coordinate may have several variables
+        scancoords = [x.split('\n') for x in origscancoords]
+        units = []
+        pescoords = tolist(self.readrkf('PESScan', 'PESCoords'))
+        pescoords = np.array(pescoords).reshape(-1,sum(len(x) for x in scancoords))
+        pescoords = np.transpose(pescoords)
+        w = []
+        units = []
+        count = 0
+        for i in range(nScanCoord):
+            units.append([])
+            for j in range(len(scancoords[i])):
+                if 'Distance' in scancoords[i][j]:
+                    units[-1].append('bohr')
+                else:
+                    units[-1].append('radian')
+
+        converged = tolist(self.readrkf('PESScan', 'GOConverged'))
+        converged = [bool(x) for x in converged]
+        historyindices = tolist(self.readrkf('PESScan', 'HistoryIndices'))
+
+        ret = {}
+
+        unraveled_scancoords = [x[i] for x in scancoords for i in range(len(x))] # 1d list
+        unraveled_units = [x[i] for x in units for i in range(len(x))] # 1d list
+        ret['UnraveledScanCoords'] = unraveled_scancoords
+        ret['nUnraveledScanCoords'] = len(unraveled_scancoords)
+        ret['ScanCoords'] = scancoords
+        ret['nScanCoords'] = len(scancoords)
+        ret['OrigScanCoords'] = origscancoords #newline delimiter for joint scan coordinates
+        ret['UnraveledPESCoords'] = pescoords.tolist()
+        ret['Units'] = units
+        ret['UnraveledUnits'] = unraveled_units
+        ret['Converged'] = converged
+        ret['PES'] = pes
+        ret['nPESPoints'] = len(pes)
+        ret['HistoryIndices'] = historyindices
+
+        if molecules:
+            mols = []
+            for ind in historyindices:
+                mols.append(self.get_history_molecule(ind))
+            ret['Molecules'] = mols
+        
+        return ret
+
+ 
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 

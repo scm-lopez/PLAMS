@@ -83,22 +83,6 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
     finally:
         rkfout.close()
 
-    # RKFTrajectoryFile does not write the correct Molecule
-    # so work around that here
-    if coords is not None:
-        kf = KFFile(rkftrajectoryfile, autosave=False)
-        try:
-                length_converter = Units.convert(1.0, 'angstrom', 'bohr')
-                coords *= length_converter
-                kf['Molecule%Coords'] = coords.ravel().tolist()
-                if cell is not None:
-                    cell *= length_converter
-                    kf['Molecule%LatticeVectors'] = cell.ravel().tolist()
-                    kf['Molecule%nLatticeVectors'] = kf['InputMolecule%nLatticeVectors']
-        finally:
-            kf.save()
-
-
     return coords, cell
 
 def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf=True):
