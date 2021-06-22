@@ -8,7 +8,7 @@ __all__ = ['traj_to_rkf', 'vasp_output_to_ams']
 
 def traj_to_rkf(trajfile,  rkftrajectoryfile):
     """
-        Convert ase .traj file to .rkf file
+        Convert ase .traj file to .rkf file. NOTE: The order of atoms (or the number of atoms) cannot change between frames!
 
         trajfile : str
             path to a .traj file
@@ -82,6 +82,12 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
 
     finally:
         rkfout.close()
+
+
+    # the below is needed to be able to load the .rkf file with AMSJob.load_external()
+    kf = KFFile(rkftrajectoryfile)
+    kf['EngineResults%nEntries'] = 0
+    kf['General%user input'] = '\xFF'.join(['Engine External','EndEngine'])
 
     return coords, cell
 
