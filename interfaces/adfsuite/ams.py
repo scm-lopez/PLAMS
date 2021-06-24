@@ -1077,33 +1077,36 @@ class AMSJob(SingleJob):
         """
         def read_mol(settings_block: Settings) -> Molecule:
             """Retrieve single molecule from a single `s.input.ams.system` block."""
-            mol = Molecule()
-            for atom in settings_block.atoms._1:
-                # Extract arguments for Atom()
-                symbol, x, y, z, *comment = atom.split(maxsplit=4)
-                kwargs = {} if not comment else {'suffix': comment[0]}
-                coords = float(x), float(y), float(z)
+            if 'geometryfile' in settings_block:
+                mol = Molecule(settings_block.geometryfile)
+            else:
+                mol = Molecule()
+                for atom in settings_block.atoms._1:
+                    # Extract arguments for Atom()
+                    symbol, x, y, z, *comment = atom.split(maxsplit=4)
+                    kwargs = {} if not comment else {'suffix': comment[0]}
+                    coords = float(x), float(y), float(z)
 
-                try:
-                    at = Atom(symbol=symbol, coords=coords, **kwargs)
-                except PTError:  # It's either a ghost atom and/or an atom with a custom name
-                    if symbol.startswith('Gh.'):  # Ghost atom
-                        kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
-                    if '.' in symbol:  # Atom with a custom name
-                        symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
-                    at = Atom(symbol=symbol, coords=coords, **kwargs)
+                    try:
+                        at = Atom(symbol=symbol, coords=coords, **kwargs)
+                    except PTError:  # It's either a ghost atom and/or an atom with a custom name
+                        if symbol.startswith('Gh.'):  # Ghost atom
+                            kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
+                        if '.' in symbol:  # Atom with a custom name
+                            symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
+                        at = Atom(symbol=symbol, coords=coords, **kwargs)
 
-                mol.add_atom(at)
+                    mol.add_atom(at)
+
+                # Set the lattice vector if applicable
+                if settings_block.lattice._1:
+                    mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
 
             # Add bonds
             for bond in settings_block.bondorders._1:
                 _at1, _at2, _order = bond.split()
                 at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
                 mol.add_bond(at1, at2, order)
-
-            # Set the lattice vector if applicable
-            if settings_block.lattice._1:
-                mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
 
             # Set the molecular charge
             if settings_block.charge:

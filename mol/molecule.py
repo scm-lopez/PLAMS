@@ -1882,9 +1882,13 @@ class Molecule:
             shift = 1 if (len(lst) > 4 and lst[0] == str(i)) else 0
             num = lst[0+shift]
             if isinstance(num, str):
-                self.add_atom(Atom(symbol=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
+                new_atom = Atom(symbol=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift]))
             else:
-                self.add_atom(Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
+                new_atom = Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift]))
+            if len(lst) > shift + 4:
+                new_atom.properties.suffix = line.split(maxsplit=shift+5)[-1]
+            self.add_atom(new_atom)
+
 
         def newlatticevec(line):
             lst = line.split()
