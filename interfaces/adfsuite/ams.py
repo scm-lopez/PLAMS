@@ -380,17 +380,34 @@ class AMSResults(Results):
 
 
     def get_timings(self):
-        """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds (Jim Boelrijk).
+        """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds.
         """
         ret = {}
-        cpu = self.grep_output('Total cpu time:')
-        system = self.grep_output('Total system time:')
-        elapsed = self.grep_output('Total elapsed time:')
-        ret['elapsed'] = float(elapsed[0].split()[-1])
-        ret['system'] = float(system[0].split()[-1])
-        ret['cpu'] = float(cpu[0].split()[-1])
+        try:
+            # new AMS versions store timings on ams.rkf
+            ret['elapsed'] = self.readrkf('General', 'ElapsedTime')
+            ret['system'] = self.readrkf('General', 'SysTime')
+            ret['cpu'] = self.readrkf('General', 'CPUTime')
+        except:
+            # fall back to reading output, was needed for old AMS versions
+            cpu = self.grep_output('Total cpu time:')
+            system = self.grep_output('Total system time:')
+            elapsed = self.grep_output('Total elapsed time:')
+            ret['elapsed'] = float(elapsed[0].split()[-1])
+            ret['system'] = float(system[0].split()[-1])
+            ret['cpu'] = float(cpu[0].split()[-1])
+
         return ret
 
+
+    def get_youngmodulus(self, unit='au', engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'YoungModulus'), engine) * Units.conversion_ratio('au', unit)
+
+    def get_shearmodulus(self, unit='au', engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'ShearModulus'), engine) * Units.conversion_ratio('au', unit)
+
+    def get_bulkmodulus(self, unit='au', engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'BulkModulus'), engine) * Units.conversion_ratio('au', unit)
 
     def get_pesscan_results(self, molecules=True):
         """
