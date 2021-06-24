@@ -114,6 +114,41 @@ def cell_shape (lattice) :
 
     return [a,b,c,alpha,beta,gamma]
 
+def cell_lengths(lattice, unit='angstrom'):
+    """Return the lengths of the lattice vector. Returns a list with the same length as the number of lattice vector."""
+
+    if lattice is None or len(lattice) == 0:
+        raise ValueError('Cannot calculate cell_lengths for nonperiodic system')
+    lattice = np.asarray(lattice)
+    ret = np.sqrt((lattice**2).sum(axis=1)) * Units.conversion_ratio('angstrom', unit)
+    return ret.tolist()
+
+def cell_angles(lattice, unit='degree'):
+    """Return the angles between lattice vectors.
+
+    unit : str
+        output unit
+
+    For 2D systems, returns a list [gamma]
+
+    For 3D systems, returns a list [alpha, beta, gamma]
+    """
+    ndim = len(lattice)
+
+    if ndim < 2:
+        raise ValueError('Cannot calculate cell_angles for fewer than 2 lattice vectors. Tried with {} lattice vectors'.format(ndim))
+
+    gamma = angle(lattice[0], lattice[1], result_unit=unit)
+
+    if ndim == 2:
+        return [gamma]
+
+    if ndim >= 3:
+        alpha = angle(lattice[1], lattice[2], result_unit=unit)
+        beta = angle(lattice[0], lattice[2], result_unit=unit)
+        return [alpha, beta, gamma]
+
+
 def cellvectors_from_shape (box) :
     """
     Converts lengths and angles (in radians) of lattice vectors to the lattice vectors 

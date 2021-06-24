@@ -17,7 +17,7 @@ from ..core.functions import log
 from ..core.private import smart_copy, parse_action
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array, angle
+from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array, cell_lengths, cell_angles
 from ..tools.units import Units
 from ..tools.kftools import KFFile
 
@@ -783,15 +783,15 @@ class Molecule:
             return float(np.linalg.norm(np.cross(self.lattice[0],self.lattice[1]))) * Units.conversion_ratio('angstrom', unit)**2
         elif len(self.lattice) == 1:
             return float(np.linalg.norm(self.lattice[0])) * Units.conversion_ratio('angstrom', unit)
+        elif len(self.lattice) == 0:
+            raise ValueError("Cannot calculate unit cell volume for a nonperiodic molecule")
+        else:
+            raise ValueError("len(self.lattice) = {}, should be <=3.".format(len(self.lattice)))
 
     def cell_lengths(self, unit='angstrom'):
         """Return the lengths of the lattice vector. Returns a list with the same length as self.lattice"""
 
-        if len(self.lattice) == 0:
-            raise ValueError('Cannot calculate cell_lengths for nonperiodic system')
-        lattice = np.asarray(self.lattice)
-        ret = np.sqrt((lattice**2).sum(axis=1)) * Units.conversion_ratio('angstrom', unit)
-        return ret.tolist()
+        return cell_lengths(self.lattice, unit=unit)
 
     def cell_angles(self, unit='degree'):
         """Return the angles between lattice vectors.
@@ -803,20 +803,7 @@ class Molecule:
 
         For 3D systems, returns a list [alpha, beta, gamma]
         """
-        ndim = len(self.lattice)
-
-        if ndim < 2:
-            raise ValueError('Cannot calculate cell_angles for fewer than 2 lattice vectors. Tried with {} lattice vectors'.format(ndim))
-
-        gamma = angle(self.lattice[0], self.lattice[1], result_unit=unit)
-
-        if ndim == 2:
-            return [gamma]
-
-        if ndim >= 3:
-            alpha = angle(self.lattice[1], self.lattice[2], result_unit=unit)
-            beta = angle(self.lattice[0], self.lattice[2], result_unit=unit)
-            return [alpha, beta, gamma]
+        return cell_angles(self.lattice, unit=unit)
 
 
     def set_integer_bonds(self, action = 'warn', tolerance = 10**-4):
