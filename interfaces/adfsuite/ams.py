@@ -935,6 +935,12 @@ class AMSJob(SingleJob):
 
     #=========================================================================
 
+    def get_task(self):
+        """ Returns the AMS Task from the job's settings. If it does not exist, returns None. """
+        if isinstance(self.settings, Settings) and 'input' in self.settings and 'ams' in self.settings.input and 'task' in self.settings.input.ams:
+            return self.settings.input.ams.task
+        return None
+
 
     @staticmethod
     def _atom_symbol(atom):
