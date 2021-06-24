@@ -799,7 +799,7 @@ class Molecule:
         unit : str
             output unit
 
-        For 2D systems, returns a list [alpha]
+        For 2D systems, returns a list [gamma]
 
         For 3D systems, returns a list [alpha, beta, gamma]
         """
