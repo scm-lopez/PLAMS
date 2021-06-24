@@ -17,7 +17,7 @@ from ..core.functions import log
 from ..core.private import smart_copy, parse_action
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array
+from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array, angle
 from ..tools.units import Units
 from ..tools.kftools import KFFile
 
@@ -783,6 +783,40 @@ class Molecule:
             return float(np.linalg.norm(np.cross(self.lattice[0],self.lattice[1]))) * Units.conversion_ratio('angstrom', unit)**2
         elif len(self.lattice) == 1:
             return float(np.linalg.norm(self.lattice[0])) * Units.conversion_ratio('angstrom', unit)
+
+    def cell_lengths(self, unit='angstrom'):
+        """Return the lengths of the lattice vector. Returns a list with the same length as self.lattice"""
+
+        if len(self.lattice) == 0:
+            raise ValueError('Cannot calculate cell_lengths for nonperiodic system')
+        lattice = np.asarray(self.lattice)
+        ret = np.sqrt((lattice**2).sum(axis=1)) * Units.conversion_ratio('angstrom', unit)
+        return ret.tolist()
+
+    def cell_angles(self, unit='degree'):
+        """Return the angles between lattice vectors.
+
+        unit : str
+            output unit
+
+        For 2D systems, returns a list [alpha]
+
+        For 3D systems, returns a list [alpha, beta, gamma]
+        """
+        ndim = len(self.lattice)
+
+        if ndim < 2:
+            raise ValueError('Cannot calculate cell_angles for fewer than 2 lattice vectors. Tried with {} lattice vectors'.format(ndim))
+
+        gamma = angle(self.lattice[0], self.lattice[1], result_unit=unit)
+
+        if ndim == 2:
+            return [gamma]
+
+        if ndim >= 3:
+            alpha = angle(self.lattice[1], self.lattice[2], result_unit=unit)
+            beta = angle(self.lattice[0], self.lattice[2], result_unit=unit)
+            return [alpha, beta, gamma]
 
 
     def set_integer_bonds(self, action = 'warn', tolerance = 10**-4):
