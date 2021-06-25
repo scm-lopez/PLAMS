@@ -1027,8 +1027,13 @@ class AMSJob(SingleJob):
                 raise FileError('Path {} does not exist, cannot load from it.'.format(path))
 
         job = super(AMSJob, cls).load_external( path, settings, molecule, finalize)
+
         if preferred_name is not None:
             job.name = preferred_name
+
+        if job.name.endswith('.results') and len(job.name) > 8:
+            job.name = job.name[:-8]
+
         return job
 
 
