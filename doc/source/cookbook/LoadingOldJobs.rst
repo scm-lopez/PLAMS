@@ -34,7 +34,7 @@ This can be achieved with the following snippet::
 
    path       = "OLDDIR/OLDJOB1/OLDJOB1.dill"
    single_JOB = load(path)                                       # AMSJob instance
-   if single_JOB.check():
+   if single_JOB.ok():
       energy     = single_JOB.results.get_energy()               # load the desired properties
       structure  = single_JOB.results.get_main_molecule()
       propertyX  = single_JOB.results.readrkf('AMSResults', 'DipoleMoment', file='engine')
@@ -96,7 +96,7 @@ The `load_all` function yields a dictionary with the paths of the `.dill` files 
 We can now access these AMSJob instances::
 
    for this_JOB in all_JOBS.values():
-      if this_JOB.check():
+      if this_JOB.ok():
          energy     = this_JOB.results.get_energy()
          structure  = this_JOB.results.get_main_molecule()
          propertyX  = this_JOB.results.readrkf('AMSResults', 'DipoleMoment', file='engine')
@@ -104,8 +104,22 @@ We can now access these AMSJob instances::
 
 Binding old RKF Files
 ---------------------
-In cases where the `.dill` files are not available any more, it is still possible to load the contents of previously generated `.rkf` files into a PLAMS workflow.
-This is done by means of the `KFReader` class::
+In cases where the `.dill` files are not available any more, it is still possible to load the contents of previously generated `.rkf` files into a PLAMS workflow::
+
+   path       = "OLDDIR/OLDJOB1/"
+   ext_JOB    = AMSJob.load_external(path)
+   if ext_JOB.ok():
+      energy     = ext_JOB.results.get_energy()
+      structure  = ext_JOB.results.get_main_molecule()
+
+If the `.rkf` file does originate from some other source than any of the direct AMS engines, also an instance of the more generic `SingleJob` class can be used::
+
+   path       = "OLDDIR/OLDJOB1/ams.rkf"
+   ext_JOB    = SingleJob.load_external(path)
+
+The downside of this latter approach is that the accessibility to the data is very limited and has to be implemented mostly in terms of pattern-matching searches in the output files.
+
+An alternative way is to make use of the `KFReader` class::
 
    path       = "OLDDIR/OLDJOB1/ams.rkf"
    rkf_reader = KFReader(path)
@@ -113,5 +127,4 @@ This is done by means of the `KFReader` class::
    energy     = rkf_reader.read("History", "Energy({})".format(n_steps))
    structure  = rkf_reader.read("History", "Coords({})".format(n_steps))
 
-Note that the KFReader class lacks most of the shortcut functions of a proper `AMSResults` object so that the access to the data has to be specified manually.
-
+Note that also the KFReader class lacks most of the shortcut functions of a proper `AMSResults` object so that the access to the data has to be specified manually.
