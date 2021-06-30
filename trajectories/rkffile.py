@@ -236,7 +236,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         self.latticevecs = numpy.array(self.file_object.read(molecule_section,'LatticeVectors'))
                         #self.nvecs = int(len(self.cell)/3)
                         # New code 27-05-2020
-                        self.nvecs = int(len(self.latticevecs)/3)
+                        self.nvecs = int(len(self.latticevecs)/3) # Why did I remove this line locally?!
                         self.latticevecs = self.latticevecs.reshape((self.nvecs,3))
                 except (KeyError,AttributeError) :
                         pass
@@ -284,6 +284,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.file_object.write('General','file-ident','RKF')
                 self.file_object.write('General','termination status','NORMAL TERMINATION')
                 self.file_object.write('General','program','ams')
+                self.file_object.write('General','user input',' ')
 
         def _update_celldata (self, cell) :
                 """
