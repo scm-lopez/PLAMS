@@ -2328,3 +2328,46 @@ class Molecule:
                 p.communicate()
                 retmol = self.__class__(f_out.name)
         return retmol
+
+
+    @staticmethod
+    def rmsd(mol1, mol2, return_rotmat=False, check=True):
+        """
+        Uses the
+        `Kabsch algorithm <https://en.wikipedia.org/wiki/Kabsch_algorithm>`_ to align and
+        calculate the root-mean-square deviation of two systems' atomic positions.
+
+        Assumes all elements and their order is the same in both systems, will check this if `check == True`.
+
+        :Returns:
+
+        rmsd : float
+            Root-mean-square-deviation of atomic coordinates
+        rotmat : ndarray
+            If `return_rotmat` is `True`, will additionally return the rotation matrix
+            that aligns `mol2` onto `mol1`.
+        """
+
+        def kabsch(x, y, rotmat=False):
+            """
+            Rotate a set of points `y` such that they are aligned with `x`
+            using the Kabsch algorithm (thanks to Toon for the idea).
+            Same as `scipy.spatial.transform.Rotation.align_vectors`.
+            """
+            x       -= x.mean(0)
+            y       -= y.mean(0)
+            covar    = np.dot(x.T, y)
+            U, S, Vt = np.linalg.svd(covar)
+            det      = np.ones(x.shape[-1])
+            det[-1]  = np.sign(np.linalg.det( Vt.dot(U) ))
+            R        = np.einsum("ji,j,kj", Vt, det, U)
+            y        = y@R
+            rmsd     = np.linalg.norm(x - y)
+            return (rmsd, R) if rotmat is True else rmsd
+
+        assert len(mol1) == len(mol2), "Can only calculate the RMSD of same-sized molecules"
+        if check:
+            nums1 = np.array([i.atnum for i in mol1])
+            nums2 = np.array([i.atnum for i in mol2])
+            assert (nums1 == nums2).all(), f"\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
+        return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
