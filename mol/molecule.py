@@ -38,13 +38,21 @@ class Molecule:
 
         Each |Atom| in ``atoms`` list and each |Bond| in ``bonds`` list has a reference to the parent molecule. Moreover, each atom stores the list of bonds it's a part of and each bond stores references to atoms it bonds. That creates a complex net of references between objects that are part of a molecule. Consistency of this data is crucial for proper functioning of many methods. Because of that it is advised not to modify contents of ``atoms`` and ``bonds`` by hand. When you need to alter your molecule, methods :meth:`add_atom`, :meth:`delete_atom`, :meth:`add_bond` and :meth:`delete_bond` can be used to ensure that all these references are updated properly.
 
-    Creating a |Molecule| object for your calculation can be done in two ways. You can start with an empty molecule and manually add all atoms (and bonds, if needed)::
+    Creating a |Molecule| object for your calculation can be done in several ways. You can start with an empty molecule and manually add all atoms (and bonds, if needed)::
 
         mol = Molecule()
         mol.add_atom(Atom(atnum=1, coords=(0,0,0)))
         mol.add_atom(Atom(atnum=1, coords=(d,0,0)))
 
-    This approach can be useful for building small molecules, especially if you wish to parametrize some of atomic coordinates (like in :ref:`simple_example`), but in general it's not very practical. Usually one wants to import atomic coordinates from some external file::
+    This approach can be useful for building small molecules, especially if you wish to parametrize some of atomic coordinates (like in :ref:`simple_example`), but in general it's not very practical.
+    If coordinates and atom numbers are available, instantiation can be done by passing a value to the `positions`, `numbers` and optionally the `lattice` arguments::
+
+        xyz     = np.random.randn(10,3) # 10 atoms, 3 coordinates per atom
+        numbers = 10*[6] # 10 carbon atoms. If left None, will initialize to dummy atoms
+        lattice = [[1,2,3], [1,2,3]] # lattice should have a shape of {1,2,3}x3
+        mol     = Molecule(positions=xyz, numbers=numbers, lattice=lattice)
+
+    Alternatively, one can import atomic coordinates from some external file::
 
         mol = Molecule('xyz/Benzene.xyz')
 
@@ -105,7 +113,7 @@ class Molecule:
     However, if you feel more familiar with identifying atoms by natural numbers, you can use :meth:`set_atoms_id` to equip each atom of the molecule with ``id`` attribute equal to atom's position within ``atoms`` list. This method can also be helpful to track changes in your molecule during tasks that can reorder atoms.
     """
 
-    def __init__(self, filename=None, inputformat=None, **other):
+    def __init__(self, filename=None, inputformat=None, positions=None, numbers=None, lattice=None, **other):
         self.atoms = []
         self.bonds = []
         self.lattice = []
@@ -115,6 +123,23 @@ class Molecule:
             self.read(filename, inputformat, **other)
             self.properties.source = filename
             self.properties.name = os.path.splitext(os.path.basename(filename))[0]
+
+        elif positions is not None:
+            positions = np.array(positions)
+            assert positions.ndim == 2, f"`Positions` must be a 2d array"
+            assert positions.shape[-1] == 3, f"Inner dim of `positions` must be 3"
+            if numbers is None:
+                numbers = len(positions)*[0]
+            assert len(numbers) == len(positions), f"Length or `numbers` and `positions` does not match"
+            for num,xyz in zip(numbers, positions):
+                self.add_atom( Atom(atnum=num, coords=xyz) )
+            if lattice is not None:
+                lattice = np.array(lattice)
+                assert lattice.ndim      == 2, f"`Lattice` must be a 2d array"
+                assert lattice.shape[ 0] <= 3, f"`Lattice` shoud be a 3x3 vector at most"
+                assert lattice.shape[-1] == 3, f"Inner dim of `lattice` must be 3"
+                self.lattice = lattice.tolist()
+
 
 
 #===========================================================================
@@ -647,56 +672,56 @@ class Molecule:
         For a diagonal supercell expansion (i.e. :math:`T_{i \\neq j}=0`) one can provide in input n positive integers instead of a matrix, where n is number of lattice vectors in the molecule. e.g. This ``mol.supercell([[2,0],[0,2]])`` is equivalent to ``mol.supercell(2,2)``.
 
         The returned |Molecule| is fully distinct from the current one, in a sense that it contains a different set of |Atom| and |Bond| instances. However, each atom of the returned |Molecule| carries an additional information about its origin within the supercell. If ``atom`` is an |Atom| instance in the supercell, ``atom.properties.supercell.origin`` points to the |Atom| instance of the original molecule that was copied to create ``atom``, while ``atom.properties.supercell.index`` stores the tuple (with length equal to the number of lattice vectors) with cell index. For example, ``atom.properties.supercell.index == (2,1,0)`` means that ``atom`` is a copy of ``atom.properties.supercell.origin`` that was translated twice along the first lattice vector, once along the second vector, and not translated along the third vector.
-    
+
         Example usage:
- 
+
         .. code-block:: python
-            
+
             >>> graphene = Molecule('graphene.xyz')
             >>> print(graphene)
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.230000      0.710000      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.230000      0.710000      0.000000
               Lattice:
                     2.4600000000     0.0000000000     0.0000000000
                     1.2300000000     2.1304224933     0.0000000000
-            
+
             >>> graphene_supercell = graphene.supercell(2,2) # diagonal supercell expansion
             >>> print(graphene_supercell)
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.230000      0.710000      0.000000 
-                3         C      1.230000      2.130422      0.000000 
-                4         C      2.460000      2.840422      0.000000 
-                5         C      2.460000      0.000000      0.000000 
-                6         C      3.690000      0.710000      0.000000 
-                7         C      3.690000      2.130422      0.000000 
-                8         C      4.920000      2.840422      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.230000      0.710000      0.000000
+                3         C      1.230000      2.130422      0.000000
+                4         C      2.460000      2.840422      0.000000
+                5         C      2.460000      0.000000      0.000000
+                6         C      3.690000      0.710000      0.000000
+                7         C      3.690000      2.130422      0.000000
+                8         C      4.920000      2.840422      0.000000
               Lattice:
                     4.9200000000     0.0000000000     0.0000000000
                     2.4600000000     4.2608449866     0.0000000000
-            
+
             >>> diamond = Molecule('diamond.xyz')
             >>> print(diamond)
-              Atoms: 
-                1         C     -0.446100     -0.446200     -0.446300 
-                2         C      0.446400      0.446500      0.446600 
+              Atoms:
+                1         C     -0.446100     -0.446200     -0.446300
+                2         C      0.446400      0.446500      0.446600
               Lattice:
                     0.0000000000     1.7850000000     1.7850000000
                     1.7850000000     0.0000000000     1.7850000000
                     1.7850000000     1.7850000000     0.0000000000
-            
+
             >>> diamond_supercell = diamond.supercell([[-1,1,1],[1,-1,1],[1,1,-1]])
             >>> print(diamond_supercell)
-              Atoms: 
-                1         C     -0.446100     -0.446200     -0.446300 
-                2         C      0.446400      0.446500      0.446600 
-                3         C      1.338900      1.338800     -0.446300 
-                4         C      2.231400      2.231500      0.446600 
-                5         C      1.338900     -0.446200      1.338700 
-                6         C      2.231400      0.446500      2.231600 
-                7         C     -0.446100      1.338800      1.338700 
-                8         C      0.446400      2.231500      2.231600 
+              Atoms:
+                1         C     -0.446100     -0.446200     -0.446300
+                2         C      0.446400      0.446500      0.446600
+                3         C      1.338900      1.338800     -0.446300
+                4         C      2.231400      2.231500      0.446600
+                5         C      1.338900     -0.446200      1.338700
+                6         C      2.231400      0.446500      2.231600
+                7         C     -0.446100      1.338800      1.338700
+                8         C      0.446400      2.231500      2.231600
               Lattice:
                     3.5700000000     0.0000000000     0.0000000000
                     0.0000000000     3.5700000000     0.0000000000
@@ -1353,16 +1378,16 @@ class Molecule:
 
             >>> graphene = Molecule('graphene.xyz')
             >>> print(graphene)
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.230000      0.710141      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.230000      0.710141      0.000000
               Lattice:
                     2.4600000000     0.0000000000     0.0000000000
                     1.2300000000     2.1304224900     0.0000000000
             >>> graphene.apply_strain([0.1,0.2,0.0], voigt_form=True)])
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.353000      0.852169      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.353000      0.852169      0.000000
               Lattice:
                     2.7060000000     0.0000000000     0.0000000000
                     1.3530000000     2.5565069880     0.0000000000
@@ -1927,7 +1952,7 @@ class Molecule:
                     elif 'VEC' in line.upper():
                        newlatticevec(line)
                     else:
-                        # If we get here, it means that we just processed a line behond the last atom or VEC line 
+                        # If we get here, it means that we just processed a line behond the last atom or VEC line
                         # If this xyz file contains more than one molecule, this line might be the header of the next molecule.
                         # Let's move back one step, so that if we call this function again the file pointer will be at the right position
                         f.seek(last_pos)
@@ -2197,7 +2222,7 @@ class Molecule:
             fromAtoms = sectiondict['fromAtoms'] if isinstance(sectiondict['fromAtoms'], list) else [sectiondict['fromAtoms']]
             toAtoms = sectiondict['toAtoms'] if isinstance(sectiondict['toAtoms'], list) else [sectiondict['toAtoms']]
             bondOrders = sectiondict['bondOrders'] if isinstance(sectiondict['bondOrders'], list) else [sectiondict['bondOrders']]
-                
+
             for fromAt, toAt, bondOrder in zip(fromAtoms, toAtoms, bondOrders):
                 ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
         if sectiondict['Charge'] != 0:
@@ -2250,7 +2275,7 @@ class Molecule:
         """Write molecular coordinates to a file.
 
         *filename* should be a string with a path to a file. If *outputformat* is not ``None``, it should be one of supported formats or engines (keys occurring in the class attribute ``_writeformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
-    
+
         *mode* can be either 'w' (overwrites the file if the file exists) or 'a' (appends to the file if the file exists).
 
         All *other* options are passed to the chosen format writer.
@@ -2283,14 +2308,14 @@ class Molecule:
             >>> o = Molecule()
             >>> o.add_atom(Atom(atnum=8))
             >>> print(o)
-              Atoms: 
-                1         O      0.000000       0.000000       0.000000 
+              Atoms:
+                1         O      0.000000       0.000000       0.000000
             >>> h2o = o.add_hatoms()
             >>> print(h2o)
-              Atoms: 
-                1         O      0.000000       0.000000       0.000000 
-                2         H     -0.109259       0.893161       0.334553 
-                3         H      0.327778       0.033891      -0.901672 
+              Atoms:
+                1         O      0.000000       0.000000       0.000000
+                2         H     -0.109259       0.893161       0.334553
+                3         H      0.327778       0.033891      -0.901672
 
         """
         from subprocess import Popen
