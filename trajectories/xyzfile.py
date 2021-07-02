@@ -295,13 +295,15 @@ def data_from_xyzcomment (line) :
         Convert XYZ comment line (cell angles are in radians)
         """
         words = line.split()
-        if len(words) < 3 : return {}
+        if len(words) == 0 : return {}
+        if len(words) < 3 : return {'Line':line}
         xyzdic = {}
         xyzdic['Name'] = words[0]
         try :
                 xyzdic['Step'] = int(words[1])
                 xyzdic['Energy'] = float(words[2])
         except ValueError :
+                xyzdic['Line'] = line
                 return xyzdic
         if len(words) >= 6 :
                 try :
