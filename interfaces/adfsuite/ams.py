@@ -627,10 +627,13 @@ class AMSResults(Results):
                    '\n'.join(str(s) for s in self._states)
 
         def __getitem__(self, i):
-            return self._states[i+1]
+            return self._states[i-1]
 
         def __iter__(self):
             return iter(self._states)
+
+        def __len__(self):
+            return len(self._states)
 
 
     def get_energy_landscape(self):
