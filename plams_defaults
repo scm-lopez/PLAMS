@@ -73,7 +73,7 @@ config.log.file = 5
 #Verbosity of the log printed to the standard output
 config.log.stdout = 3
 #Print time for each log event
-config.log.time = False
+config.log.time = True
 #Print date for each log event
 config.log.date = True
 
