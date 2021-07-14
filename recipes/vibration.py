@@ -1,18 +1,22 @@
 from ..core.results import Results
 from ..core.basejob import MultiJob
 from ..core.errors import PlamsError
+from ..core.functions import config, log
 from ..interfaces.adfsuite.adf import ADFJob
 from numpy import array as npa
 from pickle import dump as pickleDump
 from os.path import join as osPJ
 from os.path import basename as osPB
+from os.path import isdir as osID
+from os.path import isfile as osIF
+from os import listdir as osLD
 
 __all__ = ['VibrationsResults' ,'VibrationsJob', 'IRJob']
 
 try:
     from ase.vibrations import Vibrations as aseVib
     from ase.vibrations import Infrared as aseIR
-    from ..tools.ase import *
+    from ..interfaces.molecule.ase import *
 except ImportError:
     __all__ = []
 
@@ -36,11 +40,11 @@ class VibrationsJob(MultiJob):
     Class for calculating numerical Frequencies in parallel using arbitrary interfaces.
     This is achieved using the Vibrations class from ASE.
 
+    *   ``name`` -- Name of the |MultiJob|
     *   ``molecule`` -- |Molecule| object (most propably in the chosen Methods optimized state)
     *   ``settings`` -- |Settings| instance for all Single-Point jobs to be run. Don't forget reference to a restart file if you want to save a lot of computer time!
     *   ``jobType`` -- |Job| Class you want to use.
-    *   ``get_gradients`` -- Function name to retrieve gradients of the |Results| object of your chosen ``jobType.results``. Must take options ``eUnit='eV'`` and ``lUnit='Angstrom'``.
-    *   ``reorder`` -- Function name of ``jobType.results`` to reorder gradients to input order, set to ``None`` if not applicable.
+    *   ``get_gradients`` -- Function name to retrieve gradients of the |Results| object of your chosen ``jobType.results``. Must take options ``energy_unit='eV'`` and ``dist_unit='Angstrom'``.
     *   ``aseVibOpt`` -- Options for ``ase.vibrations.Vibrations.__init__``
 
     The ``self.__init__()`` method calls on ase.vibrations.Vibrations.run to create all displacements, then adds them as children.
@@ -50,51 +54,71 @@ class VibrationsJob(MultiJob):
     """
     _result_type = VibrationsResults
 
-    def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', reorder='inputOrder', aseVibOpt={}):
-        MultiJob.__init__(self)
+    def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', aseVibOpt={}, name='plams.vib'):
+        super().__init__(name=name, children={})
         self.molecule = molecule
         self.settings = settings
         self.jobType = jobType
-        self.reorder = reorder
         self.aseVibOpt = aseVibOpt
         self.vibClass = aseVib
 
         self.get_grad = getattr(self.jobType._result_type, get_gradients)
-        if reorder != None:
-            self.reorder = getattr(self.jobType._result_type, reorder)
-        else:
-            self.reorder = lambda x: x
 
 
-    def new_children(self):
+    @property
+    def _vib(self):
         #Create displaced molecules with ASE
         #Include our workingdir in the name, this results in the ASE .pckl files to be saved there
         #kinda hacky but works
+        if not hasattr(self, '_vib_store'):
+            self._vib_store = self.vibClass(toASE(self.molecule), name=osPJ(self.path,self.name), **self.aseVibOpt)
+        return self._vib_store
 
-        if len(self.children) == 0:
-            add = []
-            path = self.path
-            self._vib = self.vibClass(toASE(self.molecule), name=osPJ(path,'plams.vib'), **self.aseVibOpt)
-            for name, atoms in self._vib.iterdisplace():
-                add.append(self.jobType(molecule=fromASE(atoms), name=osPB(name), settings=self.settings))
-            return add
 
+    def load(self, path=None):
+        #Recursively load jobs with and without dill files.
+        if self.jobmanager:
+            jm = self.jobmanager
         else:
-            return None
+            jm = config.default_jobmanager
+        if path is None:
+            path = self.path
+        loaded_jobs = {}
+        for foldername in filter(lambda x: osID(osPJ(path,x)), osLD(path)):
+            maybedill = osPJ(path,foldername,foldername+'.dill')
+            job = None
+            if osIF(maybedill): # dill file exists, load the job
+                job = jm.load_job(maybedill)
+            else: # no dill file, PLAMS might have excited before the job
+                job = self.jobType.load_external(osPJ(path,foldername), finalize=True)
+
+            if job: # add the job if it exists
+                loaded_jobs[foldername] = job
+                log("Loaded previous job {}".format(foldername), level=3)
+        self.children.update(loaded_jobs)
+
+
+    def new_children(self):
+        add = {}
+        self._set_vib()
+        for name, atoms in self._vib.iterdisplace():
+            if name not in self.children:
+                add[osPB(name)] = self.jobType(molecule=fromASE(atoms, properties=self.molecule.properties),
+                                               name=osPB(name), settings=self.settings)
+        return add
 
 
     def postrun(self):
         #get gradients and save them to the pickle files for ASE
-        path = self.path
-        for child in self.children:
+        forces = {}
+        for name, child in self.children.items():
             res = child.results
-            name = child.name
             # don't rely on gradients beeing numpy arrays
-            f = [ npa(vec) for vec in self.get_grad(res, eUnit='eV', lUnit='Angstrom') ]
-            force = -1.0 * npa(self.reorder(res, f))
-            filename = osPJ(path, name+'.pckl')
-            with open(filename, 'wb') as f:
-                pickleDump(force, f, protocol=2)
+            f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
+            forces[name+'.pckl'] = -1.0 * npa(f)
+        filename = osPJ(self.path, self.name+'.all.pckl')
+        with open(filename, 'wb') as f:
+            pickleDump(forces, f, protocol=2)
 
         self.results._vib = self._vib
 
@@ -108,10 +132,10 @@ class IRJob(VibrationsJob):
 
     Additional arguments:
 
-    * ``__init__``: get_dipole_vector, must take argument ``unit='au'``
+    *   ``get_dipole_vector`` -- Function name to retrieve dipole vector of the |Results| object. Must take argument ``unit='au'``.
     """
-    def __init__(self, molecule, settings, jobType=ADFJob, get_gradients='get_gradients', reorder='inputOrder', get_dipole_vector='get_dipole_vector', aseVibOpt={}):
-        VibrationsJob.__init__(self, molecule, settings, jobType=jobType, get_gradients=get_gradients, reorder=reorder, aseVibOpt=aseVibOpt)
+    def __init__(self, molecule, settings, get_dipole_vector='get_dipole_vector', **kwargs):
+        super().__init__(molecule, settings, **kwargs)
         self.get_dipole = getattr(self.jobType._result_type, get_dipole_vector)
         self.vibClass = aseIR
 
@@ -119,16 +143,16 @@ class IRJob(VibrationsJob):
 
     def postrun(self):
         #get gradients and dipole and save them to the pickle files for ASE
-        path = self.path
-        for child in self.children:
+        save = {}
+        for name, child in self.children.items():
             res = child.results
-            name = child.name
             # don't rely on gradients beeing numpy arrays
-            f = [ npa(vec) for vec in self.get_grad(res, eUnit='eV', lUnit='Angstrom') ]
-            force = -1.0 * npa(self.reorder(res, f))
+            f = [ npa(vec) for vec in self.get_grad(res, energy_unit='eV', dist_unit='Angstrom') ]
+            force = -1.0 * npa(f)
             dipole = npa(self.get_dipole(res, unit='au'))
-            filename = osPJ(path, name+'.pckl')
-            with open(filename, 'wb') as f:
-                pickleDump(npa([force,dipole]), f, protocol=2)
+            save[name+'.pckl'] = [force, dipole]
+        filename = osPJ(self.path, self.name+'.all.pckl')
+        with open(filename, 'wb') as f:
+            pickleDump(save, f, protocol=2)
 
         self.results._vib = self._vib
