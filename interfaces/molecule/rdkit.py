@@ -3,7 +3,7 @@ __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
            'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
            'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts',
            'partition_protein', 'readpdb', 'writepdb', 'get_substructure', 'get_conformations',
-           'yield_coords']
+           'yield_coords', 'canonicalize_mol']
 
 """
 @author: Lars Ridder
@@ -913,7 +913,7 @@ def get_substructure(mol, func_list):
     gen = (_get_match(mol, rdmol, i) for i in rdmol_func_list)
     return {key: value for key, value in zip(func_list, gen) if value}
 
-  
+
 def yield_coords(rdmol, id=-1):
     """Take an rdkit molecule and yield its coordinates as 3-tuples.
 
@@ -957,7 +957,7 @@ def yield_coords(rdmol, id=-1):
         pos = conf.GetAtomPosition(atom.GetIdx())
         yield (pos.x, pos.y, pos.z)
 
-        
+
 @add_to_class(Molecule)
 def assign_chirality(self):
     """
@@ -977,7 +977,7 @@ def assign_chirality(self):
         if pl_bond.properties.stereo:
             self.bonds[ibond] = pl_bond.properties.stereo
 
-            
+
 @add_to_class(Molecule)
 def get_chirality(self):
     """
@@ -985,3 +985,54 @@ def get_chirality(self):
     """
     rd_mol = to_rdmol(self, assignChirality=True)
     return Chem.FindMolChiralCenters(rd_mol,force=True,includeUnassigned=True)
+
+
+def canonicalize_mol(mol, inplace=False, **kwargs):
+    r"""Take a PLAMS molecule and sort its atoms based on their canonical rank.
+
+    Example:
+
+    .. code:: python
+
+        >>> from scm.plams import Molecule, canonicalize_mol
+
+        # Methane
+        >>> mol: Molecule = ...
+        >>> print(mol)
+        Atoms:
+            1         H      0.640510      0.640510     -0.640510
+            2         H      0.640510     -0.640510      0.640510
+            3         C      0.000000      0.000000      0.000000
+            4         H     -0.640510      0.640510      0.640510
+            5         H     -0.640510     -0.640510     -0.640510
+
+        >>> print(canonicalize_mol(mol))
+        Atoms:
+            1         C      0.000000      0.000000      0.000000
+            2         H     -0.640510     -0.640510     -0.640510
+            3         H     -0.640510      0.640510      0.640510
+            4         H      0.640510     -0.640510      0.640510
+            5         H      0.640510      0.640510     -0.640510
+
+    :parameter mol: The to-be canonicalized molecule.
+    :type mol: |Molecule|
+    :parameter bool inplace: Whether to sort the atoms inplace or to return a new molecule.
+    :parameter \**kwargs: Further keyword arguments for rdkit.Chem.CanonicalRankAtoms_.
+    :return: Either ``None`` or a newly sorted molecule, depending on the value of ``inplace``.
+    :rtype: None or |Molecule|
+
+    .. _rdkit.Chem.CanonicalRankAtoms: https://www.rdkit.org/docs/source/rdkit.Chem.rdmolfiles.html#rdkit.Chem.rdmolfiles.CanonicalRankAtoms
+
+    """
+    if not isinstance(mol, Molecule):
+        raise TypeError("`mol` expected a plams Molecule")
+    rdmol = to_rdmol(mol)
+    idx_rank = Chem.CanonicalRankAtoms(rdmol, **kwargs)
+
+    if inplace:
+        mol.atoms = [at for _, at in sorted(zip(idx_rank, mol.atoms), reverse=True)]
+        return None
+    else:
+        ret = mol.copy()
+        ret.atoms = [at for _, at in sorted(zip(idx_rank, ret.atoms), reverse=True)]
+        return ret
